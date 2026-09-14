@@ -105,3 +105,16 @@
 .bl-modal h2 { margin: 0 0 10px; font-size: 22px; color: var(--bl-name); }
 .bl-modal p { margin: 0 0 6px; font-size: 14px; color: var(--bl-text2); line-height: 1.4; }
 .bl-modal .bl-primary { margin-top: 10px; }
+
+/* Start menu, new-life form, notes */
+.bl-footnote { margin: 24px 12px 0; text-align: center; font-size: 12px; color: var(--bl-muted); }
+.bl-note { margin: 4px 12px; font-size: 13px; color: var(--bl-text2); line-height: 1.4; }
+.bl-form { display: flex; flex-direction: column; gap: 14px; padding: 16px 16px 24px; }
+.bl-form label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 700; color: var(--bl-text2); }
+.bl-form input[type="text"], .bl-form input:not([type]), .bl-form select { font: inherit; font-size: 15px; padding: 10px 12px; border: 1px solid var(--bl-divider); border-radius: 10px; background: #fff; color: var(--bl-text); }
+.bl-form input:focus, .bl-form select:focus { outline: 2px solid var(--bl-teal); outline-offset: 1px; }
+.bl-form fieldset { border: 1px solid var(--bl-divider); border-radius: 10px; padding: 8px 12px 10px; display: flex; gap: 18px; }
+.bl-form legend { font-size: 13px; font-weight: 700; color: var(--bl-text2); padding: 0 4px; }
+.bl-radio { flex-direction: row !important; align-items: center; gap: 6px !important; font-weight: 600 !important; color: var(--bl-text) !important; }
+.bl-form .bl-primary { align-self: center; margin-top: 6px; }
+.bl-form .bl-text-btn { align-self: center; }

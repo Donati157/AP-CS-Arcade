@@ -1,7 +1,9 @@
 // BetLife browser UI: renders the current screen from game state and forwards clicks to the game.
 import * as G from './game/game-state.js';
-import { MAJORS, UNIVERSITY_NAME, UNIVERSITY_YEARS, yearLabel, schoolName, educationSummary, isEnrolled } from './game/education.js';
+import { MAJORS, UNIVERSITY_NAME, UNIVERSITY_YEARS, SCHOOL_START_AGE, yearLabel, schoolName, educationSummary, isEnrolled } from './game/education.js';
 import { JOBS, currentJob, isEmployed, requirementText } from './game/career.js';
+import { lifeStage } from './game/player.js';
+import { PLACES } from './game/life-generator.js';
 import { icon } from './game/icons.js';
 
 export const VERSION = '1.0.0-web';
@@ -9,8 +11,8 @@ export const VERSION = '1.0.0-web';
 const root = document.getElementById('game');
 const modalRoot = document.getElementById('modal-root');
 
-let state = G.loadGame() || G.createNewGame();
-let screen = 'main';
+let state = G.loadGame();
+let screen = state ? 'main' : 'start';
 let selectedPerson = 0;
 
 // ---- Helpers --------------------------------------------------------------------
@@ -72,6 +74,52 @@ async function busyYear() {
 
 // ---- Screens --------------------------------------------------------------------
 
+// The first navigation item follows the player's life: growing up, school, career or the job board.
+function firstNavItem() {
+  if (isEnrolled(state.education)) return ['School', 'cap', 'school'];
+  if (isEmployed(state.career)) return ['Career', 'briefcase', 'career'];
+  if (G.canLookForJobs(state) || state.education.highSchoolGraduate) return ['Jobs', 'briefcase', 'jobs'];
+  return [lifeStage(player().age), 'person', 'profile'];
+}
+
+function renderStart() {
+  const saved = state ? row('Continue', `${state.player.name}, age ${state.player.age}`, 'person', 'go', 'data-target="main"') : '';
+  return `<header class="bl-header bl-header-main"><span class="bl-header-spacer"></span>
+      <div class="bl-brand"><span>BET</span><span class="bl-brand-accent">LIFE</span></div><span class="bl-header-spacer"></span></header>
+    <div class="bl-scroll">${section('Main Menu')}
+    ${row('New Life', 'Start a new life', 'sparkle', 'newLife')}${saved}
+    ${section('More')}
+    ${row('About BetLife', 'How the game works', 'info', 'about')}
+    <a class="bl-row bl-row-link" href="../../"><span class="bl-badge">${icon('exit')}</span><span class="bl-row-text"><span class="bl-row-title">Back to Arcade</span><span class="bl-row-sub">Leave the game</span></span><span class="bl-chevron" aria-hidden="true">›</span></a>
+    <p class="bl-footnote">BetLife ${VERSION}</p></div>`;
+}
+
+function renderNewLife() {
+  const places = PLACES.map((p, i) => `<option value="${i}">${esc(p.city)}, ${esc(p.country)}</option>`).join('');
+  return screenShell('New Life', 'start', `<form class="bl-form" id="bl-custom-form">
+    <label>First name<input name="firstName" maxlength="20" placeholder="Leave blank for random"></label>
+    <label>Last name<input name="lastName" maxlength="20" placeholder="Leave blank for random"></label>
+    <fieldset><legend>Gender</legend>
+      <label class="bl-radio"><input type="radio" name="gender" value="female" checked> Girl</label>
+      <label class="bl-radio"><input type="radio" name="gender" value="male"> Boy</label></fieldset>
+    <label>Birthplace<select name="placeIndex"><option value="-1">Random</option>${places}</select></label>
+    <button type="button" class="bl-primary" data-action="startCustom">START LIFE</button>
+    <button type="button" class="bl-text-btn" data-action="go" data-target="start">Back</button></form>`);
+}
+
+function renderProfile() {
+  const p = player();
+  const mother = state.relationships.find((r) => r.type === 'Mother');
+  const father = state.relationships.find((r) => r.type === 'Father');
+  const hint = p.age < SCHOOL_START_AGE ? infoRow('School', `Starts at age ${SCHOOL_START_AGE}`) : '';
+  return screenShell('Growing Up', 'home', `
+    ${infoRow('Name', p.name)}${infoRow('Age', `${p.age} years`)}${infoRow('Stage', lifeStage(p.age))}
+    ${infoRow('Born in', p.birthplace)}${infoRow('Birthday', p.birthday)}${hint}
+    ${section('Family')}
+    ${mother ? infoRow('Mother', `${mother.name} (${mother.age})`) : ''}${father ? infoRow('Father', `${father.name} (${father.age})`) : ''}
+    ${section('Tip')}<p class="bl-note">Spend time with your family in Relationships. Activities open up at age ${G.ACTIVITY_MIN_AGE}.</p>`);
+}
+
 function renderMain() {
   const p = player();
   let journal = '';
@@ -83,7 +131,7 @@ function renderMain() {
     }
     journal += `<p class="bl-event bl-${event.kind}">${esc(event.description)}</p>`;
   }
-  const first = isEnrolled(state.education) ? ['School', 'cap', 'school'] : isEmployed(state.career) ? ['Career', 'briefcase', 'career'] : ['Jobs', 'briefcase', 'jobs'];
+  const first = firstNavItem();
   const nav = (label, iconName, target) => `<button class="bl-nav-item" data-action="go" data-target="${target}"><span class="bl-nav-ring">${icon(iconName)}</span>${label}</button>`;
   return `<header class="bl-header bl-header-main">
       <button class="bl-icon-btn" data-action="go" data-target="menu" aria-label="Menu">${icon('menu')}</button>
@@ -108,7 +156,8 @@ function renderMenu() {
     ${infoRow('Game', 'BetLife ' + VERSION)}${infoRow('Character', player().name)}${infoRow('Age', player().age + ' years')}
     ${section('Options')}
     ${row('About BetLife', 'How the game works', 'info', 'about')}
-    ${row('Reset Life', 'Start over as Alex at 16', 'reset', 'reset')}
+    ${row('New Life', 'Start over from birth', 'sparkle', 'newLife')}
+    ${row('Main Menu', 'Back to the start screen', 'reset', 'go', 'data-target="start"')}
     <a class="bl-row bl-row-link" href="../../">${`<span class="bl-badge">${icon('exit')}</span><span class="bl-row-text"><span class="bl-row-title">Back to Arcade</span><span class="bl-row-sub">Leave the game</span></span><span class="bl-chevron" aria-hidden="true">›</span>`}</a>`);
 }
 
@@ -126,7 +175,7 @@ function renderSchool() {
       + row('Skip Class', '-6 Performance, +3 Happiness', 'arrowDown', 'skipClass')
       + row('Visit Library', '+2 Smarts, +2 Performance', 'book', 'visitSchoolLibrary');
   } else {
-    actions = infoRow('Status', 'Not enrolled');
+    actions = infoRow('Status', player().age < SCHOOL_START_AGE ? `School starts at age ${SCHOOL_START_AGE}` : 'Not enrolled');
   }
   return screenShell(university ? 'University' : 'School', 'home', `
     ${infoRow('School', schoolName(e))}${isEnrolled(e) ? infoRow(university ? 'Year' : 'Grade', yearLabel(e)) : ''}
@@ -251,6 +300,7 @@ function renderShopping() {
 }
 
 const SCREENS = {
+  start: renderStart, newlife: renderNewLife, profile: renderProfile,
   main: renderMain, menu: renderMenu, school: renderSchool, university: renderUniversity, jobs: renderJobs,
   career: renderCareer, assets: renderAssets, relationships: renderRelationships, person: renderPerson,
   activities: renderActivities, library: renderLibrary, mindbody: renderMindBody, recreation: renderRecreation,
@@ -258,7 +308,8 @@ const SCREENS = {
 };
 
 function render() {
-  G.saveGame(state);
+  if (!state && screen !== 'start' && screen !== 'newlife') screen = 'start';
+  if (state) G.saveGame(state);
   root.innerHTML = SCREENS[screen]();
   root.dataset.screen = screen;
   if (screen === 'main') {
@@ -276,7 +327,28 @@ function go(target) {
 
 // ---- Actions --------------------------------------------------------------------
 
+async function tooYoung() {
+  await showMessage('Too Young', `You are still too little for that. Activities open up at age ${G.ACTIVITY_MIN_AGE}.`, 'OK');
+}
+
+async function startNewLife(custom) {
+  G.clearSavedGame();
+  state = G.createNewGame(undefined, custom);
+  go('main');
+  const p = state.player;
+  await showMessage('A New Life Begins', `${p.name} was just born in ${p.birthplace}. Press Age to grow up, and make every year count.`, "Let's go");
+}
+
+// Relationship actions are allowed at any age; babies can still spend time with their parents.
+async function doFamilyAction(fn, title, message) {
+  if (!G.hasActionsLeft(state)) { await busyYear(); return; }
+  fn(state);
+  render();
+  await showMessage(title, message);
+}
+
 async function doAction(fn, title, message) {
+  if (!G.canDoActivities(state)) { await tooYoung(); return; }
   if (!G.hasActionsLeft(state)) { await busyYear(); return; }
   fn(state);
   render();
@@ -318,24 +390,42 @@ async function handle(action, data) {
     await doAction(fn, title, message);
     return;
   }
-  const person = state.relationships[selectedPerson];
+  const person = state ? state.relationships[selectedPerson] : null;
   switch (action) {
     case 'go': go(data.target); break;
     case 'home': go('main'); break;
     case 'age': await onAge(); break;
     case 'person': selectedPerson = Number(data.index); go('person'); break;
-    case 'spendTime': await doAction((s) => G.spendTime(s, person), 'Good Time', `You and ${G.firstName(person)} had a great time together. Closeness +5, Happiness +2.`); break;
-    case 'compliment': await doAction((s) => G.compliment(s, person), 'Nice Words', `${G.firstName(person)} appreciated the compliment. Closeness +3, Happiness +1.`); break;
-    case 'argue': await doAction((s) => G.argue(s, person), 'Rough Moment', `You and ${G.firstName(person)} had an argument. Closeness -8, Happiness -3.`); break;
+    case 'newLife': {
+      const choice = await showDecision({ title: 'New Life', description: state
+        ? 'Starting a new life erases the current one. Start with a random life or create your own.'
+        : 'Start with a randomly generated life or create your own.',
+        choices: [{ label: 'New Random Life' }, { label: 'New Custom Life' }] });
+      if (choice === 0) await startNewLife({});
+      else go('newlife');
+      break;
+    }
+    case 'startCustom': {
+      const form = document.getElementById('bl-custom-form');
+      const data = new FormData(form);
+      await startNewLife({ firstName: data.get('firstName'), lastName: data.get('lastName'), gender: data.get('gender'), placeIndex: Number(data.get('placeIndex')) });
+      break;
+    }
+    case 'spendTime': await doFamilyAction((s) => G.spendTime(s, person), 'Good Time', `You and ${G.firstName(person)} had a great time together. Closeness +5, Happiness +2.`); break;
+    case 'compliment': await doFamilyAction((s) => G.compliment(s, person), 'Nice Words', `${G.firstName(person)} appreciated the compliment. Closeness +3, Happiness +1.`); break;
+    case 'argue': await doFamilyAction((s) => G.argue(s, person), 'Rough Moment', `You and ${G.firstName(person)} had an argument. Closeness -8, Happiness -3.`); break;
     case 'doctor': {
+      if (!G.canDoActivities(state)) { await tooYoung(); break; }
       const result = G.visitDoctor(state);
       render();
       if (result === 'success') await showMessage('All Clear', 'The doctor says you are doing well. Health +3.');
+      else if (result === 'tooYoung') await tooYoung();
       else if (result === 'noMoney') await showMessage('Not Enough Money', `A checkup costs ${money(G.CHECKUP_COST)} and you cannot afford it right now.`);
       else await busyYear();
       break;
     }
     case 'buy': {
+      if (!G.canShop(state)) { await showMessage('Too Young', `You can start shopping on your own at age ${G.SHOPPING_MIN_AGE}.`, 'OK'); break; }
       const item = G.SHOP_ITEMS[Number(data.item)];
       const result = G.buy(state, item);
       render();
@@ -369,13 +459,8 @@ async function handle(action, data) {
       break;
     }
     case 'about':
-      await showMessage('About BetLife', `BetLife ${VERSION} is a life simulation built for the AP Computer Science Arcade. Press Age to move through the years, and use your ${G.ACTIONS_PER_YEAR} actions each year on school, work, activities and the people in your life.`);
+      await showMessage('About BetLife', `BetLife ${VERSION} is a life simulation built for the AP Computer Science Arcade. You start as a newborn. Press Age to move through the years, and use your ${G.ACTIONS_PER_YEAR} actions each year on school, work, activities and the people in your life.`);
       break;
-    case 'reset': {
-      const choice = await showDecision({ title: 'Reset Life?', description: 'This erases the current life and starts over as Alex at 16.', choices: [{ label: 'Reset' }, { label: 'Keep playing' }] });
-      if (choice === 0) { G.clearSavedGame(); state = G.createNewGame(); go('main'); }
-      break;
-    }
     default: break;
   }
 }
@@ -388,8 +473,8 @@ root.addEventListener('click', (event) => {
 
 // A hash such as #menu opens that screen directly (used for deep links and screenshots).
 const hashScreen = location.hash.slice(1);
-if (SCREENS[hashScreen]) screen = hashScreen;
+if (SCREENS[hashScreen] && (state || hashScreen === 'start' || hashScreen === 'newlife')) screen = hashScreen;
 render();
 
 // Exposed for automated testing only.
-window.betlife = { getState: () => state, go, handle };
+window.betlife = { getState: () => state, go, handle, startNewLife };

@@ -6,17 +6,24 @@ export function clampStat(value) {
   return Math.max(MIN_STAT, Math.min(MAX_STAT, value));
 }
 
-export function createPlayer() {
-  // Development character: every life starts as Alex until character creation exists.
+function between(rng, min, max) {
+  return min + Math.floor(rng() * (max - min + 1));
+}
+
+// A newborn with the facts from the life profile and randomly rolled starting stats.
+export function createPlayer(profile, rng) {
   return {
-    name: 'Alex Carter',
-    occupation: 'Student',
-    age: 16,
-    happiness: 80,
-    health: 90,
-    smarts: 70,
-    looks: 65,
-    money: 1250,
+    name: `${profile.firstName} ${profile.lastName}`,
+    gender: profile.gender,
+    birthplace: `${profile.city}, ${profile.country}`,
+    birthday: profile.birthday,
+    occupation: 'Infant',
+    age: 0,
+    happiness: between(rng, 60, 95),
+    health: between(rng, 70, 100),
+    smarts: between(rng, 25, 90),
+    looks: between(rng, 25, 95),
+    money: 0,
   };
 }
 
@@ -26,7 +33,7 @@ export function changeStat(player, stat, amount) {
   if (PERCENT_STATS.includes(stat)) {
     player[stat] = clampStat(player[stat] + amount);
   } else if (stat === 'money') {
-    player.money += amount;
+    player.money = Math.max(0, player.money + amount); // you cannot lose more than you have
   }
 }
 

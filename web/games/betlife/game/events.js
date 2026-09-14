@@ -20,6 +20,32 @@ function decision(id, text, minAge, maxAge, requires, title, description, choice
 }
 
 export const EVENTS = [
+  // Early years
+  plain('firstSteps', 'You took your first wobbly steps across the living room.', 1, 1, 'anyone', effect(2, 1), 'positive'),
+  plain('firstWord', 'You said your first word, and your parents could not stop cheering.', 1, 2, 'anyone', effect(2, 0, 2), 'positive'),
+  plain('grandparents', 'Your grandparents came to visit and spoiled you all week.', 2, 12, 'anyone', effect(3, 0, 0, 0, { family: 3 }), 'positive'),
+  plain('scrapedKnee', 'You scraped your knee falling off the playground slide.', 3, 9, 'anyone', effect(-1, -2)),
+  plain('daycareFriend', 'You met another kid at the park and became inseparable.', 3, 5, 'anyone', effect(2, 0, 0, 0, { newFriend: true }), 'positive'),
+  decision('familyPet', 'Your parents ask what pet the family should adopt.', 4, 10, 'anyone',
+    'A New Pet', 'Your parents say the family can adopt a pet. Which one do you pick?', [
+      choice('A dog', 'Your family adopted a playful dog, and it follows you everywhere.', effect(4, 1, 0, 0, { family: 2 })),
+      choice('A cat', 'Your family adopted a cat that sleeps on your bed every night.', effect(3, 0, 0, 0, { family: 2 })),
+    ]),
+  plain('lostTooth', 'You lost your first tooth and found a coin under your pillow.', 5, 7, 'anyone', effect(2, 0, 0, 5), 'positive'),
+  plain('learnedToSwim', 'You learned to swim at the community pool this summer.', 5, 9, 'anyone', effect(2, 3), 'positive'),
+  plain('trainingWheels', 'You rode a bike without training wheels for the first time.', 5, 8, 'anyone', effect(3, 1), 'positive'),
+  decision('schoolPlay', 'Your class is putting on a school play.', 6, 11, 'school',
+    'School Play', 'Your class is putting on a play. What part do you want?', [
+      choice('Take the lead role', 'You starred in the school play and took a bow to loud applause.', effect(4, 0, 1)),
+      choice('Paint the scenery', 'You painted the scenery for the school play and loved every minute.', effect(2, 0, 1)),
+    ]),
+  decision('spellingBee', 'The school spelling bee is next week.', 7, 12, 'school',
+    'Spelling Bee', 'The school spelling bee is next week. How do you prepare?', [
+      choice('Practice every night', 'You practiced every night and made it to the final round of the spelling bee.', effect(1, 0, 3, 0, { performance: 3 })),
+      choice('Just wing it', 'You winged the spelling bee and went out early, but had fun anyway.', effect(2)),
+    ]),
+  plain('scienceKit', 'You got a science kit for your birthday and spent weeks experimenting.', 7, 12, 'anyone', effect(2, 0, 3), 'positive'),
+
   // Teen years at high school
   decision('robotics', 'A classmate invites you to join the robotics club.', 13, 17, 'highSchool',
     'Robotics Club', 'A classmate invites you to join the robotics club after school.', [
@@ -27,7 +53,7 @@ export const EVENTS = [
       choice('Decline', 'You decided to keep your afternoons free.', NONE),
     ]),
   plain('groupProject', 'Your class was assigned a big group project, and you carried your share of the work.',
-    13, 17, 'highSchool', effect(0, 0, 2, 0, { performance: 3 })),
+    9, 17, 'school', effect(0, 0, 2, 0, { performance: 3 })),
   decision('talentShow', 'The school talent show is coming up.', 13, 17, 'highSchool',
     'Talent Show', 'The school is holding a talent show. Do you sign up to perform?', [
       choice('Perform', 'You performed at the talent show and the crowd loved it.', effect(4)),
@@ -40,7 +66,7 @@ export const EVENTS = [
       choice('Accept', "You walked the neighbor's dog all year and earned some money.", effect(1, 1, 0, 150)),
       choice('Decline', 'You told the neighbor you were too busy this year.', NONE),
     ]),
-  plain('newStudent', 'A new student joined your class, and the two of you became friends.', 6, 17, 'highSchool', effect(2, 0, 0, 0, { newFriend: true }), 'positive'),
+  plain('newStudent', 'A new student joined your class, and the two of you became friends.', 6, 17, 'school', effect(2, 0, 0, 0, { newFriend: true }), 'positive'),
   decision('studyBuddy', 'A friend asks for help before a big test.', 13, 17, 'highSchool',
     'Study Buddy', 'A friend asks you to help them study before a big test.', [
       choice('Help them', 'You spent the evening helping a friend study.', effect(1, 0, 1, 0, { friend: 5 })),
@@ -99,19 +125,21 @@ export function findEvent(id) {
   return EVENTS.find((event) => event.id === id) || null;
 }
 
-export function isEligible(event, age, educationStage, employed) {
+// requires: 'anyone' | 'school' (any grade) | 'highSchool' | 'university' | 'employed'
+export function isEligible(event, age, education, employed) {
   if (age < event.minAge || age > event.maxAge) return false;
   switch (event.requires) {
-    case 'highSchool': return educationStage === 'highSchool';
-    case 'university': return educationStage === 'university';
+    case 'school': return education.stage === 'school';
+    case 'highSchool': return education.stage === 'school' && education.year >= 9;
+    case 'university': return education.stage === 'university';
     case 'employed': return employed;
     default: return true;
   }
 }
 
 // Picks a random eligible event, avoiding last year's. Returns null if nothing is eligible.
-export function pickEvent(rng, age, educationStage, employed, lastEventId) {
-  const eligible = EVENTS.filter((event) => event.id !== lastEventId && isEligible(event, age, educationStage, employed));
+export function pickEvent(rng, age, education, employed, lastEventId) {
+  const eligible = EVENTS.filter((event) => event.id !== lastEventId && isEligible(event, age, education, employed));
   if (eligible.length === 0) return null;
   return eligible[Math.floor(rng() * eligible.length)];
 }

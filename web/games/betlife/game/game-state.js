@@ -5,11 +5,15 @@ import { createPlayer, changeStat, canAfford, lifeStage, stageIndex } from './pl
 import * as Education from './education.js';
 import * as Career from './career.js';
 import { pickEvent, findEvent } from './events.js';
+import { generateProfile } from './life-generator.js';
 
 export const ACTIONS_PER_YEAR = 6;
 export const READ_BOOK_SMARTS = 3;
 export const CHECKUP_COST = 50;
 export const MAX_RELATIONSHIPS = 8;
+export const ACTIVITY_MIN_AGE = 6;   // babies and toddlers cannot do activities on their own
+export const SHOPPING_MIN_AGE = 12;
+export const JOBS_MIN_AGE = 16;
 // Simplified finances: a flat share of salary kept and a flat yearly living cost for adults
 // who are out of school (students are supported by their family).
 const NET_INCOME_SHARE = 0.8;
@@ -22,17 +26,22 @@ export const SHOP_ITEMS = [
   { name: 'Used Car', type: 'Vehicle', cost: 3000, minimumStage: 'Young Adult' },
 ];
 
-export function createNewGame(seed) {
+/**
+ * Starts a brand-new life at birth. `custom` may fix the name, gender and birthplace;
+ * everything else is generated. Tests pass a seed for a repeatable life.
+ */
+export function createNewGame(seed, custom = {}) {
+  const rng = createRng(seed);
+  const profile = generateProfile(rng, custom);
   const state = {
-    player: createPlayer(),
+    profile,
+    player: createPlayer(profile, rng),
     education: Education.createEducation(),
     career: Career.createCareer(),
     timeline: [],
     relationships: [
-      { name: 'Emma Carter', type: 'Mother', level: 90, interactedThisYear: false },
-      { name: 'Daniel Carter', type: 'Father', level: 85, interactedThisYear: false },
-      { name: 'Noah Williams', type: 'Friend', level: 70, interactedThisYear: false },
-      { name: 'Sophia Lee', type: 'Friend', level: 65, interactedThisYear: false },
+      { name: profile.mother.name, type: 'Mother', job: profile.mother.job, age: profile.mother.age, level: 90, interactedThisYear: false },
+      { name: profile.father.name, type: 'Father', job: profile.father.job, age: profile.father.age, level: 85, interactedThisYear: false },
     ],
     assets: [],
     actionsRemaining: ACTIONS_PER_YEAR,
@@ -40,24 +49,19 @@ export function createNewGame(seed) {
     lastEventId: null,
     pendingDecision: null, // { kind: 'event', eventId } or { kind: 'afterHighSchool' }
   };
-  attachRng(state, seed);
-  // Alex's childhood, so the journal reads like a real life from the start.
-  const history = [
-    [0, 'You were born in a small town on a rainy morning.', 'milestone'],
-    [3, 'You said your first full sentence, and it was about cookies.', 'normal'],
-    [5, 'You started elementary school.', 'milestone'],
-    [6, 'You learned to ride a bike without training wheels.', 'normal'],
-    [8, 'You made a new best friend at school.', 'positive'],
-    [9, 'Your family adopted a dog named Pepper.', 'normal'],
-    [11, 'You discovered a love for drawing.', 'normal'],
-    [12, 'You won second place at the science fair.', 'positive'],
-    [13, 'You started middle school and joined the band.', 'normal'],
-    [14, 'You started high school.', 'milestone'],
-    [15, 'You joined a school club.', 'normal'],
-    [16, 'Your friend invited you to a party.', 'normal'],
-  ];
-  for (const [age, description, kind] of history) state.timeline.push({ age, description, kind });
+  Object.defineProperty(state, 'rng', { value: rng, enumerable: false, writable: true });
+  const child = profile.gender === 'female' ? 'girl' : 'boy';
+  addEvent(state, `You were born a ${child} in ${profile.city}, ${profile.country}.`, 'milestone');
+  addEvent(state, `Your birthday is ${profile.birthday}.`);
+  addEvent(state, `Your name is ${profile.firstName} ${profile.lastName}.`);
+  addEvent(state, `Your mother is ${profile.mother.name}, ${withArticle(profile.mother.job)} (age ${profile.mother.age}).`);
+  addEvent(state, `Your father is ${profile.father.name}, ${withArticle(profile.father.job)} (age ${profile.father.age}).`);
   return state;
+}
+
+// "a teacher" but "an accountant".
+function withArticle(noun) {
+  return (/^[aeiou]/i.test(noun) ? 'an ' : 'a ') + noun;
 }
 
 // The random generator is not part of the saved data.
@@ -86,6 +90,18 @@ export function yearlyExpenses(state) {
 
 export function hasActionsLeft(state) {
   return state.actionsRemaining > 0;
+}
+
+export function canDoActivities(state) {
+  return state.player.age >= ACTIVITY_MIN_AGE;
+}
+
+export function canShop(state) {
+  return state.player.age >= SHOPPING_MIN_AGE;
+}
+
+export function canLookForJobs(state) {
+  return state.player.age >= JOBS_MIN_AGE;
 }
 
 export function isFamily(relationship) {
@@ -122,6 +138,7 @@ export function ageUp(state) {
   processCareerAndMoney(state, expenses);
   processRelationships(state);
   processHealth(state);
+  updateOccupation(state);
   const education = state.education;
   if (graduated && education.highSchoolGraduate && !education.degree) {
     state.pendingDecision = { kind: 'afterHighSchool' };
@@ -132,9 +149,22 @@ export function ageUp(state) {
 
 function processEducation(state) {
   const education = state.education;
-  if (!Education.isEnrolled(education)) return false;
-  const wasHighSchool = education.stage === 'highSchool';
+  const age = state.player.age;
+  if (!Education.isEnrolled(education)) {
+    if (age === Education.SCHOOL_START_AGE && !education.highSchoolGraduate) {
+      Education.startSchool(education);
+      addEvent(state, `You started kindergarten at ${Education.ELEMENTARY_NAME}.`, 'milestone');
+    }
+    return false;
+  }
+  const wasHighSchool = Education.isHighSchool(education);
+  const wasSchool = education.stage === 'school';
   const graduated = Education.advanceYear(education);
+  if (wasSchool && !graduated && education.year === Education.FIRST_MIDDLE_GRADE) {
+    addEvent(state, `You started middle school at ${Education.MIDDLE_SCHOOL_NAME}.`, 'milestone');
+  } else if (wasSchool && !graduated && education.year === Education.FIRST_HIGH_GRADE) {
+    addEvent(state, `You started high school at ${Education.HIGH_SCHOOL_NAME}.`, 'milestone');
+  }
   if (graduated && wasHighSchool) {
     addEvent(state, `You graduated from ${Education.HIGH_SCHOOL_NAME}.`, 'milestone');
     state.player.occupation = 'High School Graduate';
@@ -164,8 +194,19 @@ function processCareerAndMoney(state, expenses) {
   }
 }
 
+// Infant, Child and Student labels follow age and school; jobs and graduation set their own.
+function updateOccupation(state) {
+  const { player, education, career } = state;
+  if (Career.isEmployed(career)) return;
+  if (education.stage === 'university') player.occupation = 'University Student';
+  else if (education.stage === 'school') player.occupation = 'Student';
+  else if (player.age <= 2) player.occupation = 'Infant';
+  else if (player.age < Education.SCHOOL_START_AGE) player.occupation = 'Child';
+}
+
 function processRelationships(state) {
   for (const relationship of state.relationships) {
+    if (relationship.age) relationship.age += 1;
     if (relationship.interactedThisYear) {
       changeLevel(relationship, 1);
     } else {
@@ -180,7 +221,7 @@ function processHealth(state) {
 }
 
 function processRandomEvent(state) {
-  const event = pickEvent(state.rng, state.player.age, state.education.stage, Career.isEmployed(state.career), state.lastEventId);
+  const event = pickEvent(state.rng, state.player.age, state.education, Career.isEmployed(state.career), state.lastEventId);
   if (!event) return;
   state.lastEventId = event.id;
   if (event.decision) {
@@ -255,7 +296,15 @@ function useAction(state) {
   return true;
 }
 
+// Activities need the player to be old enough and to have an action left; nothing changes otherwise.
 function action(state, apply, description) {
+  if (!canDoActivities(state) || !useAction(state)) return null;
+  apply();
+  return addEvent(state, description);
+}
+
+// Relationship actions only need an action left: even a baby spends time with family.
+function familyAction(state, apply, description) {
   if (!useAction(state)) return null;
   apply();
   return addEvent(state, description);
@@ -298,20 +347,21 @@ export function takeItEasyAtWork(state) {
   return action(state, () => { Career.changeCareerPerformance(state.career, -4); changeStat(state.player, 'happiness', 3); }, 'You took it easy at work this year.');
 }
 export function spendTime(state, relationship) {
-  return action(state, () => { changeLevel(relationship, 5); relationship.interactedThisYear = true; changeStat(state.player, 'happiness', 2); },
+  return familyAction(state, () => { changeLevel(relationship, 5); relationship.interactedThisYear = true; changeStat(state.player, 'happiness', 2); },
     `You spent some quality time with ${firstName(relationship)}.`);
 }
 export function compliment(state, relationship) {
-  return action(state, () => { changeLevel(relationship, 3); relationship.interactedThisYear = true; changeStat(state.player, 'happiness', 1); },
+  return familyAction(state, () => { changeLevel(relationship, 3); relationship.interactedThisYear = true; changeStat(state.player, 'happiness', 1); },
     `You gave ${firstName(relationship)} a heartfelt compliment.`);
 }
 export function argue(state, relationship) {
-  return action(state, () => { changeLevel(relationship, -8); relationship.interactedThisYear = true; changeStat(state.player, 'happiness', -3); },
+  return familyAction(state, () => { changeLevel(relationship, -8); relationship.interactedThisYear = true; changeStat(state.player, 'happiness', -3); },
     `You had an argument with ${firstName(relationship)}.`);
 }
 
-// Doctor visit: costs money and one action. Returns 'success' | 'noActions' | 'noMoney'.
+// Doctor visit: costs money and one action. Returns 'success' | 'tooYoung' | 'noActions' | 'noMoney'.
 export function visitDoctor(state) {
+  if (!canDoActivities(state)) return 'tooYoung';
   if (!hasActionsLeft(state)) return 'noActions';
   if (!canAfford(state.player, CHECKUP_COST)) return 'noMoney';
   useAction(state);
@@ -380,7 +430,8 @@ export function loadGame() {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
     const state = JSON.parse(raw);
-    if (!state || !state.player || !Array.isArray(state.timeline)) return null;
+    // Saves from before lives started at birth have no profile and are discarded.
+    if (!state || !state.player || !state.profile || !Array.isArray(state.timeline)) return null;
     attachRng(state);
     return state;
   } catch (error) {
