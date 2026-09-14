@@ -15,7 +15,7 @@ AP-CS-Arcade/
 └── docs/       Project-level documentation and screenshots.
 ```
 
-## Run the Arcade
+## Desktop
 Requires Java 17 (`java` and `javac` on the PATH).
 
 Mac/Linux:
@@ -32,6 +32,17 @@ run-arcade.bat
 
 The script compiles everything into `out/` and opens the Arcade. BetLife is playable now;
 the other three games show Coming Soon.
+
+## Web
+`web/` is the browser implementation: a static site (HTML, CSS, ES modules, no build step) with the
+arcade home page and a JavaScript port of BetLife v1.0. It is deployed on Vercel with `web` as the
+project root directory; the public URL is added here once the deployment is live.
+
+Run it locally with any static server, for example:
+
+```bash
+cd web && python3 -m http.server 8080
+```
 
 ## Technology
 - Java 17
