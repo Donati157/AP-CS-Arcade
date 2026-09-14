@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AP CS Arcade</title>
+  <meta name="description" content="AP CS Arcade: four games built by an AP Computer Science class. Play BetLife in your browser.">
+  <link rel="stylesheet" href="styles/arcade.css">
+</head>
+<body>
+  <main class="home">
+    <header class="home-header">
+      <h1 class="home-title">AP CS ARCADE</h1>
+      <p class="home-subtitle">4 Games. One Arcade.</p>
+    </header>
+    <section class="game-grid" aria-label="Games">
+      <article class="game-card playable" id="card-betlife">
+        <span class="badge">PLAYABLE</span>
+        <div class="game-thumb thumb-betlife" aria-hidden="true">BETLIFE</div>
+        <h2 class="game-name">BETLIFE</h2>
+        <p class="game-desc">Shape a life through choices, school, careers, relationships and more.</p>
+        <a class="play-btn" href="games/betlife/">▶ PLAY</a>
+      </article>
+      <article class="game-card soon" aria-label="Game 2, coming soon">
+        <div class="game-thumb thumb-soon" aria-hidden="true">?</div>
+        <h2 class="game-name">GAME 2</h2>
+        <p class="game-desc">Coming Soon</p>
+        <button class="soon-btn" type="button" disabled>COMING SOON</button>
+      </article>
+      <article class="game-card soon" aria-label="Game 3, coming soon">
+        <div class="game-thumb thumb-soon" aria-hidden="true">?</div>
+        <h2 class="game-name">GAME 3</h2>
+        <p class="game-desc">Coming Soon</p>
+        <button class="soon-btn" type="button" disabled>COMING SOON</button>
+      </article>
+      <article class="game-card soon" aria-label="Game 4, coming soon">
+        <div class="game-thumb thumb-soon" aria-hidden="true">?</div>
+        <h2 class="game-name">GAME 4</h2>
+        <p class="game-desc">Coming Soon</p>
+        <button class="soon-btn" type="button" disabled>COMING SOON</button>
+      </article>
+    </section>
+    <footer class="home-footer">An AP Computer Science class project · <a href="https://github.com/Donati157/AP-CS-Arcade">Source on GitHub</a></footer>
+  </main>
+  <script type="module" src="scripts/arcade.js"></script>
+</body>
+</html>
