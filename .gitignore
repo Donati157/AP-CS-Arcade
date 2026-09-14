@@ -1,0 +1,26 @@
+# Compiled Java output
+*.class
+out/
+build/
+bin/
+target/
+
+# Java tooling
+*.jar
+*.war
+*.log
+hs_err_pid*
+replay_pid*
+
+# IDE / editor files
+.idea/
+*.iml
+.vscode/
+.settings/
+.project
+.classpath
+*.swp
+
+# OS files
+.DS_Store
+Thumbs.db
