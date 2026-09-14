@@ -35,8 +35,10 @@ the other three games show Coming Soon.
 
 ## Web
 `web/` is the browser implementation: a static site (HTML, CSS, ES modules, no build step) with the
-arcade home page and a JavaScript port of BetLife v1.0. It is deployed on Vercel with `web` as the
-project root directory; the public URL is added here once the deployment is live.
+arcade home page and a JavaScript port of BetLife v1.0. It is deployed on Vercel (the root
+`vercel.json` serves `web/` as the site's output directory).
+
+Public test build: **https://ap-cs-arcade.vercel.app**
 
 Run it locally with any static server, for example:
 
