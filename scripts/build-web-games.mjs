@@ -18,6 +18,7 @@ const SLOT_COUNT = 4;
 const STATUSES = ['planning', 'development', 'playable'];
 const ID_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const SKIP_FILES = new Set(['game.json', 'README.md', '.DS_Store']);
+const SKIP_DIRS = new Set(['tests', 'node_modules']); // developer-only folders never reach the site
 const checkOnly = process.argv.includes('--check');
 
 const errors = [];
@@ -124,7 +125,7 @@ for (const game of games) {
   if (m.status !== 'playable') continue;
   const source = join(game.dir, m.web.dir || '.');
   const target = join(OUT_DIR, m.id);
-  const filter = (path) => !SKIP_FILES.has(path.split('/').pop());
+  const filter = (path) => { const name = path.split('/').pop(); return !SKIP_FILES.has(name) && !(SKIP_DIRS.has(name) && statSync(path).isDirectory()); };
   if (m.web.embed) {
     // The student's page is copied untouched into game/ and shown inside an arcade shell page.
     cpSync(source, join(target, 'game'), { recursive: true, filter });
@@ -160,17 +161,20 @@ function shellPage(m) {
   <meta name="description" content="${escapeHtml(m.description || m.name)}">
   <link rel="stylesheet" href="../../styles/arcade.css">
   <style>
-    .embed-stage { flex: 1; display: flex; }
-    .embed-stage iframe { flex: 1; width: 100%; height: calc(100vh - 52px); height: calc(100dvh - 52px); border: 0; background: #000; }
+    /* The outer page must never scroll, zoom or grow: the game owns the whole area below the bar. */
+    html, body { height: 100%; overflow: hidden; overscroll-behavior: none; touch-action: manipulation; }
+    body.shell-body.embed { height: 100vh; height: 100dvh; min-height: 0; }
+    .embed-stage { position: relative; flex: 1; min-height: 0; overflow: hidden; background: #000; }
+    .embed-stage iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: block; touch-action: manipulation; }
   </style>
 </head>
-<body class="shell-body">
+<body class="shell-body embed">
   <header class="shell-bar">
     <a class="shell-brand" href="../../">AP CS ARCADE</a>
     <a class="shell-back" href="../../">← Back to Arcade</a>
   </header>
   <main class="embed-stage">
-    <iframe id="game-frame" src="game/${entry}" title="${name}" allow="autoplay; fullscreen"></iframe>
+    <iframe id="game-frame" src="game/${entry}" title="${name}" allow="autoplay; fullscreen" scrolling="no"></iframe>
   </main>
   <script>
     // Keyboard input belongs to the game: keep the frame focused so Space/arrows reach it.
@@ -178,7 +182,11 @@ function shellPage(m) {
     const focusGame = () => { try { frame.contentWindow.focus(); } catch (error) { /* cross-origin guard */ } };
     frame.addEventListener('load', focusGame);
     window.addEventListener('focus', focusGame);
-    document.addEventListener('keydown', focusGame);
+    // Space and the arrow keys are game controls: never let the outer page scroll on them.
+    document.addEventListener('keydown', (event) => {
+      if (event.key === ' ' || event.key.startsWith('Arrow')) event.preventDefault();
+      focusGame();
+    });
   </script>
 </body>
 </html>

@@ -56,12 +56,20 @@ node scripts/build-web-games.mjs && cd web && python3 -m http.server 8080
 ## Games
 | Slot | Game | Directory | Status |
 |------|------|-----------|--------|
-| 1 | BetLife | `games/betlife` | Playable (desktop v1.0 + web). See [games/betlife/README.md](games/betlife/README.md). |
+| 1 | BetLife | `games/betlife` | Playable (desktop v1.0 + web 2.0: full life from birth to old age). See [games/betlife/README.md](games/betlife/README.md). |
 | 2 | Flappy Bruh | `games/Flappy Bruh` | Playable (web). See [games/Flappy Bruh/README.md](games/Flappy%20Bruh/README.md). |
 | 3 | TBD | `games/Poly Kart` | Coming Soon |
 | 4 | TBD | `games/Gravity Bird` | Coming Soon |
 
 Each game folder carries a `game.json` manifest; `scripts/build-web-games.mjs` turns those into the
 public arcade. To publish a game, read [docs/GAME_INTEGRATION.md](docs/GAME_INTEGRATION.md).
+
+BetLife's web simulation has an automated test suite (Node 18+, no dependencies):
+
+```bash
+node --test 'games/betlife/web/tests/*.test.mjs'
+```
+
+`node games/betlife/web/tests/report.mjs` prints the event catalog and reachability report.
 
 Each game must remain runnable on its own. The `arcade/` application will later launch them from a single menu.

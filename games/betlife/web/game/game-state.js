@@ -1,448 +1,266 @@
-// The whole game: state creation, every player action, and what happens when a year passes.
-// State is plain data so it can be saved as JSON. Functions here are the only things that change it.
-import { createRng, randomIndex } from './rng.js';
-import { createPlayer, changeStat, canAfford, lifeStage, stageIndex } from './player.js';
+// The public face of the simulation: create a life, take actions, answer dialogs, age up, save.
+// The interface only talks to this module (and reads state); it never edits state directly.
+import { initRng, seedFromClock, pick } from './rng.js';
+import { createPlayer, stageLabel } from './player.js';
+import { generateProfile, withArticle } from './life-generator.js';
+import { addJournal } from './journal.js';
+import * as People from './people.js';
 import * as Education from './education.js';
 import * as Career from './career.js';
-import { pickEvent, findEvent } from './events.js';
-import { generateProfile } from './life-generator.js';
+import * as Careers from './careers.js';
+import * as Assets from './assets.js';
+import * as Activities from './activities.js';
+import * as Economy from './economy.js';
+import { createEventMemory, resolveDecision as resolveEventDecision } from './events/engine.js';
+import { findEvent } from './events/catalog.js';
+import { ageUp as processYear, resolveAfterHighSchool, updateOccupation } from './year.js';
+import { changeStat } from './stats.js';
+import { SAVE_VERSION } from './save.js';
 
-export const ACTIONS_PER_YEAR = 6;
-export const READ_BOOK_SMARTS = 3;
-export const CHECKUP_COST = 50;
-export const MAX_RELATIONSHIPS = 8;
-export const ACTIVITY_MIN_AGE = 6;   // babies and toddlers cannot do activities on their own
-export const SHOPPING_MIN_AGE = 12;
-export const JOBS_MIN_AGE = 16;
-// Simplified finances: a flat share of salary kept and a flat yearly living cost for adults
-// who are out of school (students are supported by their family).
-const NET_INCOME_SHARE = 0.8;
-const LIVING_COST_ADULT = 9000;
-const ASSET_UPKEEP_PERCENT = 5;
-const FRIEND_NAMES = ['Liam Parker', 'Ava Nguyen', 'Mateo Rivera', 'Zoe Bennett', 'Ethan Brooks', 'Maya Patel'];
-
-export const SHOP_ITEMS = [
-  { name: 'Used Bicycle', type: 'Vehicle', cost: 200, minimumStage: 'Child' },
-  { name: 'Used Car', type: 'Vehicle', cost: 3000, minimumStage: 'Young Adult' },
-];
+export { saveGame, loadGame, clearSavedGame } from './save.js';
+export { lifeSummary } from './summary.js';
+export { ACTIONS_PER_YEAR, ACTIVITY_MIN_AGE } from './activities.js';
+export const SHOPPING_MIN_AGE = 8;
+export const JOBS_MIN_AGE = 15;
 
 /**
- * Starts a brand-new life at birth. `custom` may fix the name, gender and birthplace;
- * everything else is generated. Tests pass a seed for a repeatable life.
+ * Starts a brand-new life at birth. `custom` may fix the name, gender and birthplace; everything
+ * else comes from the seeded RNG. Tests pass a seed for a repeatable life.
  */
-export function createNewGame(seed, custom = {}) {
-  const rng = createRng(seed);
-  const profile = generateProfile(rng, custom);
+export function createNewGame(custom = {}, seed = seedFromClock()) {
   const state = {
-    profile,
-    player: createPlayer(profile, rng),
-    education: Education.createEducation(),
-    career: Career.createCareer(),
-    timeline: [],
-    relationships: [
-      { name: profile.mother.name, type: 'Mother', job: profile.mother.job, age: profile.mother.age, level: 90, interactedThisYear: false },
-      { name: profile.father.name, type: 'Father', job: profile.father.job, age: profile.father.age, level: 85, interactedThisYear: false },
-    ],
-    assets: [],
-    actionsRemaining: ACTIONS_PER_YEAR,
-    nextFriendName: 0,
-    lastEventId: null,
-    pendingDecision: null, // { kind: 'event', eventId } or { kind: 'afterHighSchool' }
+    version: SAVE_VERSION, seed: 0, rngState: 0, profile: null, player: null,
+    education: Education.createEducation(), career: Career.createCareer(),
+    relationships: [], assets: [], timeline: [],
+    actionsRemaining: Activities.ACTIONS_PER_YEAR, yearly: { activities: {}, milestones: 0 },
+    events: createEventMemory(), pending: [], flags: {}, statLog: [], nextPersonId: 1, nextAssetId: 1, ended: null,
   };
-  Object.defineProperty(state, 'rng', { value: rng, enumerable: false, writable: true });
+  initRng(state, seed);
+  const profile = generateProfile(state, custom);
+  state.profile = profile;
+  state.player = createPlayer(state, profile);
+  People.createStartingFamily(state, profile);
   const child = profile.gender === 'female' ? 'girl' : 'boy';
-  addEvent(state, `You were born a ${child} in ${profile.city}, ${profile.country}.`, 'milestone');
-  addEvent(state, `Your birthday is ${profile.birthday}.`);
-  addEvent(state, `Your name is ${profile.firstName} ${profile.lastName}.`);
-  addEvent(state, `Your mother is ${profile.mother.name}, ${withArticle(profile.mother.job)} (age ${profile.mother.age}).`);
-  addEvent(state, `Your father is ${profile.father.name}, ${withArticle(profile.father.job)} (age ${profile.father.age}).`);
+  addJournal(state, `You were born a ${child} in ${profile.city}, ${profile.country}.`, 'milestone');
+  addJournal(state, `Your birthday is ${profile.birthday}.`);
+  addJournal(state, `Your name is ${profile.firstName} ${profile.lastName}.`);
+  addJournal(state, `Your mother is ${profile.mother.name}, ${withArticle(profile.mother.job)} (age ${profile.mother.age}).`);
+  addJournal(state, `Your father is ${profile.father.name}, ${withArticle(profile.father.job)} (age ${profile.father.age}).`);
+  const sibling = People.siblings(state)[0];
+  if (sibling) addJournal(state, `You have an older ${sibling.role} named ${People.firstName(sibling)} (age ${sibling.age}).`);
   return state;
 }
 
-// "a teacher" but "an accountant".
-function withArticle(noun) {
-  return (/^[aeiou]/i.test(noun) ? 'an ' : 'a ') + noun;
+// ---- Reading the state --------------------------------------------------------------------------------
+
+export const isAlive = (state) => state.player.alive;
+export const hasActionsLeft = (state) => state.actionsRemaining > 0;
+export const canDoActivities = (state) => state.player.age >= Activities.ACTIVITY_MIN_AGE;
+export const canShop = (state) => state.player.age >= SHOPPING_MIN_AGE;
+export const canLookForJobs = (state) => state.player.age >= JOBS_MIN_AGE;
+export const netWorth = Economy.netWorth;
+export const yearlyExpenses = Economy.yearlyExpenses;
+export const yearlyIncome = Economy.yearlyIncome;
+export const currentModal = (state) => state.pending[0] || null;
+export const lifeStageLabel = (state) => stageLabel(state.player.age);
+
+// The decision the interface should show for a pending modal, resolved to plain data.
+export function decisionFor(modal) {
+  if (modal.eventId === 'afterHighSchool') return modal;
+  return modal;
 }
 
-// The random generator is not part of the saved data.
-export function attachRng(state, seed) {
-  Object.defineProperty(state, 'rng', { value: createRng(seed), enumerable: false, writable: true });
-}
-
-// ---- Derived values -------------------------------------------------------------
-
-export function netWorth(state) {
-  return state.player.money + state.assets.reduce((sum, asset) => sum + asset.value, 0);
-}
-
-export function ownsAsset(state, name) {
-  return state.assets.some((asset) => asset.name === name);
-}
-
-export function yearlyExpenses(state) {
-  const stage = lifeStage(state.player.age);
-  const adult = stageIndex(stage) >= stageIndex('Young Adult');
-  let cost = 0;
-  if (adult && !Education.isEnrolled(state.education)) cost += LIVING_COST_ADULT;
-  for (const asset of state.assets) cost += Math.floor(asset.value * ASSET_UPKEEP_PERCENT / 100);
-  return cost;
-}
-
-export function hasActionsLeft(state) {
-  return state.actionsRemaining > 0;
-}
-
-export function canDoActivities(state) {
-  return state.player.age >= ACTIVITY_MIN_AGE;
-}
-
-export function canShop(state) {
-  return state.player.age >= SHOPPING_MIN_AGE;
-}
-
-export function canLookForJobs(state) {
-  return state.player.age >= JOBS_MIN_AGE;
-}
-
-export function isFamily(relationship) {
-  return relationship.type === 'Mother' || relationship.type === 'Father';
-}
-
-export function firstName(relationship) {
-  return relationship.name.split(' ')[0];
-}
-
-export function currentDecision(state) {
-  const pending = state.pendingDecision;
-  if (!pending) return null;
-  if (pending.kind === 'afterHighSchool') return afterHighSchoolDecision();
-  return findEvent(pending.eventId).decision;
-}
-
-// ---- Journal ------------------------------------------------------------------
-
-function addEvent(state, description, kind = 'normal') {
-  const event = { age: state.player.age, description, kind };
-  state.timeline.push(event);
-  return event;
-}
-
-// ---- Aging: the engine of the simulation ----------------------------------------
+// ---- The year ------------------------------------------------------------------------------------------
 
 export function ageUp(state) {
-  state.player.age += 1;
-  state.actionsRemaining = ACTIONS_PER_YEAR;
-  // Living costs depend on how the year started: a graduating student is not charged yet.
-  const expenses = yearlyExpenses(state);
-  const graduated = processEducation(state);
-  processCareerAndMoney(state, expenses);
-  processRelationships(state);
-  processHealth(state);
+  if (!state.player.alive || state.pending.length > 0) return false;
+  return processYear(state);
+}
+
+// Answers the first pending dialog. For decisions `choiceIndex` picks the option (the index the
+// modal lists, not its position). Returns a follow-up screen name or null.
+export function answerModal(state, choiceIndex = null) {
+  const modal = state.pending.shift();
+  if (!modal) return null;
+  if (modal.kind !== 'decision') return null;
+  let followUp = null;
+  if (modal.eventId === 'afterHighSchool') followUp = resolveAfterHighSchool(state, choiceIndex);
+  else if (modal.eventId === 'retirePrompt') { if (choiceIndex === 0) followUp = 'retire'; else addJournal(state, 'You decided to keep working for now.'); }
+  else followUp = resolveEventDecision(state, modal, choiceIndex);
+  if (followUp === 'retire') { Career.retire(state, true); followUp = null; }
   updateOccupation(state);
-  const education = state.education;
-  if (graduated && education.highSchoolGraduate && !education.degree) {
-    state.pendingDecision = { kind: 'afterHighSchool' };
-  } else {
-    processRandomEvent(state);
-  }
+  return followUp;
 }
 
-function processEducation(state) {
-  const education = state.education;
-  const age = state.player.age;
-  if (!Education.isEnrolled(education)) {
-    if (age === Education.SCHOOL_START_AGE && !education.highSchoolGraduate) {
-      Education.startSchool(education);
-      addEvent(state, `You started kindergarten at ${Education.ELEMENTARY_NAME}.`, 'milestone');
-    }
-    return false;
-  }
-  const wasHighSchool = Education.isHighSchool(education);
-  const wasSchool = education.stage === 'school';
-  const graduated = Education.advanceYear(education);
-  if (wasSchool && !graduated && education.year === Education.FIRST_MIDDLE_GRADE) {
-    addEvent(state, `You started middle school at ${Education.MIDDLE_SCHOOL_NAME}.`, 'milestone');
-  } else if (wasSchool && !graduated && education.year === Education.FIRST_HIGH_GRADE) {
-    addEvent(state, `You started high school at ${Education.HIGH_SCHOOL_NAME}.`, 'milestone');
-  }
-  if (graduated && wasHighSchool) {
-    addEvent(state, `You graduated from ${Education.HIGH_SCHOOL_NAME}.`, 'milestone');
-    state.player.occupation = 'High School Graduate';
-  } else if (graduated) {
-    addEvent(state, `You graduated from ${Education.UNIVERSITY_NAME} with a degree in ${education.degree}.`, 'milestone');
-    state.player.occupation = 'Unemployed';
-  }
-  return graduated;
+// A "flip a coin" answer: a random option, using the game's own RNG so replays stay identical.
+export function randomChoice(state, modal) {
+  return pick(state, modal.choices).index;
 }
 
-function processCareerAndMoney(state, expenses) {
-  const { player, career } = state;
-  if (Career.isEmployed(career)) {
-    const netIncome = Math.round(Career.currentJob(career).salary * NET_INCOME_SHARE);
-    changeStat(player, 'money', netIncome);
-    if (!career.workedHardThisYear) Career.changeCareerPerformance(career, -3);
-    Career.completeCareerYear(career);
-  }
-  if (expenses === 0) return;
-  if (canAfford(player, expenses)) {
-    changeStat(player, 'money', -expenses);
-  } else if (player.money > 0) {
-    // Simplification: the player cannot go into debt; a hard year just empties the account.
-    changeStat(player, 'money', -player.money);
-    changeStat(player, 'happiness', -3);
-    addEvent(state, 'Money was tight this year and you had to cut back on everything.');
-  }
+// ---- Actions (each one uses one of the year's actions) ------------------------------------------------
+
+function guard(state) {
+  if (!state.player.alive) return { ok: false, title: 'Life Complete', text: 'This life has ended. Start a new life from the menu.' };
+  if (!hasActionsLeft(state)) return { ok: false, title: 'Busy Year', text: 'You have done a lot this year. Press Age to continue.' };
+  return null;
 }
 
-// Infant, Child and Student labels follow age and school; jobs and graduation set their own.
-function updateOccupation(state) {
-  const { player, education, career } = state;
-  if (Career.isEmployed(career)) return;
-  if (education.stage === 'university') player.occupation = 'University Student';
-  else if (education.stage === 'school') player.occupation = 'Student';
-  else if (player.age <= 2) player.occupation = 'Infant';
-  else if (player.age < Education.SCHOOL_START_AGE) player.occupation = 'Child';
+export function doActivity(state, activityId) {
+  const blocked = guard(state);
+  if (blocked) return blocked;
+  const activity = Activities.findActivity(activityId);
+  if (!activity) return { ok: false, title: 'Unknown', text: 'That activity does not exist.' };
+  if (!canDoActivities(state)) return { ok: false, title: 'Too Young', text: `You are still too little for that. Activities open up at age ${Activities.ACTIVITY_MIN_AGE}.` };
+  return Activities.perform(state, activity);
 }
 
-function processRelationships(state) {
-  for (const relationship of state.relationships) {
-    if (relationship.age) relationship.age += 1;
-    if (relationship.interactedThisYear) {
-      changeLevel(relationship, 1);
-    } else {
-      changeLevel(relationship, isFamily(relationship) ? -1 : -3);
-    }
-    relationship.interactedThisYear = false;
-  }
-}
-
-function processHealth(state) {
-  if (state.player.age >= 45) changeStat(state.player, 'health', -1);
-}
-
-function processRandomEvent(state) {
-  const event = pickEvent(state.rng, state.player.age, state.education, Career.isEmployed(state.career), state.lastEventId);
-  if (!event) return;
-  state.lastEventId = event.id;
-  if (event.decision) {
-    state.pendingDecision = { kind: 'event', eventId: event.id };
-  } else {
-    applyEffect(state, event.effect);
-    addEvent(state, event.text, event.kind);
-  }
-}
-
-function afterHighSchoolDecision() {
-  return {
-    title: "What's Next?",
-    description: 'High school is behind you. What do you want to do now?',
-    choices: [
-      { label: 'Go to university', resultText: 'You decided to continue your education at university.', effect: {}, followUp: 'university' },
-      { label: 'Find a job', resultText: 'You decided to start working right away.', effect: {}, followUp: 'jobs' },
-      { label: 'Take some time off', resultText: 'You decided to take some time off to figure things out.', effect: { happiness: 3 }, followUp: null },
-    ],
-  };
-}
-
-// Applies the chosen option of the pending decision. Returns the follow-up screen or null.
-export function resolveDecision(state, choiceIndex) {
-  const decision = currentDecision(state);
-  if (!decision) return null;
-  const choice = decision.choices[choiceIndex];
-  state.pendingDecision = null;
-  applyEffect(state, choice.effect);
-  addEvent(state, choice.resultText, choice.followUp ? 'milestone' : 'normal');
-  if (!choice.followUp && state.player.occupation === 'High School Graduate') {
-    state.player.occupation = 'Taking Time Off';
-  }
-  return choice.followUp;
-}
-
-function applyEffect(state, effect) {
-  const player = state.player;
-  changeStat(player, 'happiness', effect.happiness || 0);
-  changeStat(player, 'health', effect.health || 0);
-  changeStat(player, 'smarts', effect.smarts || 0);
-  changeStat(player, 'money', effect.money || 0);
-  if (effect.performance && Education.isEnrolled(state.education)) {
-    Education.changePerformance(state.education, effect.performance);
-  }
-  if (effect.friend) {
-    const friends = state.relationships.filter((r) => !isFamily(r));
-    if (friends.length > 0) changeLevel(friends[randomIndex(state.rng, friends.length)], effect.friend);
-  }
-  if (effect.family) {
-    for (const relationship of state.relationships) if (isFamily(relationship)) changeLevel(relationship, effect.family);
-  }
-  if (effect.newFriend) meetNewFriend(state);
-}
-
-function meetNewFriend(state) {
-  if (state.relationships.length >= MAX_RELATIONSHIPS || state.nextFriendName >= FRIEND_NAMES.length) return;
-  state.relationships.push({ name: FRIEND_NAMES[state.nextFriendName], type: 'Friend', level: 55, interactedThisYear: false });
-  state.nextFriendName += 1;
-}
-
-function changeLevel(relationship, amount) {
-  relationship.level = Math.max(0, Math.min(100, relationship.level + amount));
-}
-
-// ---- Actions that use one of the year's actions ----------------------------------
-// Each returns the journal event, or null when no actions are left (nothing changes then).
-
-function useAction(state) {
-  if (state.actionsRemaining <= 0) return false;
+export function interactWith(state, personId, action) {
+  const blocked = guard(state);
+  if (blocked) return blocked;
+  const person = People.findPerson(state, personId);
+  if (!person || !person.alive) return { ok: false, title: 'Gone', text: 'That person is no longer part of your life.' };
+  const allowed = People.actionsFor(state, person).some(([id]) => id === action);
+  if (!allowed) return { ok: false, title: 'Not Yet', text: 'You cannot do that with them right now.' };
+  const text = People.interact(state, person, action);
+  if (text === null) return { ok: false, title: 'Not Enough Money', text: 'You cannot afford that right now.' };
   state.actionsRemaining -= 1;
-  return true;
+  addJournal(state, text, ['propose', 'marry'].includes(action) ? 'milestone' : 'normal');
+  return { ok: true, title: person.role === 'pet' ? person.name : People.firstName(person), text };
 }
 
-// Activities need the player to be old enough and to have an action left; nothing changes otherwise.
-function action(state, apply, description) {
-  if (!canDoActivities(state) || !useAction(state)) return null;
-  apply();
-  return addEvent(state, description);
+// One action spent on everyone at once: a smaller boost than one-to-one time, for the whole circle.
+export function familyDay(state) {
+  const blocked = guard(state);
+  if (blocked) return blocked;
+  const people = People.alive(state);
+  if (people.length === 0) return { ok: false, title: 'Nobody Around', text: 'There is nobody in your life to spend the day with.' };
+  state.actionsRemaining -= 1;
+  for (const p of people) { People.changeCloseness(p, 3); p.interactedThisYear = true; }
+  changeStat(state, 'happiness', 3, 'day with everyone');
+  const text = `You spent a whole day with everyone in your life (${people.length} ${people.length === 1 ? 'person' : 'people'}).`;
+  addJournal(state, text);
+  return { ok: true, title: 'A Day Together', text };
 }
 
-// Relationship actions only need an action left: even a baby spends time with family.
-function familyAction(state, apply, description) {
-  if (!useAction(state)) return null;
-  apply();
-  return addEvent(state, description);
+export function studyAction(state, action) {
+  const blocked = guard(state);
+  if (blocked) return blocked;
+  const e = state.education;
+  if (!Education.isEnrolled(e)) return { ok: false, title: 'Not Enrolled', text: 'You are not in school right now.' };
+  state.actionsRemaining -= 1;
+  const done = state.yearly.activities[action] || 0;
+  state.yearly.activities[action] = done + 1;
+  const scale = done === 0 ? 1 : done === 1 ? 0.5 : 0.25;
+  let text;
+  switch (action) {
+    case 'studyHarder': Education.changePerformance(e, Math.round(6 * scale)); changeStat(state, 'smarts', done === 0 ? 1 : 0, 'studied'); changeStat(state, 'happiness', -1, 'studied'); text = 'You put in extra study hours this term.'; break;
+    case 'askTeacher': Education.changePerformance(e, Math.round(4 * scale)); changeStat(state, 'smarts', Math.round(1 * scale), 'asked for help'); text = 'You asked a teacher for extra help and it paid off.'; break;
+    case 'skipClass': Education.changePerformance(e, -6); changeStat(state, 'happiness', 3, 'skipped class'); text = 'You skipped some classes to enjoy yourself.'; break;
+    case 'joinClub': {
+      const friend = People.addFriend(state);
+      changeStat(state, 'happiness', 2, 'joined club');
+      text = friend ? `You joined a school club and became friends with ${friend.name}.` : 'You joined a school club, but your circle of friends is already full.';
+      break;
+    }
+    default: return { ok: false, title: 'Unknown', text: 'Unknown school action.' };
+  }
+  addJournal(state, text);
+  return { ok: true, title: 'School', text };
 }
 
-export function readBook(state) {
-  return action(state, () => changeStat(state.player, 'smarts', READ_BOOK_SMARTS), 'You spent some time reading at the library.');
-}
-export function meditate(state) {
-  return action(state, () => { changeStat(state.player, 'happiness', 4); changeStat(state.player, 'health', 1); }, 'You took some time to meditate.');
-}
-export function goForWalk(state) {
-  return action(state, () => { changeStat(state.player, 'health', 3); changeStat(state.player, 'happiness', 2); }, 'You went for a long walk around the neighborhood.');
-}
-export function playGame(state) {
-  return action(state, () => changeStat(state.player, 'happiness', 4), 'You spent the afternoon playing games.');
-}
-export function spendTimeOutside(state) {
-  return action(state, () => { changeStat(state.player, 'happiness', 2); changeStat(state.player, 'health', 2); }, 'You spent some time outside in the fresh air.');
-}
-export function studyHarder(state) {
-  return action(state, () => { Education.changePerformance(state.education, 5); changeStat(state.player, 'smarts', 2); }, 'You spent extra time studying for your exams.');
-}
-export function skipStudying(state) {
-  return action(state, () => { Education.changePerformance(state.education, -5); changeStat(state.player, 'happiness', 2); }, 'You decided to take it easy instead of studying.');
-}
-export function visitSchoolLibrary(state) {
-  return action(state, () => { changeStat(state.player, 'smarts', 2); Education.changePerformance(state.education, 2); }, 'You studied in the school library after class.');
-}
-export function attendClass(state) {
-  return action(state, () => { Education.changePerformance(state.education, 4); changeStat(state.player, 'smarts', 1); }, 'You attended every lecture this semester.');
-}
-export function skipClass(state) {
-  return action(state, () => { Education.changePerformance(state.education, -6); changeStat(state.player, 'happiness', 3); }, 'You skipped a few classes to enjoy campus life.');
-}
-export function workHarder(state) {
-  return action(state, () => { Career.changeCareerPerformance(state.career, 6); changeStat(state.player, 'happiness', -1); }, 'You put in long hours at work and it showed.');
-}
-export function takeItEasyAtWork(state) {
-  return action(state, () => { Career.changeCareerPerformance(state.career, -4); changeStat(state.player, 'happiness', 3); }, 'You took it easy at work this year.');
-}
-export function spendTime(state, relationship) {
-  return familyAction(state, () => { changeLevel(relationship, 5); relationship.interactedThisYear = true; changeStat(state.player, 'happiness', 2); },
-    `You spent some quality time with ${firstName(relationship)}.`);
-}
-export function compliment(state, relationship) {
-  return familyAction(state, () => { changeLevel(relationship, 3); relationship.interactedThisYear = true; changeStat(state.player, 'happiness', 1); },
-    `You gave ${firstName(relationship)} a heartfelt compliment.`);
-}
-export function argue(state, relationship) {
-  return familyAction(state, () => { changeLevel(relationship, -8); relationship.interactedThisYear = true; changeStat(state.player, 'happiness', -3); },
-    `You had an argument with ${firstName(relationship)}.`);
+export function jobAction(state, action) {
+  const blocked = guard(state);
+  if (blocked) return blocked;
+  if (!Career.isEmployed(state.career)) return { ok: false, title: 'No Job', text: 'You do not have a job right now.' };
+  let text;
+  if (action === 'workHarder') text = Career.workHarder(state);
+  else if (action === 'takeItEasy') text = Career.takeItEasy(state);
+  else if (action === 'askForRaise') text = Career.askForRaise(state);
+  else return { ok: false, title: 'Unknown', text: 'Unknown job action.' };
+  state.actionsRemaining -= 1;
+  addJournal(state, text);
+  return { ok: true, title: 'Work', text };
 }
 
-// Doctor visit: costs money and one action. Returns 'success' | 'tooYoung' | 'noActions' | 'noMoney'.
-export function visitDoctor(state) {
-  if (!canDoActivities(state)) return 'tooYoung';
-  if (!hasActionsLeft(state)) return 'noActions';
-  if (!canAfford(state.player, CHECKUP_COST)) return 'noMoney';
-  useAction(state);
-  changeStat(state.player, 'money', -CHECKUP_COST);
-  changeStat(state.player, 'health', 3);
-  addEvent(state, 'You went to the doctor for a general checkup.');
-  return 'success';
-}
+// ---- Choices that do not cost an action -----------------------------------------------------------------
 
-// ---- Education, career and shopping (no action cost) ----------------------------
-
-export function enrollInUniversity(state, major) {
-  Education.enrollInUniversity(state.education, major);
-  state.player.occupation = 'University Student';
-  addEvent(state, `You enrolled at ${Education.UNIVERSITY_NAME} to study ${major}.`, 'milestone');
-}
-
-export function isEligibleFor(state, job) {
-  return Career.meetsRequirements(job, state.player, state.education);
-}
-
-export function applyForJob(state, job) {
-  if (!isEligibleFor(state, job)) return false;
-  Career.startJob(state.career, job);
-  state.player.occupation = job.title;
-  addEvent(state, `You were hired as a ${job.title} at ${job.company}.`, 'milestone');
-  return true;
+export function applyForCareer(state, careerId) {
+  if (!state.player.alive) return { ok: false, title: 'Life Complete', text: 'This life has ended.' };
+  const career = Careers.findCareer(careerId);
+  if (!career) return { ok: false, title: 'Unknown', text: 'That job does not exist.' };
+  if (!Career.isEligible(state, career)) return { ok: false, title: 'Not Qualified', text: `This position requires: ${Careers.requirementText(career)}.` };
+  if (Career.isEmployed(state.career) && state.career.careerId === careerId) return { ok: false, title: 'Already Hired', text: 'You already work there.' };
+  Career.hire(state, career);
+  Career.resetUnemployment(state.career);
+  updateOccupation(state);
+  const title = career.ladder[0].title;
+  return { ok: true, title: "You're Hired!", text: `You start as ${withArticle(title)} at ${career.employer}, earning $${career.ladder[0].salary.toLocaleString('en-US')} a year.`,
+    facts: [['Title', title], ['Career', career.name], ['Employer', career.employer], ['Salary', `$${career.ladder[0].salary.toLocaleString('en-US')} / year`]] };
 }
 
 export function quitJob(state) {
-  const title = Career.currentJob(state.career).title;
-  Career.quitJob(state.career);
+  if (!Career.isEmployed(state.career)) return false;
+  Career.quit(state);
+  updateOccupation(state);
+  return true;
+}
+
+export function retireNow(state) {
+  if (!Career.canRetire(state)) return false;
+  Career.retire(state, true);
+  updateOccupation(state);
+  return true;
+}
+
+export function enrollUniversity(state, major) {
+  const e = state.education;
+  if (!Education.canEnrollHigher(e) || e.degree) return false;
+  Education.enrollInUniversity(e, major);
+  updateOccupation(state);
+  addJournal(state, `You enrolled at ${Education.UNIVERSITY_NAME} to study ${major}.`, 'milestone');
+  return true;
+}
+
+export function enrollTradeSchool(state, trade) {
+  const e = state.education;
+  if (!Education.canEnrollHigher(e) || e.trade) return false;
+  Education.enrollInTradeSchool(e, trade);
+  updateOccupation(state);
+  addJournal(state, `You enrolled at ${Education.TRADE_SCHOOL_NAME} to train in ${trade}.`, 'milestone');
+  return true;
+}
+
+export function dropOut(state) {
+  const e = state.education;
+  if (!Education.isUniversity(e) && !Education.isTradeSchool(e)) return false;
+  Education.dropOut(e);
   state.player.occupation = 'Unemployed';
-  addEvent(state, `You quit your job as a ${title}.`);
+  addJournal(state, 'You left your studies without finishing.', 'negative');
+  changeStat(state, 'happiness', -3, 'dropped out');
+  return true;
 }
 
-export function itemAvailable(state, item) {
-  return stageIndex(lifeStage(state.player.age)) >= stageIndex(item.minimumStage);
+export function buyItem(state, shopId, itemId) {
+  const shop = Assets.findShop(shopId);
+  const item = Assets.findItem(itemId);
+  if (!shop || !item) return 'unknown';
+  if (!state.player.alive) return 'ended';
+  return Assets.buy(state, shop, item);
 }
 
-// Returns 'success' | 'alreadyOwned' | 'noMoney' | 'tooYoung'.
-export function buy(state, item) {
-  if (!itemAvailable(state, item)) return 'tooYoung';
-  if (ownsAsset(state, item.name)) return 'alreadyOwned';
-  if (!canAfford(state.player, item.cost)) return 'noMoney';
-  changeStat(state.player, 'money', -item.cost);
-  state.assets.push({ name: item.name, type: item.type, value: item.cost });
-  addEvent(state, `You bought a ${item.name.toLowerCase()}.`, 'positive');
-  return 'success';
+export function sellAsset(state, assetId) {
+  const asset = Assets.findAsset(state, assetId);
+  if (!asset) return null;
+  return Assets.sell(state, asset);
 }
 
-// ---- Saving --------------------------------------------------------------------
-
-const STORAGE_KEY = 'betlife.web.save';
-
-export function saveGame(state) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch (error) {
-    // Storage may be unavailable (private mode); the game simply stays in memory.
-  }
+export function repairAsset(state, assetId) {
+  const asset = Assets.findAsset(state, assetId);
+  if (!asset) return false;
+  return Assets.repair(state, asset);
 }
 
-export function loadGame() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    const state = JSON.parse(raw);
-    // Saves from before lives started at birth have no profile and are discarded.
-    if (!state || !state.player || !state.profile || !Array.isArray(state.timeline)) return null;
-    attachRng(state);
-    return state;
-  } catch (error) {
-    return null;
-  }
-}
-
-export function clearSavedGame() {
-  try {
-    localStorage.removeItem(STORAGE_KEY);
-  } catch (error) {
-    // Nothing to clear.
-  }
+export function eventTitle(eventId) {
+  const e = findEvent(eventId);
+  return e ? e.title : '';
 }
