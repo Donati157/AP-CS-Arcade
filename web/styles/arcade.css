@@ -22,7 +22,9 @@ a { color: inherit; }
 .game-card.playable:active { transform: translateY(0); }
 .game-card.soon { opacity: 0.7; }
 .game-thumb { width: 100%; max-width: 280px; aspect-ratio: 16 / 10; border-radius: 14px; display: grid; place-items: center; font-size: 34px; font-weight: 900; letter-spacing: 0.06em; }
-.thumb-betlife { background: linear-gradient(160deg, #e0432f 0 45%, #1c4e9a 45% 100%); color: #fff; text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.35); position: relative; overflow: hidden; }
+.thumb-playable { background: linear-gradient(160deg, #38d8ff 0 45%, #1c4e9a 45% 100%); color: #fff; text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.35); position: relative; overflow: hidden; font-size: 28px; padding: 0 12px; text-align: center; }
+.thumb-betlife { background: linear-gradient(160deg, #e0432f 0 45%, #1c4e9a 45% 100%); }
+.thumb-flappy-bruh { background: linear-gradient(160deg, #7c4dff 0 45%, #15131c 45% 100%); }
 .thumb-betlife::after { content: "+"; position: absolute; right: 18px; bottom: 12px; width: 44px; height: 44px; border-radius: 50%; background: #3db04f; box-shadow: inset 0 0 0 3px #fff; display: grid; place-items: center; font-size: 30px; }
 .thumb-soon { background: rgba(255, 255, 255, 0.08); color: var(--ar-muted); font-size: 40px; }
 .game-name { margin: 0; font-size: 26px; font-weight: 800; letter-spacing: 0.04em; }
@@ -32,6 +34,7 @@ a { color: inherit; }
 .play-btn:hover { background: #ffdf6b; } .play-btn:active { background: #f2c419; }
 .play-btn:focus-visible, .game-card.playable:focus-visible { outline: 3px solid var(--ar-cyan); outline-offset: 3px; }
 .soon-btn { margin-top: auto; min-width: 160px; height: 46px; padding: 0 22px; border: 2px solid rgba(255, 255, 255, 0.2); border-radius: 12px; background: transparent; color: var(--ar-muted); font-size: 14px; font-weight: 800; letter-spacing: 0.06em; cursor: not-allowed; }
+.grid-loading, .grid-error { grid-column: 1 / -1; text-align: center; color: var(--ar-muted); }
 .home-footer { margin-top: 40px; text-align: center; font-size: 13px; color: var(--ar-muted); }
 .home-footer a { color: var(--ar-cyan); }
 

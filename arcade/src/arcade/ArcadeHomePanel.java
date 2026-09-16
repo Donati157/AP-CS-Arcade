@@ -35,7 +35,7 @@ public class ArcadeHomePanel extends JPanel {
         JPanel grid = new JPanel(new GridLayout(2, 2, 20, 20));
         grid.setOpaque(false);
         grid.add(betLifeCard);
-        grid.add(new GameCard("GAME 2", "Coming Soon", false, null));
+        grid.add(new GameCard("FLAPPY BRUH", "Play in the web arcade", false, null));
         grid.add(new GameCard("GAME 3", "Coming Soon", false, null));
         grid.add(new GameCard("GAME 4", "Coming Soon", false, null));
         add(grid, BorderLayout.CENTER);

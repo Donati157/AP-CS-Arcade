@@ -1,0 +1,1230 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Flappy Bruh</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --page-bg:#15131c;
+    --panel-bg:#fff9f0;
+    --panel-ink:#241b12;
+    --panel-sub:#6b5c47;
+    --accent:#7c4dff;
+    --accent-ink:#ffffff;
+    --danger:#e8563f;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --page-bg:#0e0d13;
+      --panel-bg:#231e2b;
+      --panel-ink:#f4efe6;
+      --panel-sub:#b9aed1;
+    }
+  }
+  :root[data-theme="dark"]{
+    --page-bg:#0e0d13;
+    --panel-bg:#231e2b;
+    --panel-ink:#f4efe6;
+    --panel-sub:#b9aed1;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:var(--page-bg);
+    font-family:'Baloo 2', system-ui, -apple-system, sans-serif;
+    overflow:hidden;
+    touch-action:manipulation;
+  }
+  #stage{
+    position:relative;
+    width:min(96vw, 480px, calc(96vh * 2 / 3));
+    aspect-ratio:2/3;
+    max-height:96vh;
+    border-radius:18px;
+    overflow:hidden;
+    box-shadow:0 18px 60px rgba(0,0,0,.45), 0 0 0 3px rgba(255,255,255,.06);
+    background:#8fd8ff;
+  }
+  canvas{
+    display:block;
+    width:100%;
+    height:100%;
+  }
+  #settingsBtn{
+    position:absolute;
+    top:12px;
+    right:12px;
+    width:42px;
+    height:42px;
+    border-radius:50%;
+    border:none;
+    background:rgba(24,20,15,.38);
+    color:#fff;
+    font-size:20px;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    backdrop-filter:blur(2px);
+    transition:transform .15s ease, background .15s ease;
+    z-index:5;
+  }
+  #settingsBtn:hover{ background:rgba(24,20,15,.55); transform:scale(1.06); }
+  #settingsBtn:active{ transform:scale(.94); }
+
+  #settingsPanel{
+    position:absolute;
+    inset:0;
+    background:rgba(10,8,14,.55);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    z-index:10;
+  }
+  #settingsPanel.hidden{ display:none; }
+  #settingsCard, #devCard{
+    width:82%;
+    max-width:320px;
+    background:var(--panel-bg);
+    color:var(--panel-ink);
+    border-radius:16px;
+    padding:22px 20px 18px;
+    box-shadow:0 12px 30px rgba(0,0,0,.35);
+  }
+  #settingsCard h2, #devCard h2{
+    margin:0 0 16px;
+    font-size:22px;
+    font-weight:800;
+  }
+  .field{ margin-bottom:16px; }
+  .field label{
+    display:flex;
+    justify-content:space-between;
+    font-size:14px;
+    font-weight:600;
+    color:var(--panel-sub);
+    margin-bottom:6px;
+  }
+  input[type="range"]{
+    width:100%;
+    accent-color:var(--accent);
+  }
+  .btn{
+    display:block;
+    width:100%;
+    padding:11px 14px;
+    border-radius:11px;
+    border:none;
+    font-family:inherit;
+    font-weight:700;
+    font-size:15px;
+    cursor:pointer;
+    margin-top:8px;
+    transition:transform .12s ease, filter .12s ease;
+  }
+  .btn:active{ transform:scale(.97); }
+  .btn-secondary{
+    background:transparent;
+    color:var(--panel-sub);
+    border:2px solid rgba(120,100,70,.25);
+  }
+  .btn-danger{
+    background:var(--danger);
+    color:#fff;
+  }
+  .btn-danger:hover{ filter:brightness(1.06); }
+  #resetFeedback{
+    text-align:center;
+    font-size:13px;
+    font-weight:700;
+    color:#3e8b52;
+    margin-top:8px;
+    height:16px;
+  }
+  #resetFeedback.hidden{ visibility:hidden; }
+  #versionLabel{
+    text-align:center;
+    font-size:11px;
+    font-weight:600;
+    color:var(--panel-sub);
+    opacity:.6;
+    margin-top:14px;
+    cursor:pointer;
+    user-select:none;
+  }
+  #versionLabel:hover{ opacity:.9; }
+
+  #devPanel{
+    position:absolute;
+    inset:0;
+    background:rgba(10,8,14,.65);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    z-index:20;
+  }
+  #devPanel.hidden{ display:none; }
+  #devCard p{
+    font-size:13px;
+    color:var(--panel-sub);
+    margin:0 0 14px;
+  }
+  .devGrid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+    margin-bottom:4px;
+  }
+  .devOption{ margin-top:0; }
+
+  #srlive{
+    position:absolute;
+    width:1px;height:1px;
+    overflow:hidden;
+    clip:rect(0 0 0 0);
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    #settingsBtn{ transition:none; }
+  }
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="game" width="480" height="720" aria-label="Flappy Bruh - jogo do passarinho"></canvas>
+
+  <button id="settingsBtn" aria-label="Abrir configurações">⚙️</button>
+
+  <div id="settingsPanel" class="hidden">
+    <div id="settingsCard">
+      <h2>Configurações</h2>
+      <div class="field">
+        <label><span>Volume</span><span id="volumeValue">70%</span></label>
+        <input type="range" id="volumeSlider" min="0" max="100" value="70">
+      </div>
+      <button class="btn btn-danger" id="resetProgressBtn">Reiniciar progresso</button>
+      <div id="resetFeedback" class="hidden">Progresso reiniciado!</div>
+      <button class="btn btn-secondary" id="closeSettingsBtn">Fechar</button>
+      <div id="versionLabel">v4.2</div>
+    </div>
+  </div>
+
+  <div id="devPanel" class="hidden">
+    <div id="devCard">
+      <h2>Modo Desenvolvedor</h2>
+      <p>Teletransportar para quantos canos já passados?</p>
+      <div class="devGrid">
+        <button class="btn btn-secondary devOption" data-count="0">0 canos</button>
+        <button class="btn btn-secondary devOption" data-count="4">4 canos</button>
+        <button class="btn btn-secondary devOption" data-count="14">14 canos</button>
+        <button class="btn btn-secondary devOption" data-count="24">24 canos</button>
+        <button class="btn btn-secondary devOption" data-count="34">34 canos</button>
+        <button class="btn btn-secondary devOption" data-count="44">44 canos</button>
+      </div>
+      <button class="btn btn-secondary" id="closeDevBtn">Fechar</button>
+    </div>
+  </div>
+
+  <div id="srlive" aria-live="polite"></div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------- Canvas setup ----------
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const LOGICAL_W = 480, LOGICAL_H = 720;
+  function fitCanvas(){
+    const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+    canvas.width = LOGICAL_W * dpr;
+    canvas.height = LOGICAL_H * dpr;
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+  fitCanvas();
+  window.addEventListener('resize', fitCanvas);
+
+  // ---------- Storage ----------
+  const LS_SEEN_DEATH = 'flappybruh_seenDeath';
+  const LS_SEEN_GROUND_DEATH = 'flappybruh_seenGroundDeath';
+  const LS_VOLUME = 'flappybruh_volume';
+  const LS_HIGH_SCORE = 'flappybruh_highscore';
+  function getSeenDeath(){ return localStorage.getItem(LS_SEEN_DEATH) === '1'; }
+  function setSeenDeath(v){ localStorage.setItem(LS_SEEN_DEATH, v ? '1':'0'); }
+  function getSeenGroundDeath(){ return localStorage.getItem(LS_SEEN_GROUND_DEATH) === '1'; }
+  function setSeenGroundDeath(v){ localStorage.setItem(LS_SEEN_GROUND_DEATH, v ? '1':'0'); }
+  function getVolume(){
+    const v = parseInt(localStorage.getItem(LS_VOLUME), 10);
+    return isNaN(v) ? 70 : v;
+  }
+  function setVolume(v){ localStorage.setItem(LS_VOLUME, String(v)); }
+  function getHighScore(){
+    const v = parseInt(localStorage.getItem(LS_HIGH_SCORE), 10);
+    return isNaN(v) ? 0 : v;
+  }
+  function setHighScore(v){ localStorage.setItem(LS_HIGH_SCORE, String(v)); }
+
+  // ---------- Audio ----------
+  let audioCtx = null;
+  let masterGain = null;
+  function ensureAudio(){
+    if(!audioCtx){
+      try{
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        masterGain = audioCtx.createGain();
+        masterGain.gain.value = getVolume()/100 * 0.5;
+        masterGain.connect(audioCtx.destination);
+      }catch(e){ /* audio unavailable */ }
+    }
+    if(audioCtx && audioCtx.state === 'suspended'){
+      audioCtx.resume().catch(()=>{});
+    }
+  }
+  function setMasterVolume(pct){
+    if(masterGain) masterGain.gain.value = (pct/100) * 0.5;
+  }
+  function beep(freqStart, freqEnd, duration, type){
+    if(!audioCtx) return;
+    const osc = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    osc.type = type || 'sine';
+    const now = audioCtx.currentTime;
+    osc.frequency.setValueAtTime(freqStart, now);
+    if(freqEnd !== freqStart) osc.frequency.exponentialRampToValueAtTime(Math.max(freqEnd,1), now+duration);
+    g.gain.setValueAtTime(0.0001, now);
+    g.gain.exponentialRampToValueAtTime(0.9, now+0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, now+duration);
+    osc.connect(g); g.connect(masterGain);
+    osc.start(now); osc.stop(now+duration+0.02);
+  }
+  const sfx = {
+    flap: ()=>beep(420,620,0.09,'square'),
+    score: ()=>beep(700,1000,0.12,'sine'),
+    death: ()=>beep(260,80,0.4,'sawtooth'),
+    mirror: ()=>beep(500,760,0.22,'sine'),
+    rotate: ()=>{ beep(220,900,0.5,'sine'); setTimeout(()=>beep(300,1100,0.35,'triangle'),120); },
+    record: ()=>{ beep(523,523,0.14,'triangle'); setTimeout(()=>beep(659,659,0.14,'triangle'),130); setTimeout(()=>beep(784,784,0.28,'triangle'),260); }
+  };
+
+  // ---------- Segment schedule (forward/backward mirroring) ----------
+  // Segment index parity decides direction: even = forward (-1), odd = backward (+1)
+  // First forward run and first inversion are fixed at 5 pipes; every segment
+  // after that (once it flips back to forward) is a random length from 1-4.
+  function lengthForSegment(i){
+    if(i <= 1) return 5;
+    return 1 + Math.floor(Math.random()*4); // random 1-4
+  }
+
+  const GAP = 220; // gap size while flying normally (gravity pulls down or up)
+  const GAP_ROTATED = 190; // gap size while gravity pulls sideways (stage 1) - less room to work with
+  const SPEED_BASE = 2.8;
+  const SPEED_GROWTH = 0.035; // speed added per pipe passed, so the run gradually gets harder
+  const SPEED_MAX = 5.0;
+  function currentSpeed(){ return Math.min(SPEED_MAX, SPEED_BASE + wallsPassedRun*SPEED_GROWTH); }
+  // rotStage: 0 = normal (gravity down, ground at bottom)
+  //           1 = after 15 pipes (gravity left, ground at left)
+  //           2 = after 25 pipes (gravity up, ground at top - fully upside down)
+  function gravityAxisIsX(){ return rotStage % 2 === 1; }
+  function groundAtStart(){ return rotStage === 1 || rotStage === 2; }
+  function currentGap(){ return gravityAxisIsX() ? GAP_ROTATED : GAP; }
+  const WALL_WIDTH = 62;
+  const WALL_SPACING = 262;
+  const GROUND_H = 44;
+  const GRAVITY = 0.44;
+  const FLAP_V = -7.7;
+  const MAX_FALL = 9.4;
+  const BIRD_R = 16;
+  const FLASH_DUR = 260; // quick portal flash - the world already flipped by the time this plays
+  const ROTATE_FLASH_DUR = 500;
+  const ROTATE_AT_1 = 15; // total pipes passed that triggers the first 90-degree flip
+  const ROTATE_AT_2 = 25; // total pipes passed that triggers the second 90-degree flip (upside down)
+  const ROTATE_AT_3 = 35; // total pipes passed that triggers the third 90-degree flip
+  const CHAOS_AT = 45; // from here on, every inversion can jump to any gravity/direction combo
+
+  // ---------- Game state ----------
+  let state = 'tutorial'; // tutorial | ready | playing | dying | record
+  let segIndex = 0;
+  let segPassed = 0;
+  let segLen = 5;
+  let wallsPassedRun = 0;
+  let rotStage = 0;
+  let travelDir = -1; // current travel direction - explicit state so it can be randomized once chaos kicks in
+  let devTeleported = false; // true after using the dev teleport panel - keeps that run from touching the high score
+  let highScore = getHighScore();
+  let brokeRecordThisRun = false;
+  let bird, walls;
+  let flapAnim = 0;
+  let groundScroll = 0;
+  let bgScroll = 0;
+  let flashTimer = 0;
+  let flashDur = FLASH_DUR;
+  let flashIsRotate = false;
+  let dyingTimer = 0;
+  let showBubble = false;
+  let bubbleText = '';
+  let shake = 0;
+  let paused = false;
+  let lastTime = null;
+
+  function randRange(a,b){ return a + Math.random()*(b-a); }
+  function currentDir(){ return travelDir; }
+  // Normal world: bird sits at 32% from the left (mirrored to 68% when flying
+  // backwards). After the 90-degree flip, that same 32%/68% split applies
+  // along the height instead, since travel becomes vertical.
+  function birdXForDir(dir){ return dir === -1 ? LOGICAL_W*0.32 : LOGICAL_W*0.68; }
+  function birdYForDir(dir){ return dir === -1 ? LOGICAL_H*0.32 : LOGICAL_H*0.68; }
+  // Safe range for a gap's center along the gravity axis, so every gap stays
+  // reachable with margin from the ground and from the far edge.
+  function holeRange(){
+    const gap = currentGap();
+    const margin = 20;
+    const gAxisExtent = gravityAxisIsX() ? LOGICAL_W : LOGICAL_H;
+    if(groundAtStart()){
+      return [GROUND_H + gap/2 + margin, gAxisExtent - gap/2 - margin];
+    }
+    return [gap/2 + margin, gAxisExtent - GROUND_H - gap/2 - margin];
+  }
+
+  // How far from the ground (along the current gravity axis) the bird
+  // should sit right after a transition, so new players get a beat to react
+  // before gravity pulls them back down. Always the side away from ground.
+  function safeGravityCoord(){
+    if(gravityAxisIsX()) return groundAtStart() ? LOGICAL_W*0.72 : LOGICAL_W*0.28; // ground left -> sit right; ground right -> sit left
+    if(groundAtStart()) return LOGICAL_H*0.72;    // ground on top - sit further down
+    return LOGICAL_H*0.28;                        // ground on the bottom - sit further up
+  }
+
+  // Places the bird at the correct fixed/travel coordinate for whichever
+  // axis is currently gravity vs travel, and at a safe "higher" spot along
+  // the gravity axis - used after every transition and by the dev panel.
+  function placeBirdForCurrentState(){
+    const dir = currentDir();
+    if(gravityAxisIsX()){
+      bird.y = birdYForDir(dir);
+      bird.x = safeGravityCoord();
+    } else {
+      bird.x = birdXForDir(dir);
+      bird.y = safeGravityCoord();
+    }
+    bird.vy = 0;
+  }
+
+  // Simulates segment generation the same way the real game does, so a dev
+  // teleport to N pipes lands on exactly the segment/position the game
+  // would naturally be in after N pipes.
+  function simulateSegmentsFor(target){
+    let idx = 0, passedTotal = 0, len = lengthForSegment(0);
+    while(passedTotal + len <= target){
+      passedTotal += len;
+      idx += 1;
+      len = lengthForSegment(idx);
+    }
+    return { segIndex: idx, segPassed: target - passedTotal, segLen: len };
+  }
+
+  function devTeleportTo(target){
+    const sim = simulateSegmentsFor(target);
+    wallsPassedRun = target;
+    segIndex = sim.segIndex;
+    segPassed = sim.segPassed;
+    segLen = sim.segLen;
+    rotStage = target >= ROTATE_AT_3 ? 3 : (target >= ROTATE_AT_2 ? 2 : (target >= ROTATE_AT_1 ? 1 : 0));
+    travelDir = (sim.segIndex % 2 === 0) ? -1 : 1;
+    walls = [];
+    brokeRecordThisRun = false;
+    devTeleported = true;
+    bird = { x: LOGICAL_W*0.32, y: LOGICAL_H*0.42, vy:0, rot:0, facing:1 };
+    placeBirdForCurrentState();
+    state = 'playing';
+  }
+
+  function resetRun(){
+    segIndex = 0;
+    segPassed = 0;
+    segLen = lengthForSegment(0);
+    wallsPassedRun = 0;
+    rotStage = 0;
+    travelDir = -1;
+    devTeleported = false;
+    brokeRecordThisRun = false;
+    walls = [];
+    bird = { x: birdXForDir(currentDir()), y: LOGICAL_H*0.42, vy:0, rot:0, facing:1 };
+  }
+
+  function spawnWallIfNeeded(){
+    const dir = currentDir();
+    const extent = gravityAxisIsX() ? LOGICAL_H : LOGICAL_W;
+    const shouldSpawn = walls.length === 0 ||
+      (dir === -1 ? (extent + WALL_WIDTH - walls[walls.length-1].x) >= WALL_SPACING
+                  : (walls[walls.length-1].x - (-WALL_WIDTH)) >= WALL_SPACING);
+    if(shouldSpawn){
+      const cx = dir === -1 ? extent + WALL_WIDTH/2 : -WALL_WIDTH/2;
+      const [hmin, hmax] = holeRange();
+      walls.push({ x: cx, hole: randRange(hmin, hmax), passed:false });
+    }
+  }
+
+  function startTutorial(){ state = 'tutorial'; }
+  function goToTutorial(){ resetRun(); state = 'tutorial'; }
+  function goReady(){ state = 'ready'; resetRun(); }
+  function startPlaying(){
+    if(state !== 'ready') return;
+    state = 'playing';
+    doFlap();
+  }
+  function doFlap(){
+    if(state === 'tutorial'){ ensureAudio(); goReady(); return; }
+    if(state === 'ready'){ ensureAudio(); startPlaying(); return; }
+    if(state === 'record'){ goReady(); return; }
+    if(state === 'dying' && showBubble){ dismissBubbleAndContinue(); return; }
+    if(state !== 'playing') return;
+    bird.vy = FLAP_V;
+    flapAnim = 1;
+    sfx.flap();
+  }
+
+  // Called once the player clicks/presses a key to dismiss the "Olha só!"
+  // speech bubble - moves on to the record screen or straight back to ready.
+  function dismissBubbleAndContinue(){
+    showBubble = false;
+    if(brokeRecordThisRun){
+      state = 'record';
+      sfx.record();
+      announce('Novo recorde! ' + wallsPassedRun + ' canos.');
+    } else {
+      goReady();
+    }
+  }
+
+  function beginTransition(){
+    // Instant inversion: the world flips right away, the portal is just a
+    // quick decorative flash layered on top of gameplay that keeps running.
+    // From CHAOS_AT pipes onward, every inversion can jump to any gravity
+    // axis/side AND any travel direction - same mechanics, freely combined,
+    // instead of only cycling forward through a fixed order.
+    segIndex += 1;
+    segPassed = 0;
+    segLen = lengthForSegment(segIndex);
+    walls = [];
+    const chaotic = wallsPassedRun >= CHAOS_AT;
+    if(chaotic){
+      rotStage = Math.floor(Math.random()*4);
+      travelDir = Math.random() < 0.5 ? -1 : 1;
+      sfx.rotate();
+    } else {
+      travelDir = -travelDir;
+      sfx.mirror();
+    }
+    placeBirdForCurrentState();
+    flashIsRotate = chaotic;
+    flashDur = chaotic ? ROTATE_FLASH_DUR : FLASH_DUR;
+    flashTimer = flashDur;
+  }
+
+  function triggerRotate(){
+    // Same mechanic both times: the world flips another 90 degrees. UI (HUD,
+    // buttons) is drawn separately and always stays exactly where it was.
+    rotStage += 1;
+    sfx.rotate();
+    walls = [];
+    placeBirdForCurrentState();
+    flashIsRotate = true;
+    flashDur = ROTATE_FLASH_DUR;
+    flashTimer = ROTATE_FLASH_DUR;
+  }
+
+  function beginDeath(cause){
+    if(state === 'dying' || state === 'record') return;
+    state = 'dying';
+    dyingTimer = 0;
+    shake = 10;
+    sfx.death();
+    brokeRecordThisRun = !devTeleported && wallsPassedRun > highScore;
+    if(brokeRecordThisRun){
+      highScore = wallsPassedRun;
+      setHighScore(highScore);
+    }
+    const isGround = cause === 'ground';
+    const alreadySeen = isGround ? getSeenGroundDeath() : getSeenDeath();
+    if(!alreadySeen){
+      showBubble = true;
+      bubbleText = isGround ? 'Olha só! O chão te mata!' : 'Olha só! A parede te mata';
+      if(isGround) setSeenGroundDeath(true); else setSeenDeath(true);
+      announce('Você bateu. ' + bubbleText);
+    } else {
+      showBubble = false;
+      announce('Você bateu. ' + wallsPassedRun + ' canos.');
+    }
+  }
+
+  function announce(msg){
+    const el = document.getElementById('srlive');
+    el.textContent = msg;
+  }
+
+  // ---------- Collision ----------
+  function circleRectHit(cx,cy,r, rx,ry,rw,rh){
+    const nx = Math.max(rx, Math.min(cx, rx+rw));
+    const ny = Math.max(ry, Math.min(cy, ry+rh));
+    const dx = cx-nx, dy = cy-ny;
+    return (dx*dx+dy*dy) < r*r;
+  }
+
+  // ---------- Update ----------
+  function update(dt){
+    const scrollDir = currentDir();
+    const scrollSpeed = (state === 'playing') ? currentSpeed() : SPEED_BASE;
+    groundScroll += scrollSpeed*scrollDir*dt; // ground always matches the pipes' exact speed/direction
+    bgScroll += scrollSpeed*scrollDir*dt*0.15; // hills drift much slower - parallax depth
+    if(flapAnim>0) flapAnim = Math.max(0, flapAnim - 0.12*dt);
+    if(shake>0) shake = Math.max(0, shake - 0.6*dt);
+    if(flashTimer>0) flashTimer = Math.max(0, flashTimer - dt*16.6667);
+
+    if(state === 'ready'){
+      bird.y = LOGICAL_H*0.42 + Math.sin(Date.now()/280)*8;
+      return;
+    }
+    if(state === 'tutorial'){ return; }
+
+    if(state === 'dying'){
+      dyingTimer += dt*16.6667;
+      if(!showBubble){
+        bird.vy = Math.min(bird.vy + GRAVITY*dt, MAX_FALL);
+        if(gravityAxisIsX()){ bird.x += groundAtStart() ? -bird.vy*dt : bird.vy*dt; }
+        else if(groundAtStart()){ bird.y -= bird.vy*dt; }
+        else { bird.y += bird.vy*dt; }
+        bird.rot = Math.min(1.4, bird.rot + 0.05*dt);
+        if(dyingTimer >= 750){
+          dismissBubbleAndContinue();
+        }
+      }
+      // While showBubble is true, the bird stays frozen and the bubble stays
+      // on screen until the player clicks/presses a key (see doFlap).
+      return;
+    }
+
+    if(state === 'record'){
+      if(gravityAxisIsX()){ bird.x = LOGICAL_W*0.5 + Math.sin(Date.now()/300)*10; }
+      else { bird.y = LOGICAL_H*0.42 + Math.sin(Date.now()/300)*10; }
+      return;
+    }
+
+    if(state !== 'playing') return;
+
+    const dir = currentDir();
+
+    // physics: stage 0 falls down (y), stage 1 falls left (x), stage 2 falls
+    // up (y, upside down), stage 3 falls right (x) - same vy variable and
+    // constants drive all four, just applied to whichever coordinate is
+    // currently the gravity axis, toward wherever the ground currently is.
+    // The tilt animation always uses the exact same formula in every stage,
+    // and facing always mirrors the bird's actual current direction of travel.
+    bird.vy = Math.min(bird.vy + GRAVITY*dt, MAX_FALL);
+    bird.rot = Math.max(-0.5, Math.min(1.1, bird.vy/9));
+    if(gravityAxisIsX()){
+      if(groundAtStart()){
+        // Stage 1: ground on the left - falling drifts left, flap pushes right.
+        bird.x -= bird.vy*dt;
+        bird.facing = bird.vy < 0 ? 1 : -1;
+
+        if(bird.x + BIRD_R > LOGICAL_W){ bird.x = LOGICAL_W - BIRD_R; bird.vy = 0; }
+        if(bird.x - BIRD_R < GROUND_H){
+          bird.x = GROUND_H + BIRD_R;
+          beginDeath('ground');
+          return;
+        }
+      } else {
+        // Stage 3: ground on the right - falling drifts right, flap pushes left.
+        bird.x += bird.vy*dt;
+        bird.facing = bird.vy < 0 ? -1 : 1;
+
+        if(bird.x - BIRD_R < 0){ bird.x = BIRD_R; bird.vy = 0; }
+        if(bird.x + BIRD_R > LOGICAL_W - GROUND_H){
+          bird.x = LOGICAL_W - GROUND_H - BIRD_R;
+          beginDeath('ground');
+          return;
+        }
+      }
+    } else if(groundAtStart()){
+      // Stage 2: completely upside down - falling drifts up toward the
+      // ground at the top; flapping pushes down, away from it.
+      bird.y -= bird.vy*dt;
+      bird.facing = dir === -1 ? 1 : -1;
+
+      if(bird.y + BIRD_R > LOGICAL_H){ bird.y = LOGICAL_H - BIRD_R; bird.vy = 0; }
+      if(bird.y - BIRD_R < GROUND_H){
+        bird.y = GROUND_H + BIRD_R;
+        beginDeath('ground');
+        return;
+      }
+    } else {
+      bird.y += bird.vy*dt;
+      bird.facing = dir === -1 ? 1 : -1;
+
+      if(bird.y - BIRD_R < 0){ bird.y = BIRD_R; bird.vy = 0; }
+      if(bird.y + BIRD_R > LOGICAL_H - GROUND_H){
+        bird.y = LOGICAL_H - GROUND_H - BIRD_R;
+        beginDeath('ground');
+        return;
+      }
+    }
+
+    // spawn & move walls
+    spawnWallIfNeeded();
+    const dx = currentSpeed()*dir*dt;
+    for(const w of walls){ w.x += dx; }
+    const extent = gravityAxisIsX() ? LOGICAL_H : LOGICAL_W;
+    walls = walls.filter(w => w.x > -WALL_WIDTH*2 && w.x < extent + WALL_WIDTH*2);
+
+    // collisions + scoring
+    const gap = currentGap();
+    const birdTravel = gravityAxisIsX() ? bird.y : bird.x;
+    const yStart = groundAtStart() ? GROUND_H : 0;
+    const yEnd = groundAtStart() ? LOGICAL_H : (LOGICAL_H-GROUND_H);
+    for(const w of walls){
+      const gapA = w.hole - gap/2;
+      const gapB = w.hole + gap/2;
+      const rPos = w.x - WALL_WIDTH/2;
+      if(gravityAxisIsX()){
+        if(circleRectHit(bird.x, bird.y, BIRD_R, 0, rPos, gapA, WALL_WIDTH)){ beginDeath('wall'); return; }
+        if(circleRectHit(bird.x, bird.y, BIRD_R, gapB, rPos, LOGICAL_W-gapB, WALL_WIDTH)){ beginDeath('wall'); return; }
+      } else {
+        if(circleRectHit(bird.x, bird.y, BIRD_R, rPos, yStart, WALL_WIDTH, gapA-yStart)){ beginDeath('wall'); return; }
+        if(circleRectHit(bird.x, bird.y, BIRD_R, rPos, gapB, WALL_WIDTH, yEnd-gapB)){ beginDeath('wall'); return; }
+      }
+
+      if(!w.passed){
+        const crossed = dir === -1 ? (w.x < birdTravel) : (w.x > birdTravel);
+        if(crossed){
+          w.passed = true;
+          wallsPassedRun++;
+          segPassed++;
+          sfx.score();
+          if(rotStage === 0 && wallsPassedRun === ROTATE_AT_1){
+            triggerRotate();
+            return;
+          }
+          if(rotStage === 1 && wallsPassedRun === ROTATE_AT_2){
+            triggerRotate();
+            return;
+          }
+          if(rotStage === 2 && wallsPassedRun === ROTATE_AT_3){
+            triggerRotate();
+            return;
+          }
+          if(segPassed >= segLen){
+            beginTransition();
+            return;
+          }
+        }
+      }
+    }
+  }
+
+  // ---------- Drawing ----------
+  function drawBackground(){
+    const g = ctx.createLinearGradient(0,0,0,LOGICAL_H);
+    g.addColorStop(0,'#6fcbfa');
+    g.addColorStop(1,'#cdefff');
+    ctx.fillStyle = g;
+    ctx.fillRect(0,0,LOGICAL_W,LOGICAL_H);
+
+    ctx.fillStyle = 'rgba(255,255,255,.85)';
+    for(let i=0;i<4;i++){
+      const cx = ((i*160 + bgScroll*0.6) % (LOGICAL_W+200)) - 100;
+      const cy = 90 + i*70;
+      drawCloud(cx,cy);
+    }
+    ctx.fillStyle = '#8fd48a';
+    ctx.beginPath();
+    if(rotStage === 0){
+      ctx.moveTo(0, LOGICAL_H-GROUND_H);
+      for(let x=0;x<=LOGICAL_W;x+=40){
+        const hx = x + (bgScroll*1.1 % 80);
+        ctx.lineTo(x, LOGICAL_H-GROUND_H-30 - 18*Math.sin((hx)/70));
+      }
+      ctx.lineTo(LOGICAL_W, LOGICAL_H-GROUND_H);
+    } else if(rotStage === 1){
+      ctx.moveTo(GROUND_H, 0);
+      for(let y=0;y<=LOGICAL_H;y+=40){
+        const hy = y + (bgScroll*1.1 % 80);
+        ctx.lineTo(GROUND_H+30 + 18*Math.sin((hy)/70), y);
+      }
+      ctx.lineTo(GROUND_H, LOGICAL_H);
+    } else if(rotStage === 2){
+      ctx.moveTo(0, GROUND_H);
+      for(let x=0;x<=LOGICAL_W;x+=40){
+        const hx = x + (bgScroll*1.1 % 80);
+        ctx.lineTo(x, GROUND_H+30 + 18*Math.sin((hx)/70));
+      }
+      ctx.lineTo(LOGICAL_W, GROUND_H);
+    } else {
+      ctx.moveTo(LOGICAL_W-GROUND_H, 0);
+      for(let y=0;y<=LOGICAL_H;y+=40){
+        const hy = y + (bgScroll*1.1 % 80);
+        ctx.lineTo(LOGICAL_W-GROUND_H-30 - 18*Math.sin((hy)/70), y);
+      }
+      ctx.lineTo(LOGICAL_W-GROUND_H, LOGICAL_H);
+    }
+    ctx.closePath();
+    ctx.fill();
+  }
+  function drawCloud(x,y){
+    ctx.beginPath();
+    ctx.ellipse(x,y,26,16,0,0,Math.PI*2);
+    ctx.ellipse(x+22,y+4,20,13,0,0,Math.PI*2);
+    ctx.ellipse(x-20,y+5,18,12,0,0,Math.PI*2);
+    ctx.fill();
+  }
+
+  function drawGround(){
+    if(rotStage === 0){
+      ctx.fillStyle = '#e2c184';
+      ctx.fillRect(0, LOGICAL_H-GROUND_H, LOGICAL_W, GROUND_H);
+      ctx.fillStyle = '#c9a866';
+      ctx.fillRect(0, LOGICAL_H-GROUND_H, LOGICAL_W, 8);
+      ctx.fillStyle = 'rgba(180,140,80,.5)';
+      const stripeW = 26;
+      for(let x=-stripeW; x<LOGICAL_W+stripeW; x+=stripeW*2){
+        const sx = ((x + groundScroll) % (LOGICAL_W+stripeW*2) + (LOGICAL_W+stripeW*2)) % (LOGICAL_W+stripeW*2) - stripeW;
+        ctx.fillRect(sx, LOGICAL_H-GROUND_H+10, stripeW, GROUND_H-10);
+      }
+    } else if(rotStage === 1){
+      ctx.fillStyle = '#e2c184';
+      ctx.fillRect(0, 0, GROUND_H, LOGICAL_H);
+      ctx.fillStyle = '#c9a866';
+      ctx.fillRect(GROUND_H-8, 0, 8, LOGICAL_H);
+      ctx.fillStyle = 'rgba(180,140,80,.5)';
+      const stripeH = 26;
+      for(let y=-stripeH; y<LOGICAL_H+stripeH; y+=stripeH*2){
+        const sy = ((y + groundScroll) % (LOGICAL_H+stripeH*2) + (LOGICAL_H+stripeH*2)) % (LOGICAL_H+stripeH*2) - stripeH;
+        ctx.fillRect(0, sy, GROUND_H-10, stripeH);
+      }
+    } else if(rotStage === 2){
+      ctx.fillStyle = '#e2c184';
+      ctx.fillRect(0, 0, LOGICAL_W, GROUND_H);
+      ctx.fillStyle = '#c9a866';
+      ctx.fillRect(0, GROUND_H-8, LOGICAL_W, 8);
+      ctx.fillStyle = 'rgba(180,140,80,.5)';
+      const stripeW = 26;
+      for(let x=-stripeW; x<LOGICAL_W+stripeW; x+=stripeW*2){
+        const sx = ((x + groundScroll) % (LOGICAL_W+stripeW*2) + (LOGICAL_W+stripeW*2)) % (LOGICAL_W+stripeW*2) - stripeW;
+        ctx.fillRect(sx, 0, stripeW, GROUND_H-10);
+      }
+    } else {
+      ctx.fillStyle = '#e2c184';
+      ctx.fillRect(LOGICAL_W-GROUND_H, 0, GROUND_H, LOGICAL_H);
+      ctx.fillStyle = '#c9a866';
+      ctx.fillRect(LOGICAL_W-GROUND_H, 0, 8, LOGICAL_H);
+      ctx.fillStyle = 'rgba(180,140,80,.5)';
+      const stripeH = 26;
+      for(let y=-stripeH; y<LOGICAL_H+stripeH; y+=stripeH*2){
+        const sy = ((y + groundScroll) % (LOGICAL_H+stripeH*2) + (LOGICAL_H+stripeH*2)) % (LOGICAL_H+stripeH*2) - stripeH;
+        ctx.fillRect(LOGICAL_W-GROUND_H+10, sy, GROUND_H-10, stripeH);
+      }
+    }
+  }
+
+  function drawPipe(pos, gapA, gapB){
+    if(gravityAxisIsX()){
+      const ry = pos - WALL_WIDTH/2;
+      ctx.fillStyle = '#f2a65a';
+      ctx.fillRect(0, ry, gapA, WALL_WIDTH);
+      ctx.fillRect(gapB, ry, LOGICAL_W-gapB, WALL_WIDTH);
+      ctx.fillStyle = '#d9822b';
+      ctx.fillRect(Math.max(0,gapA-18), ry-4, gapA>0?18:0, WALL_WIDTH+8);
+      ctx.fillRect(gapB, ry-4, 18, WALL_WIDTH+8);
+      ctx.strokeStyle = 'rgba(120,60,10,.35)';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(0, ry, gapA, WALL_WIDTH);
+      ctx.strokeRect(gapB, ry, LOGICAL_W-gapB, WALL_WIDTH);
+    } else {
+      const rx = pos - WALL_WIDTH/2;
+      const yStart = groundAtStart() ? GROUND_H : 0;
+      const yEnd = groundAtStart() ? LOGICAL_H : (LOGICAL_H-GROUND_H);
+      ctx.fillStyle = '#f2a65a';
+      ctx.fillRect(rx, yStart, WALL_WIDTH, gapA-yStart);
+      ctx.fillRect(rx, gapB, WALL_WIDTH, yEnd-gapB);
+      ctx.fillStyle = '#d9822b';
+      ctx.fillRect(rx-4, Math.max(yStart,gapA-18), WALL_WIDTH+8, gapA>yStart?18:0);
+      ctx.fillRect(rx-4, gapB, WALL_WIDTH+8, 18);
+      ctx.strokeStyle = 'rgba(120,60,10,.35)';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(rx, yStart, WALL_WIDTH, gapA-yStart);
+      ctx.strokeRect(rx, gapB, WALL_WIDTH, yEnd-gapB);
+    }
+  }
+
+  function drawBird(){
+    ctx.save();
+    ctx.translate(bird.x, bird.y);
+    ctx.scale(bird.facing, 1);
+    ctx.rotate(bird.rot||0);
+    const wingLift = Math.sin(flapAnim*Math.PI) * 7;
+    // small wing, sticking out beyond the round body - not part of the hitbox
+    ctx.fillStyle = '#ff9f1c';
+    ctx.beginPath();
+    ctx.ellipse(-BIRD_R*0.35, BIRD_R*0.1 - wingLift, BIRD_R*0.5, BIRD_R*0.34, -0.35, 0, Math.PI*2);
+    ctx.fill();
+    ctx.strokeStyle = '#8a5a10';
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+    // round yellow body (this circle IS the hitbox)
+    ctx.fillStyle = '#ffd23f';
+    ctx.beginPath();
+    ctx.arc(0, 0, BIRD_R, 0, Math.PI*2);
+    ctx.fill();
+    ctx.strokeStyle = '#8a6a12';
+    ctx.lineWidth = 1.6;
+    ctx.stroke();
+    // belly
+    ctx.fillStyle = '#fff3cf';
+    ctx.beginPath();
+    ctx.ellipse(-2, BIRD_R*0.42, BIRD_R*0.52, BIRD_R*0.34, 0, 0, Math.PI*2);
+    ctx.fill();
+    // eye
+    ctx.fillStyle = '#241b12';
+    ctx.beginPath();
+    ctx.arc(BIRD_R*0.42, -BIRD_R*0.32, 2.6, 0, Math.PI*2);
+    ctx.fill();
+    // beak
+    ctx.fillStyle = '#ff6a3d';
+    ctx.beginPath();
+    ctx.moveTo(BIRD_R*0.76, -BIRD_R*0.06);
+    ctx.lineTo(BIRD_R*1.35, BIRD_R*0.15);
+    ctx.lineTo(BIRD_R*0.76, BIRD_R*0.34);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawSpeechBubble(){
+    if(!showBubble) return;
+    const text = bubbleText || 'Olha só! A parede te mata';
+    ctx.save();
+    const bx = Math.min(LOGICAL_W-190, bird.x+20);
+    const by = bird.y-70;
+    ctx.font = '600 15px "Baloo 2", system-ui, sans-serif';
+    const maxW = 168;
+    const words = text.split(' ');
+    let lines = []; let cur = '';
+    for(const w of words){
+      const test = cur ? cur+' '+w : w;
+      if(ctx.measureText(test).width > maxW-24){ lines.push(cur); cur = w; }
+      else cur = test;
+    }
+    if(cur) lines.push(cur);
+    const lineH = 19;
+    const boxH = lines.length*lineH + 22;
+    const boxW = maxW;
+
+    ctx.fillStyle = '#ffffff';
+    ctx.strokeStyle = '#241b12';
+    ctx.lineWidth = 2;
+    roundRect(bx, by, boxW, boxH, 12);
+    ctx.fill(); ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(bx+18, by+boxH);
+    ctx.lineTo(bx+8, by+boxH+14);
+    ctx.lineTo(bx+30, by+boxH);
+    ctx.closePath();
+    ctx.fillStyle = '#ffffff';
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = '#241b12';
+    ctx.textBaseline = 'top';
+    lines.forEach((ln,i)=>{
+      ctx.fillText(ln, bx+12, by+11+i*lineH);
+    });
+    ctx.restore();
+  }
+  function roundRect(x,y,w,h,r){
+    ctx.beginPath();
+    ctx.moveTo(x+r,y);
+    ctx.arcTo(x+w,y,x+w,y+h,r);
+    ctx.arcTo(x+w,y+h,x,y+h,r);
+    ctx.arcTo(x,y+h,x,y,r);
+    ctx.arcTo(x,y,x+w,y,r);
+    ctx.closePath();
+  }
+
+  function drawHUD(){
+    ctx.save();
+    ctx.font = '800 30px "Baloo 2", system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.lineWidth = 4;
+    const n = wallsPassedRun;
+    let scoreColor;
+    if(n < 5) scoreColor = '#ffffff';
+    else if(n < 15) scoreColor = '#22a559';
+    else if(n < 25) scoreColor = '#60a5fa';
+    else if(n < 35) scoreColor = '#fb923c';
+    else if(n < 45) scoreColor = '#c084fc';
+    else scoreColor = 'hsl(' + ((Date.now()/8) % 360) + ',90%,65%)';
+    ctx.strokeStyle = (n < 5) ? 'rgba(30,20,10,.35)' : '#ffffff';
+    ctx.fillStyle = scoreColor;
+    const scoreText = n + ' cano' + (n===1?'':'s');
+    ctx.strokeText(scoreText, LOGICAL_W/2, 54);
+    ctx.fillText(scoreText, LOGICAL_W/2, 54);
+
+    ctx.font = '700 13px "Baloo 2", system-ui, sans-serif';
+    ctx.fillStyle = 'rgba(36,27,18,.75)';
+    ctx.strokeStyle = 'none';
+    ctx.fillText('Recorde: ' + highScore + ' cano' + (highScore===1?'':'s'), LOGICAL_W/2, 80);
+    ctx.restore();
+  }
+
+  function drawOverlayPanel(title, lines, opts){
+    opts = opts || {};
+    ctx.save();
+    ctx.fillStyle = 'rgba(15,10,20,.52)';
+    ctx.fillRect(0,0,LOGICAL_W,LOGICAL_H);
+
+    const pw = LOGICAL_W-64, ph = opts.tall ? 320 : 250;
+    const px = 32, py = (LOGICAL_H-ph)/2;
+    ctx.fillStyle = '#fff9f0';
+    roundRect(px,py,pw,ph,20);
+    ctx.fill();
+
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#241b12';
+    ctx.font = '800 30px "Baloo 2", system-ui, sans-serif';
+    ctx.fillText(title, LOGICAL_W/2, py+52);
+
+    ctx.font = '600 16px "Baloo 2", system-ui, sans-serif';
+    ctx.fillStyle = '#4a3c2a';
+    let ly = py + 96;
+    for(const ln of lines){
+      ctx.fillText(ln, LOGICAL_W/2, ly);
+      ly += 26;
+    }
+    ctx.restore();
+    return { px, py, pw, ph };
+  }
+
+  function drawTutorial(){
+    const panel = drawOverlayPanel('Flappy Bruh', [
+      'Clique na tela para pular',
+      '(ou aperte a seta ↑ / espaço)',
+      '',
+      'Seu objetivo é não morrer.'
+    ]);
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.font = '700 18px "Baloo 2", system-ui, sans-serif';
+    ctx.fillStyle = '#fff';
+    const by = panel.py+panel.ph-46;
+    roundRect(LOGICAL_W/2-84, by, 168, 44, 12);
+    ctx.fillStyle = '#7c4dff';
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.fillText('Jogar', LOGICAL_W/2, by+29);
+    ctx.restore();
+  }
+
+  function drawReadyHint(){
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.font = '800 20px "Baloo 2", system-ui, sans-serif';
+    ctx.fillStyle = '#fff';
+    ctx.strokeStyle = 'rgba(30,20,10,.4)';
+    ctx.lineWidth = 4;
+    const y = LOGICAL_H*0.24 + Math.sin(Date.now()/300)*4;
+    ctx.strokeText('Clique para pular', LOGICAL_W/2, y);
+    ctx.fillText('Clique para pular', LOGICAL_W/2, y);
+    ctx.restore();
+  }
+
+  function drawTransitionFlash(){
+    const alpha = flashTimer/flashDur; // 1 -> 0, fading out
+    const progress = 1-alpha;
+    ctx.save();
+    const r = 90 + progress*580;
+    const grd = ctx.createRadialGradient(LOGICAL_W/2,LOGICAL_H/2,0, LOGICAL_W/2,LOGICAL_H/2, r);
+    grd.addColorStop(0,'rgba(124,77,255,0)');
+    grd.addColorStop(0.7,'rgba(124,77,255,'+(0.14*alpha)+')');
+    grd.addColorStop(0.92,'rgba(124,77,255,'+(0.62*alpha)+')');
+    grd.addColorStop(1,'rgba(124,77,255,0)');
+    ctx.fillStyle = grd;
+    ctx.fillRect(0,0,LOGICAL_W,LOGICAL_H);
+
+    ctx.globalAlpha = alpha;
+    ctx.textAlign = 'center';
+    const icon = flashIsRotate ? '🔄' : (gravityAxisIsX() ? (currentDir() === 1 ? '⬆️' : '⬇️') : (currentDir() === 1 ? '⬅️' : '➡️'));
+    ctx.font = '800 68px system-ui, sans-serif';
+    ctx.fillText(icon, LOGICAL_W/2, LOGICAL_H*0.5+24);
+    ctx.restore();
+  }
+
+  function drawRecord(){
+    drawOverlayPanel('Novo recorde!!', [
+      'Você passou ' + wallsPassedRun + ' cano' + (wallsPassedRun===1?'':'s') + '.',
+      'Esse é o seu melhor resultado',
+      'até agora.',
+      '',
+      'Clique para continuar'
+    ], {tall:true});
+  }
+
+  function render(){
+    ctx.save();
+    if(shake>0){
+      ctx.translate((Math.random()-0.5)*shake, (Math.random()-0.5)*shake);
+    }
+    drawBackground();
+
+    if(state==='playing' || state==='dying'){
+      for(const w of walls){
+        const gap = currentGap();
+        const gapTop = w.hole - gap/2;
+        const gapBot = w.hole + gap/2;
+        drawPipe(w.x, gapTop, gapBot);
+      }
+    }
+
+    drawGround();
+
+    if(state!=='tutorial') drawBird();
+    if(state==='dying') drawSpeechBubble();
+    if(state==='playing' || state==='dying') drawHUD();
+    if(flashTimer>0) drawTransitionFlash();
+
+    ctx.restore();
+
+    if(state==='tutorial') drawTutorial();
+    if(state==='ready') drawReadyHint();
+    if(state==='record') drawRecord();
+  }
+
+  // ---------- Main loop ----------
+  function loop(now){
+    if(lastTime===null) lastTime = now;
+    let dt = (now-lastTime)/16.6667;
+    dt = Math.min(dt, 2.2);
+    lastTime = now;
+    if(!paused) update(dt);
+    render();
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+
+  // ---------- Input ----------
+  function handlePrimaryInput(e){
+    if(paused) return;
+    doFlap();
+  }
+  canvas.addEventListener('pointerdown', handlePrimaryInput);
+  window.addEventListener('keydown', function(e){
+    // Any key press counts as a "click" to make the game easier to play,
+    // but leave normal keyboard use of the settings controls alone.
+    if(e.ctrlKey || e.metaKey || e.altKey) return;
+    const tag = e.target && e.target.tagName;
+    if(tag === 'INPUT' || tag === 'BUTTON' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+    e.preventDefault();
+    handlePrimaryInput(e);
+  }, {passive:false});
+
+  // ---------- Settings UI ----------
+  const settingsBtn = document.getElementById('settingsBtn');
+  const settingsPanel = document.getElementById('settingsPanel');
+  const closeSettingsBtn = document.getElementById('closeSettingsBtn');
+  const volumeSlider = document.getElementById('volumeSlider');
+  const volumeValue = document.getElementById('volumeValue');
+  const resetProgressBtn = document.getElementById('resetProgressBtn');
+  const resetFeedback = document.getElementById('resetFeedback');
+
+  volumeSlider.value = getVolume();
+  volumeValue.textContent = getVolume()+'%';
+
+  function closeSettings(){
+    settingsPanel.classList.add('hidden');
+    paused = false;
+    lastTime = null;
+  }
+
+  settingsBtn.addEventListener('click', function(e){
+    e.stopPropagation();
+    settingsPanel.classList.remove('hidden');
+    paused = true;
+  });
+  closeSettingsBtn.addEventListener('click', function(e){
+    e.stopPropagation();
+    closeSettings();
+  });
+  settingsPanel.addEventListener('pointerdown', function(e){ e.stopPropagation(); });
+
+  volumeSlider.addEventListener('input', function(){
+    const v = parseInt(volumeSlider.value,10);
+    volumeValue.textContent = v+'%';
+    setVolume(v);
+    setMasterVolume(v);
+    ensureAudio();
+  });
+
+  resetProgressBtn.addEventListener('click', function(e){
+    e.stopPropagation();
+    setSeenDeath(false);
+    setSeenGroundDeath(false);
+    highScore = 0;
+    setHighScore(0);
+    setVolume(70);
+    volumeSlider.value = 70;
+    volumeValue.textContent = '70%';
+    setMasterVolume(70);
+    resetFeedback.classList.remove('hidden');
+    setTimeout(()=> resetFeedback.classList.add('hidden'), 1800);
+    closeSettings();
+    goToTutorial();
+  });
+
+  // ---------- Dev panel (hidden, opened via the version label) ----------
+  const versionLabel = document.getElementById('versionLabel');
+  const devPanel = document.getElementById('devPanel');
+  const closeDevBtn = document.getElementById('closeDevBtn');
+  const devOptionBtns = document.querySelectorAll('.devOption');
+
+  function closeDevPanel(){
+    devPanel.classList.add('hidden');
+    paused = false;
+    lastTime = null;
+  }
+
+  versionLabel.addEventListener('click', function(e){
+    e.stopPropagation();
+    settingsPanel.classList.add('hidden');
+    devPanel.classList.remove('hidden');
+    paused = true;
+  });
+  closeDevBtn.addEventListener('click', function(e){
+    e.stopPropagation();
+    closeDevPanel();
+  });
+  devPanel.addEventListener('pointerdown', function(e){ e.stopPropagation(); });
+
+  devOptionBtns.forEach(function(btn){
+    btn.addEventListener('click', function(e){
+      e.stopPropagation();
+      ensureAudio();
+      devTeleportTo(parseInt(btn.dataset.count, 10));
+      closeDevPanel();
+    });
+  });
+
+  // ---------- Init ----------
+  resetRun();
+  startTutorial();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+{
+  "id": "flappy-bruh",
+  "name": "Flappy Bruh",
+  "slot": 2,
+  "developer": "Walter",
+  "status": "playable",
+  "description": "Guide the bird through the pipes while the world flips, tilts and turns upside down.",
+  "web": {
+    "enabled": true,
+    "dir": ".",
+    "entry": "index.html",
+    "embed": true
+  }
+}

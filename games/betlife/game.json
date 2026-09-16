@@ -1,0 +1,14 @@
+{
+  "id": "betlife",
+  "name": "BetLife",
+  "slot": 1,
+  "developer": "Davi",
+  "status": "playable",
+  "description": "Shape a life through choices, school, careers, relationships and more.",
+  "web": {
+    "enabled": true,
+    "dir": "web",
+    "entry": "index.html",
+    "embed": false
+  }
+}
