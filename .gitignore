@@ -24,3 +24,6 @@ replay_pid*
 # OS files
 .DS_Store
 Thumbs.db
+
+# Reference gameplay recordings (large, local only)
+games/betlife/Betlife videos/
