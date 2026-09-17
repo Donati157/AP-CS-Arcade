@@ -82,7 +82,7 @@ export function main(ctx) {
   const first = firstNav(state);
   const nav = (label, iconName, target, extra = '') => `<button class="bl-nav-item${extra}" data-action="go" data-target="${target}"><span class="bl-nav-ring">${icon(iconName)}</span><span>${label}</span></button>`;
   const ageButton = p.alive
-    ? `<button class="bl-age" data-action="age" aria-label="Age one year"><span class="bl-age-plus">+</span><span class="bl-age-label">Age</span></button>`
+    ? `<button class="bl-age" data-action="age" aria-label="Age one year"><span class="bl-age-plus">+</span><span class="bl-age-label">Age</span></button><button class="bl-rewind" data-action="premium" data-feature="Rewind" aria-label="Rewind a year (premium candidate)"><span>−</span><small>Age</small></button>`
     : `<button class="bl-age is-newlife" data-action="newLife" aria-label="New life"><span class="bl-age-icon">${icon('seedling')}</span><span class="bl-age-label">New Life</span></button>`;
   return `<header class="bl-header bl-header-main${p.alive ? '' : ' is-dead'}">
       <button class="bl-round-btn bl-menu-btn" data-action="go" data-target="menu" aria-label="Menu">${icon('menu')}</button>
@@ -173,8 +173,10 @@ export function occupation(ctx) {
     : c.retired ? row('Retired', { sub: c.pension > 0 ? `Pension ${money(c.pension)} / year` : 'No pension', icon: 'flag', right: 'none' })
       : row(p.occupation, { sub: Education.educationSummary(e), icon: 'person', right: 'none' });
   const findWork = c.retired ? '' : section('Find Work')
-    + row('Full-time Jobs', { sub: `${CAREERS.filter((j) => !j.partTime && Career.isEligible(state, j)).length} you qualify for`, icon: 'briefcase', action: 'go', data: { target: 'jobs' }, disabled: p.age < 16, note: 'Age 16+' })
-    + row('Part-time Jobs', { sub: 'Hourly work for students', icon: 'coin', action: 'go', data: { target: 'partTimeJobs' }, disabled: p.age < G.JOBS_MIN_AGE, note: `Age ${G.JOBS_MIN_AGE}+` });
+    + row('Freelance Gigs', { sub: 'Make some quick money', icon: 'coin', action: 'freelance', right: 'dots', disabled: p.age < 16, note: 'Age 16+' })
+    + row('Job Recruiter', { sub: '$1,000 · find the best job you qualify for', icon: 'chat', action: 'recruiterConfirm', right: 'dots', disabled: p.age < 18 || !e.highSchoolGraduate, note: 'Needs a high school diploma' })
+    + row('Jobs', { sub: `Full-time listings · ${CAREERS.filter((j) => !j.partTime && Career.isEligible(state, j)).length} you qualify for`, icon: 'briefcase', action: 'go', data: { target: 'jobs' }, disabled: p.age < 16, note: 'Age 16+' })
+    + row('Part-Time Jobs', { sub: 'Hourly listings for students', icon: 'history', action: 'go', data: { target: 'partTimeJobs' }, disabled: p.age < G.JOBS_MIN_AGE, note: `Age ${G.JOBS_MIN_AGE}+` });
   const education = canHigher && !c.retired ? section('Education')
     + row('University', { sub: e.degree ? `You already hold a ${e.degree} degree` : `${Education.UNIVERSITY_YEARS} years · choose a major`, icon: 'cap', action: 'go', data: { target: 'university' }, disabled: !!e.degree })
     + row('Trade School', { sub: e.trade ? `You already hold a ${e.trade} certificate` : `${Education.TRADE_SCHOOL_YEARS} years · hands-on training`, icon: 'tools', action: 'go', data: { target: 'tradeSchool' }, disabled: !!e.trade }) : '';
@@ -244,7 +246,7 @@ export function careerHistory(ctx) {
 export function assets(ctx) {
   const { state } = ctx;
   const p = state.player;
-  const assetRows = (list) => list.map((a) => row(a.name, { sub: `Value ${money(a.value)}`, icon: a.kind === 'car' ? 'car' : a.kind === 'bike' ? 'bike' : a.kind === 'home' ? 'house' : a.kind === 'instrument' ? 'music' : a.kind === 'jewelry' ? 'ring' : 'game',
+  const assetRows = (list) => list.map((a) => row(a.name, { titleNote: a.label ? `(${a.label})` : '', sub: `Value ${money(a.value)}`, icon: a.kind === 'car' ? 'car' : a.kind === 'bike' ? 'bike' : a.kind === 'home' ? 'house' : a.kind === 'instrument' ? 'music' : a.kind === 'jewelry' ? 'ring' : 'game',
     action: 'asset', data: { asset: a.id }, bar: a.type !== 'possession' ? { label: 'Condition', value: a.condition, tone: a.condition < 30 ? 'warn' : '' } : null })).join('');
   const homes = Assets.homes(state); const vehicles = Assets.vehicles(state); const things = Assets.possessions(state);
   return screen(state, 'Assets', `
@@ -275,19 +277,22 @@ export function asset(ctx) {
 export function shopping(ctx) {
   const { state } = ctx;
   const age = state.player.age;
-  const rows = Assets.SHOPS.map((s) => row(s.name, { sub: s.tagline, icon: s.id.includes('Cars') ? 'car' : s.id === 'bikes' ? 'bike' : s.id === 'homes' ? 'house' : s.id === 'music' ? 'music' : s.id === 'jewelry' ? 'ring' : 'game',
-    action: 'go', data: { target: 'shop', shop: s.id }, disabled: age < s.minAge, note: `Age ${s.minAge}+` })).join('');
-  return screen(state, 'Shopping', `${infoRow('Bank Balance', money(state.player.money))}${section('Stores')}${rows}`, { back: 'assets', mode: 'back' });
+  const shopIcon = (s) => (s.id.includes('Cars') ? 'car' : s.id === 'bikes' ? 'bike' : s.id === 'homes' ? 'house' : s.id === 'music' ? 'music' : s.category === 'Jewelers' ? 'ring' : 'game');
+  const categories = [...new Set(Assets.SHOPS.map((s) => s.category))].sort();
+  const groups = categories.map((cat) => section(cat) + Assets.SHOPS.filter((s) => s.category === cat).map((s) => row(s.name, { sub: s.tagline, icon: shopIcon(s),
+    action: 'go', data: { target: 'shop', shop: s.id }, disabled: age < s.minAge, note: `Age ${s.minAge}+` })).join('')).join('');
+  return screen(state, 'Shopping', `${infoRow('Bank Balance', money(state.player.money))}${groups}`, { back: 'assets', mode: 'back' });
 }
 
 export function shop(ctx) {
   const { state, sel } = ctx;
   const s = Assets.findShop(sel.shop);
   if (!s) return shopping(ctx);
+  const age = state.player.age; void age;
   const rows = s.items.map((item) => {
     const verdict = Assets.canBuy(state, s, item);
     const notes = { tooYoung: `Age ${item.minAge || s.minAge}+`, noLicence: 'Needs a driving licence', owned: 'Already owned', noMoney: 'Not enough money' };
-    return row(item.name, { sub: money(item.cost), icon: item.kind === 'car' ? 'car' : item.kind === 'bike' ? 'bike' : item.kind === 'home' ? 'house' : item.kind === 'instrument' ? 'music' : item.kind === 'jewelry' ? 'ring' : 'game',
+    return row(item.name, { titleNote: item.label ? `(${item.label})` : '', sub: money(item.cost), icon: item.kind === 'car' ? 'car' : item.kind === 'bike' ? 'bike' : item.kind === 'home' ? 'house' : item.kind === 'instrument' ? 'music' : item.kind === 'jewelry' ? 'ring' : 'game',
       action: 'buyConfirm', data: { shop: s.id, item: item.id }, right: 'dots', disabled: verdict !== 'ok', note: notes[verdict] });
   }).join('');
   return screen(state, s.name, `${infoRow('Bank Balance', money(state.player.money))}${section(s.tagline)}${rows}`, { back: 'shopping', mode: 'back' });
@@ -331,26 +336,49 @@ function actionIcon(id) {
 
 // ---- Activities ----------------------------------------------------------------------------------------------
 
+function menuRow(state, entry) {
+  if (entry.menu) {
+    const m = Activities.SUBMENUS[entry.menu];
+    const open = m.items.filter((i) => !Activities.unavailableReason(state, i)).length;
+    return row(entry.name, { sub: entry.sub, icon: entry.icon, action: 'go', data: { target: 'activity', category: entry.menu }, disabled: open === 0, note: `Opens at age ${Math.min(...m.items.map((i) => i.minAge))}` });
+  }
+  if (entry.screen) return row(entry.name, { sub: entry.sub, icon: entry.icon, action: 'go', data: { target: entry.screen } });
+  const reason = Activities.unavailableReason(state, entry.action);
+  const sub = [entry.action.cost ? money(entry.action.cost) : null, entry.sub].filter(Boolean).join(' · ');
+  return row(entry.name, { sub, icon: entry.icon, action: 'activity', data: { activity: entry.action.id }, right: 'dots', disabled: !!reason, note: reason });
+}
+
 export function activities(ctx) {
   const { state } = ctx;
-  const rows = Activities.CATEGORIES.map((c) => {
-    const open = c.items.filter((i) => !Activities.unavailableReason(state, i)).length;
-    return row(c.name, { sub: `${c.sub} · ${open} available`, icon: c.icon, action: 'go', data: { target: 'activity', category: c.id } });
-  }).join('');
-  return screen(state, 'Activities', `${infoRow('Actions', actionsLeft(state))}${section('Categories')}${rows}${section('More')}${row('Shopping', { sub: 'Buy something', icon: 'bag', action: 'go', data: { target: 'shopping' } })}`);
+  const favorites = Activities.FAVORITES.map((id) => Activities.ACTIVITY_MENU.find((e) => e.id === id)).filter(Boolean);
+  const all = Activities.ACTIVITY_MENU.filter((e) => !Activities.FAVORITES.includes(e.id));
+  return screen(state, 'Activities', `${section('Favorites')}${favorites.map((e) => menuRow(state, e)).join('')}
+    ${section('All')}${all.map((e) => menuRow(state, e)).join('')}
+    ${infoRow('Actions', actionsLeft(state))}`);
 }
 
 export function activity(ctx) {
   const { state, sel } = ctx;
-  const c = Activities.CATEGORIES.find((cat) => cat.id === sel.category);
+  const c = Activities.SUBMENUS[sel.category];
   if (!c) return activities(ctx);
   const rows = c.items.map((item) => {
     const reason = Activities.unavailableReason(state, item);
     const effects = Object.entries(item.effects).filter(([, v]) => v).map(([k, v]) => `${v > 0 ? '+' : ''}${v} ${k[0].toUpperCase()}${k.slice(1)}`).join(', ');
-    const sub = [item.cost ? money(item.cost) : null, effects || item.sub].filter(Boolean).join(' · ');
-    return row(item.name, { sub, icon: item.icon, action: 'activity', data: { activity: item.id }, right: 'dots', disabled: !!reason, note: reason });
+    const sub = [item.cost ? money(item.cost) : null, item.sub, effects].filter(Boolean).join(' · ');
+    const isForm = item.special === 'nameForm';
+    return row(item.name, { sub, icon: item.icon, action: isForm ? 'go' : 'activity', data: isForm ? { target: 'identity' } : { activity: item.id }, right: isForm ? 'chevron' : 'dots', disabled: !!reason, note: reason });
   }).join('');
-  return screen(state, c.name, `${infoRow('Actions', actionsLeft(state))}${section(c.sub)}${rows}`, { back: 'activities', mode: 'back' });
+  return screen(state, c.name, `${section(c.sub)}${rows}${infoRow('Actions', actionsLeft(state))}`, { back: 'activities', mode: 'back' });
+}
+
+export function identity(ctx) {
+  const { state } = ctx;
+  const p = state.player;
+  return screen(state, 'Name Change', `<form class="bl-form" id="bl-name-form">
+    ${note('A legal name change costs $120 and one action. Your journal keeps your old name.')}
+    <label>First name<input name="firstName" maxlength="20" value="${esc(p.firstName)}"></label>
+    <label>Last name<input name="lastName" maxlength="20" value="${esc(p.lastName)}"></label>
+    <button type="button" class="bl-btn bl-btn-blue" data-action="changeName">CHANGE NAME</button></form>`, { back: 'activity', mode: 'back' });
 }
 
 // ---- Life summary ---------------------------------------------------------------------------------------------
@@ -375,4 +403,4 @@ export function about(ctx) {
     : `<header class="bl-header bl-header-main"><span class="bl-header-spacer"></span><div class="bl-brand"><span>BET</span><span class="bl-brand-accent">LIFE</span></div><span class="bl-header-spacer"></span></header><div class="bl-titlebar"><button class="bl-round-btn" data-action="go" data-target="start" aria-label="Back">${icon('back')}</button><h1 class="bl-screen-title">About</h1></div><div class="bl-scroll">${body}</div>`;
 }
 
-export const SCREENS = { start, newlife, menu, main, growing, school, university, tradeSchool, occupation, job, jobs, partTimeJobs, careerHistory, assets, asset, shopping, shop, relationships, person, activities, activity, summary, about };
+export const SCREENS = { start, newlife, menu, main, growing, school, university, tradeSchool, occupation, job, jobs, partTimeJobs, careerHistory, assets, asset, shopping, shop, relationships, person, activities, activity, identity, summary, about };

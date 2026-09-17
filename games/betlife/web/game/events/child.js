@@ -78,7 +78,7 @@ export const CHILD_EVENTS = [
     text: 'You got your own library card and checked out more books than you could carry.', effects: { smarts: 2, happiness: 1 } }),
 
   // Preteen years
-  ev({ id: 'middleSchoolLocker', category: 'education', stages: ['preteen'], needs: ['middleSchool'], weight: 8, once: true,
+  ev({ id: 'middleSchoolLocker', category: 'education', stages: ['preteen'], needs: ['middleSchool'], when: (c) => c.edu.year === 6, weight: 8, once: true,
     text: 'You spent your first week of middle school unable to open your locker.', effects: { happiness: -1, smarts: 1 } }),
   ev({ id: 'scienceFair', category: 'education', stages: ['preteen', 'teen'], needs: ['school'], minAge: 10, maxAge: 15, once: true, kind: 'positive',
     text: 'Your science fair project on plant growth earned an honorable mention.', effects: { smarts: 3, performance: 4, happiness: 2 } }),

@@ -5,7 +5,7 @@ const S = ['senior'];
 const LATE = ['middleAge', 'senior'];
 
 export const SENIOR_EVENTS = [
-  ev({ id: 'retirementRoutine', category: 'lifeStage', stages: S, needs: ['retired'], weight: 8, once: true,
+  ev({ id: 'retirementRoutine', category: 'lifeStage', needs: ['retired'], when: (c) => c.career.retiredAt !== null && c.age - c.career.retiredAt <= 1, weight: 8, once: true,
     text: 'Your first year of retirement had no alarm clocks and a lot of long breakfasts.', effects: { happiness: 3, health: 1 } }),
   ev({ id: 'retirementRestless', category: 'personal', stages: S, needs: ['retired'], cooldown: 5, weight: 0.7,
     text: 'You missed the rhythm of work more than you expected and looked for something to fill the days.', effects: { happiness: -2 } }),

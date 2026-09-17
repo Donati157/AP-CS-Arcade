@@ -7,7 +7,7 @@ const MA = ['adult', 'middleAge'];
 
 export const ADULT_EVENTS = [
   // Leaving the nest and young adulthood
-  ev({ id: 'movedOut', category: 'lifeStage', stages: YA, needs: ['notStudent', 'ownPlace'], weight: 8, once: true, kind: 'milestone',
+  ev({ id: 'movedOut', category: 'lifeStage', stages: YA, needs: ['notStudent', 'ownPlace'], when: (c) => c.age <= 24, weight: 8, once: true, kind: 'milestone',
     text: 'You moved into a small place of your own. The first night was quiet and thrilling.', effects: { happiness: 3 } }),
   ev({ id: 'firstApartmentTrouble', category: 'asset', stages: YA, needs: ['ownPlace', 'noHome'], cooldown: 5,
     text: 'The heating in your rental broke in the coldest week of the year.', effects: { happiness: -2, health: -1 } }),

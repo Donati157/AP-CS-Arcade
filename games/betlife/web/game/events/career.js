@@ -2,7 +2,7 @@
 import { ev } from './define.js';
 
 export const CAREER_EVENTS = [
-  ev({ id: 'firstPaycheck', category: 'career', needs: ['employed'], weight: 8, once: true, kind: 'positive',
+  ev({ id: 'firstPaycheck', category: 'career', needs: ['employed'], when: (c) => c.career.yearsWorked <= 1, weight: 8, once: true, kind: 'positive',
     text: 'Your first paycheck arrived. You looked at it for a long time before spending any of it.', effects: { happiness: 3 } }),
   ev({ id: 'coworkerLunch', category: 'career', needs: ['fullTime'], cooldown: 4, family: 'coworkerBond',
     text: (c) => `A coworker at ${c.employer} invited you to lunch, and you found out you have a lot in common.`, effects: { newCoworker: true, happiness: 2 } }),

@@ -54,7 +54,7 @@ export function meter(label, value, iconName, tone = '') {
   return `<div class="bl-meter${low ? ' is-low' : ''}${tone ? ` tone-${tone}` : ''}" data-stat="${esc(label.toLowerCase())}">
     <span class="bl-meter-label">${low ? `<i class="bl-warn">${icon('warning')}</i>` : ''}${esc(label)}</span>
     <i class="bl-stat-icon">${icon(iconName)}</i>
-    <span class="bl-track"><span class="bl-fill" style="width:${value}%"></span><span class="bl-meter-value">${pct(value)}</span></span></div>`;
+    <span class="bl-track"><span class="bl-fill" style="width:${value}%"></span>${low ? `<button class="bl-boost" data-action="premium" data-feature="Boost">+ Boost</button>` : ''}<span class="bl-meter-value">${pct(value)}</span></span></div>`;
 }
 
 export const footerBar = (label, iconName, action, data = {}) => `<button class="bl-footer" data-action="${esc(action)}"${attrs(data)}>${icon(iconName)}<span>${esc(label)}</span></button>`;

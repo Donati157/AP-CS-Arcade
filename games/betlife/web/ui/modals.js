@@ -47,7 +47,18 @@ export function death(summary) {
     ${facts(summary.facts.slice(0, 7))}
     <p class="bl-modal-text bl-epitaph">${esc(summary.epitaph)}</p>
     ${summary.milestones.length ? `<div class="bl-milestones">${summary.milestones.slice(-5).map((m) => `<p>${esc(m)}</p>`).join('')}</div>` : ''}
-    <div class="bl-modal-buttons"><button class="bl-btn bl-btn-green" data-choice="newLife">NEW LIFE</button><button class="bl-btn bl-btn-blue" data-choice="menu">MAIN MENU</button><button class="bl-text-btn" data-choice="close">Read the journal</button></div>`);
+    <div class="bl-modal-buttons"><button class="bl-btn bl-btn-green" data-choice="continue">Continue</button></div>`);
+}
+
+// After the summary: start again, like the reference's post-life menu.
+export function postLife(name, hasProfile) {
+  return `<div class="bl-overlay"><div class="bl-postlife" role="dialog" aria-modal="true">
+    <h2>${icon('candle')}<span>${esc(name)}</span></h2>
+    <p>Start an all-new life or try again as ${esc(name.split(' ')[0])}!</p>
+    <button class="bl-btn bl-btn-green bl-btn-big" data-choice="random">Start a new random life!</button>
+    <button class="bl-btn bl-btn-yellow bl-btn-big" data-choice="custom">Start a custom life!</button>
+    ${hasProfile ? `<button class="bl-text-btn bl-text-light" data-choice="retry">try again as ${esc(name.split(' ')[0])}</button>` : ''}
+    <button class="bl-text-btn bl-text-light" data-choice="close">read the journal</button></div></div>`;
 }
 
 function card(tone, body) {

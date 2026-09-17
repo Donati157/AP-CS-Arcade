@@ -256,6 +256,25 @@ export function interact(state, p, action) {
       changeMoney(state, -10, `treat for ${p.name}`); changeCloseness(p, 5);
       return `${p.name} devoured the treat you bought.`;
     }
+    case 'movie': {
+      const cost = 30;
+      if (you.money < cost) return null;
+      changeMoney(state, -cost, `movies with ${name}`); changeCloseness(p, 5); changeStat(state, 'happiness', 3, `movies with ${name}`);
+      return `You and ${name} went to the movies and argued about the ending all the way home.`;
+    }
+    case 'concert': {
+      if (you.money < 80) return null;
+      changeMoney(state, -80, `concert with ${name}`); changeCloseness(p, 6); changeStat(state, 'happiness', 4, `concert with ${name}`);
+      return `You and ${name} went to a concert and sang until you were hoarse.`;
+    }
+    case 'play':
+      changeCloseness(p, 6); changeStat(state, 'happiness', 3, `played with ${name}`);
+      return `You spent the afternoon playing with ${name}.`;
+    case 'doctorVisit': {
+      if (you.money < 60) return null;
+      changeMoney(state, -60, `checkup for ${name}`); changeCloseness(p, 4); changeStat(state, 'happiness', 1, `cared for ${name}`);
+      return `You took ${name} to the doctor for a checkup and waited with a magazine.`;
+    }
     case 'anniversary': {
       if (you.money < 120) return null;
       changeMoney(state, -120, 'anniversary'); changeCloseness(p, 8); changeStat(state, 'happiness', 4, 'anniversary');
@@ -299,9 +318,13 @@ export function actionsFor(state, p) {
   if (age >= 5) list.push(['compliment', 'Compliment', 'Say something kind']);
   if (age >= 8) list.push(['gift', 'Gift', `$${age < 13 ? 10 : 60} · a small present`]);
   if (age >= 10) list.push(['advice', 'Ask for Advice', 'Learn from them']);
+  if (age >= 6) list.push(['movie', 'Movie Theater', '$30 · go to the movies together']);
+  if (age >= 14) list.push(['concert', 'Concert', '$80 · go to a concert together']);
   if (age >= 4) list.push(['argue', 'Argue', 'Start a fight']);
   if ((p.role === 'mother' || p.role === 'father') && age >= 4 && age < 18) list.push(['allowance', 'Ask for Money', 'Pocket money']);
+  if (CHILD_ROLES.includes(p.role) && p.age < 12) list.push(['play', 'Play', 'Games and silliness']);
   if (CHILD_ROLES.includes(p.role) && p.age >= 6 && p.age < 18) list.push(['homework', 'Help with Homework', 'Be there for them']);
+  if ((p.role === 'mother' || p.role === 'father') && age >= 25 && p.age >= 60) list.push(['doctorVisit', 'Doctor', '$60 · take them for a checkup']);
   if (PARTNER_ROLES.includes(p.role)) {
     list.push(['anniversary', 'Celebrate Anniversary', '$120 · a night out']);
     if (p.role === 'partner' && age >= 20) list.push(['propose', 'Propose', 'Ask the big question']);

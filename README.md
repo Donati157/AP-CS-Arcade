@@ -70,6 +70,8 @@ BetLife's web simulation has an automated test suite (Node 18+, no dependencies)
 node --test 'games/betlife/web/tests/*.test.mjs'
 ```
 
-`node games/betlife/web/tests/report.mjs` prints the event catalog and reachability report.
+`node games/betlife/web/tests/report.mjs` prints the event catalog and reachability report, and
+`node games/betlife/web/tests/audit.mjs [seed]` prints one full life (events, stats, career, mortality samples).
+The reference comparison lives in [docs/reference/betlife-fidelity-audit.md](docs/reference/betlife-fidelity-audit.md).
 
 Each game must remain runnable on its own. The `arcade/` application will later launch them from a single menu.

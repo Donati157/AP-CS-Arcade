@@ -2,7 +2,7 @@
 // The interface only talks to this module (and reads state); it never edits state directly.
 import { initRng, seedFromClock, pick } from './rng.js';
 import { createPlayer, stageLabel } from './player.js';
-import { generateProfile, withArticle } from './life-generator.js';
+import { generateProfile, withArticle, PLACES } from './life-generator.js';
 import { addJournal } from './journal.js';
 import * as People from './people.js';
 import * as Education from './education.js';
@@ -180,6 +180,56 @@ export function jobAction(state, action) {
   state.actionsRemaining -= 1;
   addJournal(state, text);
   return { ok: true, title: 'Work', text };
+}
+
+export function freelanceGig(state) {
+  const blocked = guard(state);
+  if (blocked) return blocked;
+  if (state.player.age < 16) return { ok: false, title: 'Too Young', text: 'Freelance work opens up at 16.' };
+  state.actionsRemaining -= 1;
+  const done = state.yearly.activities.freelance || 0;
+  state.yearly.activities.freelance = done + 1;
+  const pay = Math.round((200 + state.player.smarts * 8) / (done + 1) / 10) * 10;
+  changeMoney(state, pay, 'freelance gig');
+  changeStat(state, 'smarts', done === 0 ? 1 : 0, 'freelance gig');
+  const text = `You took a freelance gig and earned $${pay.toLocaleString('en-US')}.`;
+  addJournal(state, text);
+  return { ok: true, title: 'Freelance Gig', text };
+}
+
+// The recruiter finds the best-paying job you qualify for, for a fee.
+export function jobRecruiter(state) {
+  if (!state.player.alive) return { ok: false, title: 'Life Complete', text: 'This life has ended.' };
+  const fee = 1000;
+  if (state.player.money < fee) return { ok: false, title: 'Not Enough Money', text: `The recruiter charges $${fee.toLocaleString('en-US')}.` };
+  const options = Careers.CAREERS.filter((c) => !c.partTime && Career.isEligible(state, c) && c.id !== state.career.careerId)
+    .sort((a, b) => b.ladder[0].salary - a.ladder[0].salary);
+  if (options.length === 0) return { ok: false, title: 'No Matches', text: 'The recruiter could not find anything you qualify for right now.' };
+  changeMoney(state, -fee, 'job recruiter');
+  return applyForCareer(state, options[0].id);
+}
+
+export function changeName(state, firstName, lastName) {
+  const first = String(firstName || '').trim().slice(0, 20);
+  const last = String(lastName || '').trim().slice(0, 20);
+  if (!first || !last) return { ok: false, title: 'Name Change', text: 'Please enter both a first and a last name.' };
+  const blocked = guard(state);
+  if (blocked) return blocked;
+  if (state.player.money < 120) return { ok: false, title: 'Not Enough Money', text: 'A legal name change costs $120.' };
+  state.actionsRemaining -= 1;
+  changeMoney(state, -120, 'name change');
+  const old = state.player.name;
+  state.player.firstName = first; state.player.lastName = last; state.player.name = `${first} ${last}`;
+  const text = `You legally changed your name from ${old} to ${state.player.name}.`;
+  addJournal(state, text, 'milestone');
+  return { ok: true, title: 'Name Change', text };
+}
+
+// The facts needed to try the same profile again after a life ends.
+export function retryProfile(state) {
+  const p = state.profile;
+  const placeIndex = PLACES.findIndex((pl) => pl.city === p.city && pl.country === p.country);
+  return { firstName: p.firstName, lastName: p.lastName, gender: p.gender, placeIndex };
 }
 
 // ---- Choices that do not cost an action -----------------------------------------------------------------

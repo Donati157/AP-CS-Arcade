@@ -2,7 +2,7 @@
 import { ev } from './define.js';
 
 export const UNIVERSITY_EVENTS = [
-  ev({ id: 'dormLife', category: 'education', needs: ['university'], weight: 8, once: true,
+  ev({ id: 'dormLife', category: 'education', needs: ['university'], when: (c) => c.edu.year === 1, weight: 8, once: true,
     text: 'You moved into a dorm with a roommate who snores and a view of the parking lot.', effects: { happiness: 1, smarts: 1 } }),
   ev({ id: 'firstLecture', category: 'education', needs: ['university'], once: true,
     text: 'Your first lecture had 300 students and one very quiet microphone.', effects: { smarts: 1 } }),

@@ -3,7 +3,7 @@
 // There is no filler event: a year with nothing eligible simply has no random event.
 import { chance, pick, pickWeighted, rand } from '../rng.js';
 import { applyEffects, changeStat } from '../stats.js';
-import { addJournal, pushModal } from '../journal.js';
+import { addJournal, pushModal, info } from '../journal.js';
 import { stageId } from '../player.js';
 import * as People from '../people.js';
 import * as Education from '../education.js';
@@ -105,7 +105,7 @@ function pickFromPool(state, pool, excludeCategory) {
   const category = pickWeighted(state, categories, (cat) => {
     const recentIndex = memory.recentCategories.indexOf(cat);
     const size = pool.filter((e) => e.category === cat).length;
-    const sizeWeight = Math.min(size, 6);
+    const sizeWeight = Math.min(size, 6) * (cat === 'rare' ? 0.3 : 1); // surprises stay rare
     return recentIndex === -1 ? sizeWeight : sizeWeight * (0.25 + 0.25 * recentIndex);
   });
   const candidates = pool.filter((e) => e.category === category);
@@ -196,7 +196,10 @@ export function applyEventEffects(state, effects, c, reason) {
   if (effects.partnerCloseness && c.partner) People.changeCloseness(c.partner, effects.partnerCloseness);
   if (effects.newFriend) {
     const friend = People.addFriend(state, effects.newFriend === true ? {} : effects.newFriend);
-    if (friend) addJournal(state, `You became friends with ${friend.name}.`, 'positive');
+    if (friend) {
+      addJournal(state, `You became friends with ${friend.name}.`, 'positive');
+      info(state, 'New Friend', `You are now friends with ${friend.name}.`, { band: 'Friends', tone: 'blue', person: friend.id, facts: [['Name', friend.name], ['Age', String(friend.age)], ['Occupation', friend.occupation || 'none yet']] });
+    }
   }
   if (effects.newCoworker) {
     const mate = People.addFriend(state, { role: 'coworker', age: state.player.age + Math.round((rand(state) - 0.5) * 20), occupation: c.job ? `${c.job} colleague` : 'coworker' });
@@ -212,11 +215,13 @@ export function applyEventEffects(state, effects, c, reason) {
   if (effects.newPartner && !c.partner) {
     const love = People.startDating(state);
     addJournal(state, `You started going out with ${love.name}.`, 'positive');
+    info(state, 'Love Interest', `${love.name} asked you out, and you said yes. You are now going out together.`, { band: 'Love', tone: 'blue', person: love.id, facts: [['Name', love.name], ['Age', String(love.age)], ['Occupation', love.occupation || 'student']] });
   }
   if (effects.newChild) {
     const baby = People.haveChild(state);
     addJournal(state, `You welcomed a baby ${baby.gender === 'female' ? 'girl' : 'boy'} named ${People.firstName(baby)} into the world.`, 'milestone');
     changeStat(state, 'happiness', 8, 'new baby');
+    info(state, 'A New Baby', `You are the proud parent of a baby ${baby.gender === 'female' ? 'girl' : 'boy'} named ${People.firstName(baby)}.`, { band: 'Family', tone: 'green', person: baby.id, facts: [['Name', baby.name], ['Relationship', baby.role === 'daughter' ? 'Daughter' : 'Son']] });
   }
   if (effects.newPet) {
     const species = effects.newPet === true ? pick(state, ['dog', 'cat']) : effects.newPet;

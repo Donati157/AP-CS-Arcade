@@ -10,7 +10,7 @@ import { SCREENS } from './ui/screens.js';
 import * as Modals from './ui/modals.js';
 import { money, esc } from './ui/render.js';
 
-export const VERSION = '2.0.0-web';
+export const VERSION = '2.1.0-web';
 
 const root = document.getElementById('game');
 const modalRoot = document.getElementById('modal-root');
@@ -20,6 +20,7 @@ let state = G.loadGame();
 let screen = state ? 'main' : 'start';
 const sel = { person: null, asset: null, shop: null, category: null };
 let uiModal = null;   // a confirmation asked by the interface (not saved)
+let postLifeOpen = false;
 let toastTimer = null;
 
 // ---- Rendering ----------------------------------------------------------------------------------------------
@@ -39,6 +40,7 @@ function render() {
 
 function renderModal() {
   if (uiModal) { modalRoot.innerHTML = Modals.confirm(uiModal); focusModal(); return; }
+  if (postLifeOpen && state) { modalRoot.innerHTML = Modals.postLife(state.player.name, !!state.profile); focusModal(); return; }
   const modal = state ? G.currentModal(state) : null;
   if (!modal) { modalRoot.innerHTML = ''; return; }
   if (modal.kind === 'decision') modalRoot.innerHTML = Modals.decision(modal, state);
@@ -88,6 +90,7 @@ function startNewLife(custom) {
   sel.person = sel.asset = sel.shop = sel.category = null;
   uiModal = null;
   render();
+  postLifeOpen = false;
   const p = state.player;
   uiModal = { title: 'A New Life Begins', text: `${p.name} was just born in ${p.birthplace}. Press Age to grow up, and make every year count.`, choices: ["Let's go"], icon: 'sparkle', band: 'Life', tone: 'green' };
   render();
@@ -120,12 +123,19 @@ function answer(choice) {
     render();
     return;
   }
+  if (postLifeOpen) {
+    postLifeOpen = false;
+    if (choice === 'random') startNewLife({});
+    else if (choice === 'custom') go('newlife');
+    else if (choice === 'retry') startNewLife(G.retryProfile(state));
+    else render();
+    return;
+  }
   const modal = G.currentModal(state);
   if (!modal) return;
   if (modal.kind === 'death') {
     G.answerModal(state);
-    if (choice === 'newLife') { render(); newLifeFlow(); return; }
-    if (choice === 'menu') { go('start'); return; }
+    postLifeOpen = true;
     render();
     return;
   }
@@ -150,7 +160,21 @@ async function handle(action, data) {
       go(data.target); break;
     case 'home': go('main'); break;
     case 'age': onAge(); break;
-    case 'newLife': await newLifeFlow(); break;
+    case 'newLife': if (state && !state.player.alive) { postLifeOpen = true; render(); } else await newLifeFlow(); break;
+    case 'premium': toast(`${data.feature} is an admin tool`, 'Changing stats or rewinding years is a premium candidate and is not part of normal play.', 'blue'); break;
+    case 'freelance': report(G.freelanceGig(state)); break;
+    case 'recruiterConfirm': {
+      const c = await ask({ title: 'Job Recruiter', band: 'Career', icon: 'chat', text: 'For $1,000 the recruiter places you in the best-paying job you qualify for.', facts: [['Fee', money(1000)], ['Bank Balance', money(state.player.money)]], choices: ["Let's try it", 'Not now'] });
+      if (c === 0) { const result = G.jobRecruiter(state); if (result.ok) screen = 'main'; report(result); }
+      break;
+    }
+    case 'changeName': {
+      const form = new FormData(document.getElementById('bl-name-form'));
+      const result = G.changeName(state, form.get('firstName'), form.get('lastName'));
+      if (result.ok) screen = 'main';
+      report(result);
+      break;
+    }
     case 'startRandom': startNewLife({}); break;
     case 'startCustom': {
       const form = new FormData(document.getElementById('bl-custom-form'));

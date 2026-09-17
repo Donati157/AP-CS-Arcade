@@ -200,7 +200,7 @@ export function endLife(state, cause) {
   p.deathAge = p.age;
   p.deathCause = cause;
   p.occupation = 'Deceased';
-  addJournal(state, `You passed away at the age of ${p.age}, ${cause}.`, 'milestone');
+  addJournal(state, `You passed away at the age of ${p.age}, ${cause}. Your net worth at the end was $${Economy.netWorth(state).toLocaleString('en-US')}.`, 'milestone');
   state.ended = { age: p.age, cause };
   state.pending = state.pending.filter((m) => m.kind !== 'decision');
   pushModal(state, { kind: 'death' });

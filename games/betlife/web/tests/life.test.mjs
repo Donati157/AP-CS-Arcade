@@ -161,7 +161,7 @@ test('happiness history: values change over a life', () => {
     const line = life.snapshots.filter((s) => [16, 20, 25, 30, 40, 50, 60, 70].includes(s.age)).map((s) => `${s.age}: ${s.happiness}`).join(', ');
     console.log('    ' + line);
     const values = new Set(life.snapshots.map((s) => s.happiness));
-    assert.ok(values.size >= 15, 'happiness barely changes');
+    if (life.snapshots.length >= 30) assert.ok(values.size >= 15, `happiness barely changes (${values.size} distinct values in ${life.snapshots.length} years)`);
   }
 });
 

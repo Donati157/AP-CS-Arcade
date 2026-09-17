@@ -5,7 +5,7 @@ const T = ['teen'];
 
 export const TEEN_EVENTS = [
   // High school life
-  ev({ id: 'highSchoolFirstDay', category: 'education', stages: T, needs: ['highSchool'], weight: 8, once: true,
+  ev({ id: 'highSchoolFirstDay', category: 'education', stages: T, needs: ['highSchool'], when: (c) => c.edu.year === 9, weight: 8, once: true,
     text: 'Your first day of high school involved three wrong classrooms and one very patient teacher.', effects: { smarts: 1 } }),
   ev({ id: 'favoriteTeacher', category: 'education', stages: T, needs: ['school'], once: true, kind: 'positive',
     text: 'A teacher noticed you were bored and started lending you harder books.', effects: { smarts: 3, performance: 3, happiness: 2 } }),
