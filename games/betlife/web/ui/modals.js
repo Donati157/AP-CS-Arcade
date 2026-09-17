@@ -51,14 +51,56 @@ export function death(summary) {
 }
 
 // After the summary: start again, like the reference's post-life menu.
-export function postLife(name, hasProfile) {
+export function postLife(name, hasProfile, children = []) {
   return `<div class="bl-overlay"><div class="bl-postlife" role="dialog" aria-modal="true">
     <h2>${icon('candle')}<span>${esc(name)}</span></h2>
     <p>Start an all-new life or try again as ${esc(name.split(' ')[0])}!</p>
+    ${children.map((k) => `<button class="bl-btn bl-btn-blue bl-btn-big" data-choice="child:${esc(k.id)}">Continue as ${esc(k.name.split(' ')[0])} (${k.age})</button>`).join('')}
     <button class="bl-btn bl-btn-green bl-btn-big" data-choice="random">Start a new random life!</button>
     <button class="bl-btn bl-btn-yellow bl-btn-big" data-choice="custom">Start a custom life!</button>
     ${hasProfile ? `<button class="bl-text-btn bl-text-light" data-choice="retry">try again as ${esc(name.split(' ')[0])}</button>` : ''}
     <button class="bl-text-btn bl-text-light" data-choice="close">read the journal</button></div></div>`;
+}
+
+// Road-sign quiz for the driving license (original signs, three answers).
+const SIGNS = [
+  { sign: 'A red octagon with white letters', answers: ['Stop completely', 'Slow down', 'No parking'], correct: 0 },
+  { sign: 'A yellow diamond with a black zigzag arrow', answers: ['Winding road ahead', 'Lane ends', 'Railway crossing'], correct: 0 },
+  { sign: 'A white circle with a red border and "40"', answers: ['Speed limit 40', 'Minimum speed 40', 'Route 40'], correct: 0 },
+  { sign: 'A blue square with a white "P"', answers: ['Parking allowed', 'Pedestrians only', 'Police station'], correct: 0 },
+  { sign: 'A red triangle pointing down', answers: ['Give way', 'Roadworks', 'One way'], correct: 0 },
+];
+
+export function minigame(modal, state) {
+  if (modal.game === 'drivingQuiz') {
+    const q = SIGNS[state.player.age % SIGNS.length];
+    const order = [0, 1, 2].sort((a, b) => ((a * 7 + state.seed) % 5) - ((b * 7 + state.seed) % 5));
+    return card('decision', `<div class="bl-band"><span class="bl-band-role">${esc(modal.band)}</span></div>
+      <h2 class="bl-modal-title">${icon('car')}<span>${esc(modal.title)}</span></h2>
+      <p class="bl-modal-text">${esc(modal.text)}</p>
+      <div class="bl-facts"><div class="bl-fact"><b>Sign:</b> ${esc(q.sign)}</div></div>
+      <p class="bl-modal-question">What does it mean?</p>
+      <div class="bl-modal-buttons">${order.map((i) => `<button class="bl-btn bl-btn-blue" data-choice="${i === q.correct ? 'pass' : 'fail'}">${esc(q.answers[i])}</button>`).join('')}</div>`);
+  }
+  if (modal.game === 'eyeExam') {
+    const letters = 'EFHLTZ';
+    const base = letters[state.seed % letters.length];
+    const odd = letters[(state.seed + 3) % letters.length];
+    const cells = 48; const oddIndex = (state.seed * 7 + state.player.age * 13) % cells;
+    const grid = Array.from({ length: cells }, (_, i) => `<button class="bl-eye-cell" data-choice="${i === oddIndex ? 'pass' : 'fail'}">${i === oddIndex ? odd : base}</button>`).join('');
+    return card('decision', `<div class="bl-band"><span class="bl-band-role">${esc(modal.band)}</span></div>
+      <h2 class="bl-modal-title">${icon('eye')}<span>${esc(modal.title)}</span></h2>
+      <p class="bl-modal-text">${esc(modal.text)}</p>
+      <div class="bl-eye-grid" id="bl-eye-grid">${grid}</div>
+      <p class="bl-modal-question bl-eye-timer" id="bl-eye-timer">Time remaining: 8 seconds</p>
+      <button class="bl-text-btn" data-choice="fail">I need glasses</button>`);
+  }
+  return card('blue', `<h2 class="bl-modal-title">${esc(modal.title)}</h2><div class="bl-modal-buttons"><button class="bl-btn bl-btn-green" data-choice="pass">OK</button></div>`);
+}
+
+// Badge banner: a top strip that slides in and dismisses itself.
+export function badgeBanner(modal) {
+  return `<div class="bl-banner" data-choice="ok"><span class="bl-banner-icon">${icon('medal')}</span><span class="bl-banner-text"><strong>${esc(modal.name)}</strong><span>${esc(modal.desc)}</span></span><span class="bl-banner-kicker">Badge earned</span></div>`;
 }
 
 function card(tone, body) {

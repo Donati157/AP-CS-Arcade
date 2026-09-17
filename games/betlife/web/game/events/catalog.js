@@ -8,6 +8,7 @@ import { ADULT_EVENTS } from './adult.js';
 import { SENIOR_EVENTS } from './senior.js';
 import { RELATIONSHIP_EVENTS } from './relationship.js';
 import { FINANCE_EVENTS } from './finance.js';
+import { NEWS_EVENTS } from './news.js';
 import { CHILDHOOD_DECISIONS } from '../decisions/childhood.js';
 import { SCHOOL_DECISIONS } from '../decisions/school.js';
 import { UNIVERSITY_DECISIONS } from '../decisions/university.js';
@@ -17,7 +18,7 @@ import { SENIOR_DECISIONS } from '../decisions/senior.js';
 
 export const EVENT_GROUPS = {
   infant: INFANT_EVENTS, child: CHILD_EVENTS, teen: TEEN_EVENTS, university: UNIVERSITY_EVENTS, career: CAREER_EVENTS,
-  adult: ADULT_EVENTS, senior: SENIOR_EVENTS, relationship: RELATIONSHIP_EVENTS, finance: FINANCE_EVENTS,
+  adult: ADULT_EVENTS, senior: SENIOR_EVENTS, relationship: RELATIONSHIP_EVENTS, finance: FINANCE_EVENTS, news: NEWS_EVENTS,
 };
 export const DECISION_GROUPS = {
   childhood: CHILDHOOD_DECISIONS, school: SCHOOL_DECISIONS, university: UNIVERSITY_DECISIONS, career: CAREER_DECISIONS,

@@ -30,7 +30,11 @@ export function livingCost(state) {
   const p = state.player;
   if (p.livesWithParents || p.age < 18) return 0;
   const base = state.assets.some((a) => a.type === 'home') ? HOME_BILLS : RENT;
-  return base + Math.round(yearlyIncome(state) * LIFESTYLE_SHARE);
+  const income = yearlyIncome(state);
+  // Lifestyle costs grow with income, faster once a household is well off.
+  // Well-off households spend more: a share of the savings goes to a nicer lifestyle every year.
+  const wealthSpend = Math.max(0, p.money - 150000) * 0.04;
+  return base + Math.round(income * LIFESTYLE_SHARE + Math.max(0, income - 60000) * 0.2 + wealthSpend);
 }
 
 export function yearlyExpenses(state) {
@@ -39,6 +43,7 @@ export function yearlyExpenses(state) {
   for (const a of state.assets) cost += Math.round(a.value * a.upkeep);
   if (Education.isUniversity(state.education)) cost += Education.UNIVERSITY_TUITION;
   if (Education.isTradeSchool(state.education)) cost += Education.TRADE_TUITION;
+  if (Education.isProgram(state.education)) cost += Education.currentProgram(state.education).tuition;
   return cost;
 }
 
@@ -53,7 +58,7 @@ export function processFinances(state, upkeep) {
   if (income > 0) changeMoney(state, income, state.career.retired ? 'pension' : 'salary');
 
   let bills = livingCost(state) + People.children(state).filter((c) => c.age < 18).length * CHILD_COST + upkeep;
-  const tuition = Education.isUniversity(state.education) ? Education.UNIVERSITY_TUITION : Education.isTradeSchool(state.education) ? Education.TRADE_TUITION : 0;
+  const tuition = Education.isUniversity(state.education) ? Education.UNIVERSITY_TUITION : Education.isTradeSchool(state.education) ? Education.TRADE_TUITION : Education.isProgram(state.education) ? Education.currentProgram(state.education).tuition : 0;
   if (tuition > 0) {
     if (p.money >= tuition) changeMoney(state, -tuition, 'tuition');
     else { changeMoney(state, -tuition, 'student loan', true); state.flags.studentLoan = true; }

@@ -12,9 +12,13 @@ import * as Assets from './assets.js';
 import * as Activities from './activities.js';
 import * as Economy from './economy.js';
 import { createEventMemory, resolveDecision as resolveEventDecision } from './events/engine.js';
+import * as Pets from './pets.js';
+import { awardBadges } from './year.js';
+import { info } from './journal.js';
+import { chance, between } from './rng.js';
 import { findEvent } from './events/catalog.js';
 import { ageUp as processYear, resolveAfterHighSchool, updateOccupation } from './year.js';
-import { changeStat } from './stats.js';
+import { changeStat, changeMoney } from './stats.js';
 import { SAVE_VERSION } from './save.js';
 
 export { saveGame, loadGame, clearSavedGame } from './save.js';
@@ -82,6 +86,7 @@ export function ageUp(state) {
 export function answerModal(state, choiceIndex = null) {
   const modal = state.pending.shift();
   if (!modal) return null;
+  if (modal.kind === 'minigame') { finishMinigame(state, modal, choiceIndex === true); return null; }
   if (modal.kind !== 'decision') return null;
   let followUp = null;
   if (modal.eventId === 'afterHighSchool') followUp = resolveAfterHighSchool(state, choiceIndex);
@@ -111,7 +116,9 @@ export function doActivity(state, activityId) {
   const activity = Activities.findActivity(activityId);
   if (!activity) return { ok: false, title: 'Unknown', text: 'That activity does not exist.' };
   if (!canDoActivities(state)) return { ok: false, title: 'Too Young', text: `You are still too little for that. Activities open up at age ${Activities.ACTIVITY_MIN_AGE}.` };
-  return Activities.perform(state, activity);
+  const result = Activities.perform(state, activity);
+  awardBadges(state);
+  return result;
 }
 
 export function interactWith(state, personId, action) {
@@ -124,7 +131,8 @@ export function interactWith(state, personId, action) {
   const text = People.interact(state, person, action);
   if (text === null) return { ok: false, title: 'Not Enough Money', text: 'You cannot afford that right now.' };
   state.actionsRemaining -= 1;
-  addJournal(state, text, ['propose', 'marry'].includes(action) ? 'milestone' : 'normal');
+  addJournal(state, text, ['propose', 'marry', 'startFamily'].includes(action) ? 'milestone' : 'normal');
+  awardBadges(state);
   return { ok: true, title: person.role === 'pet' ? person.name : People.firstName(person), text };
 }
 
@@ -243,6 +251,7 @@ export function applyForCareer(state, careerId) {
   Career.hire(state, career);
   Career.resetUnemployment(state.career);
   updateOccupation(state);
+  awardBadges(state);
   const title = career.ladder[0].title;
   return { ok: true, title: "You're Hired!", text: `You start as ${withArticle(title)} at ${career.employer}, earning $${career.ladder[0].salary.toLocaleString('en-US')} a year.`,
     facts: [['Title', title], ['Career', career.name], ['Employer', career.employer], ['Salary', `$${career.ladder[0].salary.toLocaleString('en-US')} / year`]] };
@@ -269,6 +278,100 @@ export function enrollUniversity(state, major) {
   updateOccupation(state);
   addJournal(state, `You enrolled at ${Education.UNIVERSITY_NAME} to study ${major}.`, 'milestone');
   return true;
+}
+
+export function enrollProgram(state, programId) {
+  const program = Education.PROGRAMS[programId];
+  if (!program || !Education.canEnrollProgram(state.education, program)) return false;
+  Education.enrollInProgram(state.education, programId);
+  updateOccupation(state);
+  addJournal(state, `You enrolled at ${program.school}.`, 'milestone');
+  return true;
+}
+
+export function humanResources(state, option) {
+  const blocked = guard(state);
+  if (blocked) return blocked;
+  if (!Career.isEmployed(state.career)) return { ok: false, title: 'No Job', text: 'You do not have a job right now.' };
+  if (state.career.hrThisYear) return { ok: false, title: 'Human Resources', text: 'HR already handled a request from you this year.' };
+  const coworker = People.byRole(state, 'coworker').sort((a, b) => a.closeness - b.closeness)[0] || null;
+  const text = Career.humanResources(state, option, option === 'complaint' ? coworker : null);
+  if (!text) return { ok: false, title: 'Human Resources', text: 'Unknown request.' };
+  state.actionsRemaining -= 1;
+  addJournal(state, text);
+  return { ok: true, title: 'Human Resources', text };
+}
+
+export function assetAction(state, assetId, action, personId = null) {
+  const blocked = guard(state);
+  if (blocked) return blocked;
+  const asset = Assets.findAsset(state, assetId);
+  if (!asset) return { ok: false, title: 'Gone', text: 'You no longer own that.' };
+  let text = null;
+  if (action === 'drive') text = Assets.drive(state, asset);
+  else if (action === 'maintenance') text = Assets.maintenance(state, asset);
+  else if (action === 'scrap') text = Assets.scrap(state, asset);
+  else if (action === 'renovate') text = Assets.renovate(state, asset);
+  else if (action === 'gift') { const who = People.findPerson(state, personId); if (!who) return { ok: false, title: 'Gift', text: 'Choose someone to give it to.' }; text = Assets.gift(state, asset, who); }
+  else return { ok: false, title: 'Unknown', text: 'Unknown action.' };
+  if (text === null) return { ok: false, title: 'Not Enough Money', text: 'You cannot afford that right now.' };
+  state.actionsRemaining -= 1;
+  addJournal(state, text);
+  return { ok: true, title: asset.name, text };
+}
+
+export function adoptFromSource(state, sourceId, animalId) {
+  const blocked = guard(state);
+  if (blocked) return blocked;
+  const source = Pets.SOURCES.find((s) => s.id === sourceId);
+  if (!source) return { ok: false, title: 'Unknown', text: 'That place does not exist.' };
+  if (state.player.age < source.minAge) return { ok: false, title: 'Too Young', text: `You can visit from age ${source.minAge}.` };
+  if (People.pets(state).length >= 3) return { ok: false, title: 'Full House', text: 'Three pets is plenty for now.' };
+  const animal = Pets.inventory(state, source).find((a) => a.id === animalId);
+  if (!animal) return { ok: false, title: 'Gone', text: 'That animal already found a home.' };
+  const result = Pets.adopt(state, source, animal);
+  if (!result) return { ok: false, title: 'Not Enough Money', text: `The fee is $${animal.fee}.` };
+  changeMoney(state, -animal.fee, `adopted ${animal.name}`);
+  state.actionsRemaining -= 1;
+  changeStat(state, 'happiness', 4, `adopted ${animal.name}`);
+  state.flags.adoptedFrom = [...(state.flags.adoptedFrom || []), animal.id];
+  const text = `You adopted ${animal.name}, a ${animal.age === 0 ? 'baby' : `${animal.age}-year-old`} ${animal.breed.toLowerCase()}, from ${source.name}.`;
+  addJournal(state, text, 'positive');
+  return { ok: true, title: 'New Pet', text };
+}
+
+// Mini-games queued by events. `passed` comes from the interface.
+export function finishMinigame(state, modal, passed) {
+  if (modal.game === 'drivingQuiz') {
+    if (passed) { state.player.hasLicence = true; changeStat(state, 'happiness', 4, 'driving licence'); addJournal(state, 'You passed your driving test and got your license.', 'milestone'); }
+    else { changeStat(state, 'happiness', -2, 'failed driving test'); addJournal(state, 'You failed your driving test. Better luck next year.', 'negative'); }
+  } else if (modal.game === 'eyeExam') {
+    if (passed) { changeStat(state, 'health', 1, 'eye exam'); addJournal(state, 'You passed your eye exam.'); }
+    else { state.flags.glasses = true; changeStat(state, 'smarts', 1, 'new glasses'); changeStat(state, 'looks', -1, 'new glasses'); addJournal(state, 'You failed the eye exam and got glasses. The board at school suddenly made sense.'); }
+  }
+}
+
+// Continue the story as one of the character's children after a life ends.
+export function continueAsChild(state, childId) {
+  const child = People.findPerson(state, childId);
+  if (!child || !state.player.alive === false && !child.alive) return null;
+  const inheritance = Economy.netWorth(state);
+  const next = createNewGame({ firstName: People.firstName(child), lastName: child.name.split(' ').slice(1).join(' ') || state.player.lastName, gender: child.gender, placeIndex: PLACES.findIndex((p) => `${p.city}, ${p.country}` === state.player.residence) });
+  const p = next.player;
+  p.age = child.age; p.happiness = child.traits ? Math.round((child.traits.kindness + 60) / 2) : 65; p.smarts = child.traits ? child.traits.smarts : between(next, 30, 80); p.looks = child.traits ? child.traits.looks : between(next, 30, 80);
+  p.money = Math.max(0, Math.round(inheritance)); p.livesWithParents = child.age < 22; p.hasLicence = child.age >= 18; p.residence = state.player.residence;
+  next.timeline = [];
+  next.relationships = [];
+  const spouse = state.relationships.find((r) => r.role === 'spouse' && r.alive);
+  if (spouse) next.relationships.push({ ...spouse, id: `p${next.nextPersonId++}`, role: spouse.gender === 'female' ? 'mother' : 'father', closeness: 80, since: 0, interactedThisYear: false });
+  for (const sib of People.children(state).filter((k) => k.id !== child.id)) next.relationships.push({ ...sib, id: `p${next.nextPersonId++}`, role: sib.gender === 'female' ? 'sister' : 'brother', closeness: 65, since: 0, interactedThisYear: false });
+  for (const pet of People.pets(state)) next.relationships.push({ ...pet, id: `p${next.nextPersonId++}`, closeness: 60, since: 0, interactedThisYear: false });
+  if (child.age >= 18) { next.education.highSchoolGraduate = true; }
+  else if (child.age >= 5) { Education.startSchool(next.education); next.education.year = child.age - 5; }
+  addJournal(next, `Your ${state.player.gender === 'female' ? 'mother' : 'father'}, ${state.player.name}, passed away at ${state.player.age}. You inherited $${p.money.toLocaleString('en-US')} and carry the story on.`, 'milestone');
+  updateOccupation(next);
+  awardBadges(next);
+  return next;
 }
 
 export function enrollTradeSchool(state, trade) {

@@ -28,6 +28,7 @@ export function simulateLife(seed, options = {}) {
   drain(state, policyRng);
   while (state.player.alive) {
     act(state, policyRng, options);
+    drain(state, policyRng); // actions can queue badges or cards
     if (!G.ageUp(state)) break;
     drain(state, policyRng);
     snapshots.push(snapshot(state));
@@ -43,6 +44,7 @@ export function drain(state, policyRng) {
   let guardCount = 0;
   while (state.pending.length > 0 && guardCount++ < 50) {
     const modal = state.pending[0];
+    if (modal.kind === 'minigame') { G.answerModal(state, policyRng() < 0.7); continue; }
     if (modal.kind !== 'decision') { G.answerModal(state); continue; }
     let choice;
     if (modal.eventId === 'afterHighSchool') { const r = policyRng(); choice = state.player.smarts >= 60 && r < 0.65 ? 0 : r < 0.85 ? 1 : 2; }

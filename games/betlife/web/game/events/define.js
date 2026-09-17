@@ -26,5 +26,5 @@ export function ev(def) {
 
 export const CATEGORY_LABELS = {
   family: 'Family', friendship: 'Friends', education: 'School', career: 'Work', finance: 'Money', personal: 'Personal',
-  hobby: 'Hobbies', asset: 'Belongings', health: 'Health', relationship: 'Love', lifeStage: 'Life', rare: 'Surprise',
+  hobby: 'Hobbies', asset: 'Belongings', health: 'Health', relationship: 'Love', lifeStage: 'Life', rare: 'Surprise', news: 'News',
 };

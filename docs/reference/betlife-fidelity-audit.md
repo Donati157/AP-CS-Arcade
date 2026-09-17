@@ -96,3 +96,42 @@ Menu             hamburger NOT OBSERVED (never opened)
 | Person (friend) | ~9 | 9 |
 | Person (partner) | ~10 | 12 |
 | Post-life menu | 4 | 3 |
+
+## 4. Final video parity matrix (BetLife web 2.2, 2026-09-17)
+
+Compared on interaction, information density and screen structure, not on button names alone.
+
+| Feature / screen | Reference (OBSERVED) | BetLife 2.2 | Verdict | Remaining difference |
+|---|---|---|---|---|
+| Main life screen | header, strip, journal, 5-slot nav with Age, 4 stat bars | same hierarchy and proportions; badge counter in header | MATCH | no promo banners; icons instead of emoji faces |
+| Journal | "Age: N years", 1–6 grey lines, other people's milestones, news, pets | same, incl. family/friends/coworkers/pets progress and fictional news lines | MATCH | second person ("You") instead of first person |
+| Stats | bold labels, emoji, thick bars, % inside, warning + Boost | same; Boost is a premium-candidate marker | MATCH | two icon states instead of graded emoji |
+| Age button + "− Age" | green circle, red rewind attached | same; rewind is a premium-candidate marker | MATCH | |
+| Decision dialogs | red border, band, icon title, 2–4 blue buttons, Surprise me | same ("Flip a coin") | MATCH | |
+| Info / person cards | blue or green border, avatar band, fact box, trait bars | same; new friend, love interest, baby, promotion, in memory, step-parent | MATCH | trait bars shown on the person screen, not on the card |
+| Mini-games | eye exam grid with timer, road-sign driving quiz | eye exam grid with 8 s timer, sign quiz with three answers | MATCH | one question instead of several |
+| Achievements | toast + banner, counter in header | badge banner + header counter + Life Badges screen (21 badges) | MATCH | no death ribbons |
+| Occupation | You (job + performance, schedule + stress), Freelance, Recruiter, Jobs, Military, Part-Time, Special Careers, Education | same rows: Freelance Gigs, Job Recruiter, Jobs, Part-Time Jobs, Military, Dream Careers, University, Trade School, Graduate/Law/Medical/Business school, History | MATCH | professional schools are 4 (reference lists 7) |
+| Job screen | Human Resources, Resign, Retire, Work Harder (+ performance, stress) | Human Resources (4 requests), Work Harder, Take It Easy, Ask for a Raise, Resign, Retire, Schedule with Stress bar | MATCH | |
+| Jobs / Military / Special | lists with title (category) and salary, "…" apply | Jobs grouped by category; Military 5 branches with ranks; Dream Careers 6 paths with stat requirements | MATCH | reference special careers are premium-gated; ours are free |
+| Assets | sections, condition bars, Go Shopping footer | Finances (screen), Housing, Real Estate, Vehicles, Possessions, footer | MATCH | Social Media, Landlord, Collectibles, Investments not built |
+| Vehicle detail | Abandon, Drive, Garage, Gift, Maintenance, Pay Off, Repair, Sell, Scrap | Drive, Maintenance, Repair, Gift (choose a person), Sell, Scrap; homes: Renovate, Sell | MATCH | no Abandon/Garage/Pay Off (no vehicle loans) |
+| Shopping | store categories, "Name (Type) $price", real-estate addresses | same, 9 stores | MATCH | no aircraft/marine dealers, no Refresh Inventory |
+| Relationships list | Love, Parents (incl. step-parents), Siblings, Pets, Friends, Enemies, Spend Time With All | Partner, Parents incl. step-parents, Siblings, Children, Friends, Coworkers, Pets, footer | MATCH | no Enemies section |
+| Person detail | "Name (Age)", bar, Edit (God Mode), 9–11 activities | "Name (Age)", bar, facts, trait bars, 9–13 activities incl. Movie Theater, Concert, Ask Out, Doctor | MATCH | Deal, Insult, Spy, Recruit replaced by school-appropriate actions; Edit omitted (premium candidate) |
+| Pets | Animal Shelter, Cat/Dog Breeders, Exotic, Horse Ranch, Pet Store with "Name (Breed) age" lists | Rescue Center, Cattery, Kennels, Pet Shop with "Name (Breed) · age · fee" lists, changing yearly; pet detail Bathe/Play/Treat/Walk/Rehome | MATCH | no exotic pets or horses |
+| Activities | Favorites + All (30 rows), › vs …, footer Surrender | Favorites + All (23 rows), › vs …, paid actions confirm first | MATCH | out-of-scope rows omitted; no Surrender |
+| Mind & Body / Salon / Love / Identity / Licenses | submenus; Licenses runs the road-sign quiz | same submenus; the Licenses driving test runs the same road-sign quiz as the teen event | MATCH | Instruments is one action; Love has 2 rows |
+| School screen (teen) | school rows plus part-time work access | You, Grades, Actions, Work (Freelance Gigs, Part-Time Jobs from 14/16) | MATCH | |
+| Spouse actions | includes starting a family | Start a Family (spouse, ages 20–45, up to 4 children), Celebrate Anniversary, Propose, Get Married | MATCH | no adult-only rows |
+| Education menu | University, Graduate, Business, Dental, Law, Medical schools | University, Trade School, Graduate, Law, Medical, Business | PARTIAL | no dental school |
+| Post-life | tombstone → Continue as child, random, custom, try again | summary card → Continue as child (each living child), random, custom, try again | MATCH | no ribbons on the summary |
+| Cold start | splash, disclaimer, language picker | main menu | MISSING | not built |
+| Premium systems | edit mode, time machine, boosts, golden items | classified as premium candidates, none built | omitted by rule | |
+| Crime, gambling, nightlife, plastic surgery, fertility, mature content | present in reference | omitted | omitted by policy | |
+
+### 4.1 Playthrough and simulation notes (2.2)
+
+- Real-click playthrough on the local build at 390×844: birth → kindergarten (School screen, Study Harder) → parents' detail with trait bars → Library → eye exam (timed out, glasses) → part-time cashier at 16 (from the new Work section) → "What's Next?" → university (Computer Science) → Junior Developer at 22 → Work Harder / Ask for a Raise / HR flexible hours → dating app → partner → Propose → Get Married → driving test → used sedan → Drive / Maintenance → fired at 41 after warnings (passive play) → Job Recruiter → Retire at 63 (pension) → death at 76 → post-life menu (Continue as Arjun (43) / random / custom / try again) → New Random Life reset. Bulk aging between phases used the same handler the Age button calls.
+- Fixed on the way: `freelanceGig`, `jobRecruiter`, `changeName` and `adoptFromSource` threw a ReferenceError in 2.1 (missing `changeMoney` import); badge banners no longer swallow navigation taps; the Love favourite showed "Opens at age 18" when the real reason was an existing partner.
+- Tuning: childhood happiness baseline +10 (teens +5); a classmate friend joins at kindergarten and middle school (friends by 18: median 1 → 3 over 40 simulated lives); passive performance drift −4..+1 instead of −6..−1; lifestyle spending grows with savings (final net worth median $2.5M → $1.2M over 40 lives).

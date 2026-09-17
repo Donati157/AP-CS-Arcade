@@ -22,6 +22,7 @@ import { ACTIONS_PER_YEAR, pocketMoney } from './activities.js';
 import { runYearlyEvents } from './events/engine.js';
 import { checkMortality } from './mortality.js';
 import { stageId } from './player.js';
+import { checkBadges } from './badges.js';
 
 export function ageUp(state) {
   const p = state.player;
@@ -66,9 +67,17 @@ export function ageUp(state) {
   const cause = checkMortality(state);
   if (cause) endLife(state, cause);
 
-  // 9. labels
+  // 9. labels and badges
   updateOccupation(state);
+  awardBadges(state);
   return true;
+}
+
+// Badges are feedback only; new ones are queued as banners for the interface.
+export function awardBadges(state) {
+  const earned = checkBadges(state);
+  for (const b of earned) state.pending.push({ kind: 'badge', id: b.id, name: b.name, desc: b.desc });
+  return earned;
 }
 
 function processEducation(state) {
@@ -80,6 +89,7 @@ function processEducation(state) {
       addJournal(state, `You started kindergarten at ${Education.ELEMENTARY_NAME}.`, 'milestone');
       info(state, 'School Begins', `You are starting school at ${Education.ELEMENTARY_NAME}.`, { band: 'School', tone: 'blue',
         facts: [['School', Education.ELEMENTARY_NAME], ['Level', 'Elementary School'], ['Years', '6']] });
+      classmateFriend(state, 'kindergarten');
     }
     return;
   }
@@ -88,6 +98,7 @@ function processEducation(state) {
   if (wasSchool && !completed && e.year === Education.FIRST_MIDDLE_GRADE) {
     addJournal(state, `You started middle school at ${Education.MIDDLE_SCHOOL_NAME}.`, 'milestone');
     info(state, 'Middle School', `You are moving up to ${Education.MIDDLE_SCHOOL_NAME}.`, { band: 'School', facts: [['School', Education.MIDDLE_SCHOOL_NAME], ['Level', 'Middle School'], ['Years', '3']] });
+    classmateFriend(state, 'middle school');
   } else if (wasSchool && !completed && e.year === Education.FIRST_HIGH_GRADE) {
     addJournal(state, `You started high school at ${Education.HIGH_SCHOOL_NAME}.`, 'milestone');
     info(state, 'High School', `Welcome to ${Education.HIGH_SCHOOL_NAME}.`, { band: 'School', facts: [['School', Education.HIGH_SCHOOL_NAME], ['Level', 'High School'], ['Years', '4']] });
@@ -106,6 +117,13 @@ function processEducation(state) {
     changeStat(state, 'happiness', 6, 'university degree');
     changeStat(state, 'smarts', 3, 'university degree');
     info(state, 'Graduation Day', `You earned your degree in ${e.degree} from ${Education.UNIVERSITY_NAME}. Time to find work on the Occupation screen.`, { band: 'University', tone: 'green' });
+  } else if (completed === 'program') {
+    const credential = e.credentials[e.credentials.length - 1];
+    addJournal(state, `You completed ${credential === 'MBA' ? 'business school with an MBA' : credential === "Master's" ? `graduate school with a master's degree` : `${credential.toLowerCase()} school`}.`, 'milestone');
+    p.occupation = 'Unemployed';
+    changeStat(state, 'happiness', 6, 'program completed');
+    changeStat(state, 'smarts', 3, 'program completed');
+    info(state, 'Graduation Day', `You finished ${Education.schoolName({ stage: 'program', program: Object.values(Education.PROGRAMS).find((pr) => pr.credential === credential).id })}. New careers are open on the Occupation screen.`, { band: 'University', tone: 'green' });
   } else if (completed === 'trade') {
     addJournal(state, `You earned your ${e.trade} certificate from ${Education.TRADE_SCHOOL_NAME}.`, 'milestone');
     p.occupation = 'Unemployed';
@@ -126,11 +144,21 @@ export function resolveAfterHighSchool(state, choiceIndex) {
   }
 }
 
+// A classmate becomes a friend when school starts, so childhood is not spent alone.
+function classmateFriend(state, where) {
+  const friend = People.addFriend(state, { age: state.player.age + between(state, -1, 1), occupation: 'student' });
+  if (!friend) return;
+  addJournal(state, `You made a friend at ${where}: ${friend.name}.`, 'positive');
+  info(state, 'New Friend', `You and ${friend.name} became friends at ${where}.`, { band: 'Friends', tone: 'blue', person: friend.id, facts: [['Name', friend.name], ['Age', String(friend.age)]] });
+}
+
 // ---- Stat settlement: how age and circumstances move the four stats each year ------------------
 
 export function happinessBaseline(state) {
   const p = state.player;
   let base = 50;
+  if (p.age < 13) base += 10;       // childhood is carefree by default
+  else if (p.age < 18) base += 5;
   const love = People.partner(state);
   if (love) base += love.closeness >= 50 ? 8 : 2;
   base += Math.min(3, People.friends(state).length) * 3;
@@ -213,6 +241,7 @@ export function updateOccupation(state) {
   if (career.retired) { player.occupation = 'Retired'; return; }
   if (education.stage === 'university') player.occupation = 'University Student';
   else if (education.stage === 'trade') player.occupation = 'Trade School Student';
+  else if (education.stage === 'program') player.occupation = `${Education.currentProgram(education).name} Student`;
   else if (education.stage === 'school') player.occupation = `${Education.schoolLevel(education)} Student`;
   else if (player.age <= 3) player.occupation = 'Infant';
   else if (player.age < Education.SCHOOL_START_AGE) player.occupation = 'Child';

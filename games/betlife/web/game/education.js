@@ -27,6 +27,14 @@ export const MAJORS = [
   { id: 'Nursing', note: 'Patient care and clinical practice' },
   { id: 'Communications', note: 'Writing, media and public speaking' },
 ];
+// Programs after a degree. `needs` is a list of majors (or null for any degree).
+export const PROGRAMS = {
+  graduate: { id: 'graduate', name: 'Graduate School', school: 'Harborview Graduate School', years: 2, tuition: 9000, credential: "Master's", needs: null, note: 'A master\'s degree in your field' },
+  law: { id: 'law', name: 'Law School', school: 'Halloran School of Law', years: 3, tuition: 14000, credential: 'Law', needs: null, note: 'Three years to practise law' },
+  medical: { id: 'medical', name: 'Medical School', school: 'Cedar Grove School of Medicine', years: 4, tuition: 16000, credential: 'Medicine', needs: ['Biology', 'Nursing'], note: 'Four years to become a physician' },
+  business: { id: 'business', name: 'Business School', school: 'Summit School of Business', years: 2, tuition: 12000, credential: 'MBA', needs: null, note: 'An MBA for management careers' },
+};
+
 export const TRADES = [
   { id: 'Electrical', note: 'Wiring, circuits and power systems' },
   { id: 'Culinary', note: 'Professional kitchens and food preparation' },
@@ -45,6 +53,8 @@ export function createEducation() {
     gradeHistory: [],     // performance at the end of each completed year
     droppedOut: false,
     clubs: [],
+    program: null,       // program id while attending graduate or professional school
+    credentials: [],     // credentials earned from programs
   };
 }
 
@@ -55,6 +65,9 @@ export const isMiddleSchool = (e) => e.stage === 'school' && e.year >= FIRST_MID
 export const isElementary = (e) => e.stage === 'school' && e.year < FIRST_MIDDLE_GRADE;
 export const isUniversity = (e) => e.stage === 'university';
 export const isTradeSchool = (e) => e.stage === 'trade';
+export const isProgram = (e) => e.stage === 'program';
+export const currentProgram = (e) => (e.stage === 'program' ? PROGRAMS[e.program] : null);
+export const canEnrollProgram = (e, program) => !!e.degree && !isEnrolled(e) && !(e.credentials || []).includes(program.credential) && (!program.needs || program.needs.includes(e.degree));
 export const canEnrollHigher = (e) => e.highSchoolGraduate && !isEnrolled(e);
 
 export function changePerformance(education, amount) {
@@ -69,6 +82,7 @@ export function schoolName(education) {
   }
   if (education.stage === 'university') return UNIVERSITY_NAME;
   if (education.stage === 'trade') return TRADE_SCHOOL_NAME;
+  if (education.stage === 'program') return currentProgram(education).school;
   return 'Not enrolled';
 }
 
@@ -78,6 +92,7 @@ export function schoolLevel(education) {
   if (isHighSchool(education)) return 'High School';
   if (isUniversity(education)) return 'University';
   if (isTradeSchool(education)) return 'Trade School';
+  if (isProgram(education)) return currentProgram(education).name;
   return '';
 }
 
@@ -91,6 +106,7 @@ export function yearLabel(education) {
   if (education.stage === 'school') return education.year === 0 ? 'Kindergarten' : `${ordinal(education.year)} Grade`;
   if (education.stage === 'university') return `Year ${education.year} of ${UNIVERSITY_YEARS}`;
   if (education.stage === 'trade') return `Year ${education.year} of ${TRADE_SCHOOL_YEARS}`;
+  if (education.stage === 'program') return `Year ${education.year} of ${currentProgram(education).years}`;
   return '';
 }
 
@@ -122,10 +138,18 @@ export function enrollInTradeSchool(education, trade) {
   education.performance = 72;
 }
 
+export function enrollInProgram(education, programId) {
+  education.stage = 'program';
+  education.program = programId;
+  education.year = 1;
+  education.performance = 72;
+}
+
 export function dropOut(education) {
   education.stage = 'none';
   education.year = 0;
   education.major = null;
+  education.program = null;
   education.droppedOut = true;
 }
 
@@ -159,12 +183,22 @@ export function advanceYear(education) {
       return 'trade';
     }
     education.year += 1;
+  } else if (education.stage === 'program') {
+    const program = currentProgram(education);
+    if (education.year >= program.years) {
+      education.credentials = [...(education.credentials || []), program.credential];
+      education.stage = 'none';
+      education.program = null;
+      return 'program';
+    }
+    education.year += 1;
   }
   return null;
 }
 
 export function educationSummary(education) {
   const parts = [];
+  for (const c of education.credentials || []) parts.push(c === "Master's" ? "Master's degree" : c === 'MBA' ? 'MBA' : `${c} school`);
   if (education.degree) parts.push(`${education.degree} degree`);
   if (education.trade) parts.push(`${education.trade} certificate`);
   if (parts.length) return parts.join(', ');

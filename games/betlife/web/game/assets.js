@@ -106,6 +106,46 @@ export function sell(state, asset) {
   return price;
 }
 
+// Owner actions beyond repair and sell. Each returns journal text, or null when unaffordable.
+export function drive(state, asset) {
+  changeStat(state, 'happiness', 3, `drove the ${asset.name}`);
+  asset.condition = Math.max(0, asset.condition - 2);
+  return `You took the ${asset.name.toLowerCase()} out for a long drive with the windows down.`;
+}
+
+export function maintenance(state, asset) {
+  const cost = Math.max(40, Math.round(asset.value * 0.02 / 10) * 10);
+  if (state.player.money < cost) return null;
+  changeMoney(state, -cost, `maintenance for ${asset.name}`);
+  asset.condition = Math.min(100, asset.condition + 15);
+  return `You had the ${asset.name.toLowerCase()} serviced for $${cost.toLocaleString('en-US')}.`;
+}
+
+export function scrap(state, asset) {
+  const money = Math.round(asset.value * 0.1);
+  changeMoney(state, money, `scrapped ${asset.name}`);
+  state.assets = state.assets.filter((a) => a.id !== asset.id);
+  return `You scrapped the ${asset.name.toLowerCase()} for $${money.toLocaleString('en-US')} in parts.`;
+}
+
+export function gift(state, asset, person) {
+  state.assets = state.assets.filter((a) => a.id !== asset.id);
+  person.closeness = Math.min(100, person.closeness + 12);
+  person.interactedThisYear = true;
+  changeStat(state, 'happiness', 3, `gave ${asset.name} away`);
+  return `You gave your ${asset.name.toLowerCase()} to ${person.name.split(' ')[0]}, who could not stop smiling.`;
+}
+
+export function renovate(state, asset) {
+  const cost = Math.round(asset.value * 0.06 / 100) * 100;
+  if (state.player.money < cost) return null;
+  changeMoney(state, -cost, `renovated ${asset.name}`);
+  asset.value = Math.round(asset.value * 1.08);
+  asset.condition = 100;
+  changeStat(state, 'happiness', 3, 'renovation');
+  return `You renovated the ${asset.name.toLowerCase()} for $${cost.toLocaleString('en-US')}. It is worth more now.`;
+}
+
 export function repairCost(asset) {
   return Math.max(50, Math.round(asset.value * (100 - asset.condition) / 100 * 0.35 / 10) * 10);
 }

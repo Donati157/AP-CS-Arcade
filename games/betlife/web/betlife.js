@@ -5,12 +5,14 @@ import * as Career from './game/career.js';
 import * as Careers from './game/careers.js';
 import * as Assets from './game/assets.js';
 import * as Activities from './game/activities.js';
+import * as People from './game/people.js';
+import * as Education from './game/education.js';
 import { withArticle } from './game/life-generator.js';
 import { SCREENS } from './ui/screens.js';
 import * as Modals from './ui/modals.js';
 import { money, esc } from './ui/render.js';
 
-export const VERSION = '2.1.0-web';
+export const VERSION = '2.2.0-web';
 
 const root = document.getElementById('game');
 const modalRoot = document.getElementById('modal-root');
@@ -18,9 +20,24 @@ const toastRoot = document.getElementById('toast-root');
 
 let state = G.loadGame();
 let screen = state ? 'main' : 'start';
-const sel = { person: null, asset: null, shop: null, category: null };
+const sel = { person: null, asset: null, shop: null, category: null, source: null };
 let uiModal = null;   // a confirmation asked by the interface (not saved)
 let postLifeOpen = false;
+let bannerTimer = null;
+let eyeTimer = null;
+
+// The eye exam counts down; running out of time fails it.
+function startEyeTimer(modal) {
+  clearInterval(eyeTimer);
+  if (modal.game !== 'eyeExam') return;
+  let left = 8;
+  eyeTimer = setInterval(() => {
+    left -= 1;
+    const el = document.getElementById('bl-eye-timer');
+    if (el) el.textContent = `Time remaining: ${left} seconds`;
+    if (left <= 0) { clearInterval(eyeTimer); if (G.currentModal(state) === modal) answer('fail'); }
+  }, 1000);
+}
 let toastTimer = null;
 
 // ---- Rendering ----------------------------------------------------------------------------------------------
@@ -40,9 +57,16 @@ function render() {
 
 function renderModal() {
   if (uiModal) { modalRoot.innerHTML = Modals.confirm(uiModal); focusModal(); return; }
-  if (postLifeOpen && state) { modalRoot.innerHTML = Modals.postLife(state.player.name, !!state.profile); focusModal(); return; }
+  if (postLifeOpen && state) { modalRoot.innerHTML = Modals.postLife(state.player.name, !!state.profile, People.children(state)); focusModal(); return; }
   const modal = state ? G.currentModal(state) : null;
   if (!modal) { modalRoot.innerHTML = ''; return; }
+  if (modal.kind === 'badge') {
+    modalRoot.innerHTML = Modals.badgeBanner(modal);
+    clearTimeout(bannerTimer);
+    bannerTimer = setTimeout(() => { if (G.currentModal(state) === modal) answer('ok'); }, 2600);
+    return;
+  }
+  if (modal.kind === 'minigame') { modalRoot.innerHTML = Modals.minigame(modal, state); startEyeTimer(modal); focusModal(); return; }
   if (modal.kind === 'decision') modalRoot.innerHTML = Modals.decision(modal, state);
   else if (modal.kind === 'death') modalRoot.innerHTML = Modals.death(G.lifeSummary(state));
   else modalRoot.innerHTML = Modals.info(modal, state);
@@ -68,6 +92,7 @@ function toast(title, text, tone = 'blue') {
 // Shows an action result: failures as a toast, successes as a toast too (the journal keeps the line).
 function report(result) {
   if (!result) return;
+  if (result.silent) { render(); return; }
   if (result.facts) { uiModal = { title: result.title, text: result.text, facts: result.facts, choices: ['OK'], icon: 'briefcase', band: 'Career' }; render(); return; }
   toast(result.title, result.text, result.ok ? 'green' : 'red');
   render();
@@ -125,6 +150,7 @@ function answer(choice) {
   }
   if (postLifeOpen) {
     postLifeOpen = false;
+    if (String(choice).startsWith('child:')) { const next = G.continueAsChild(state, String(choice).slice(6)); if (next) { G.clearSavedGame(); state = next; screen = 'main'; render(); uiModal = { title: 'The Story Continues', text: `You are now ${state.player.name}, age ${state.player.age}. Press Age to keep the family story going.`, choices: ['Continue'], icon: 'seedling', band: 'Life', tone: 'green' }; render(); } return; }
     if (choice === 'random') startNewLife({});
     else if (choice === 'custom') go('newlife');
     else if (choice === 'retry') startNewLife(G.retryProfile(state));
@@ -139,6 +165,7 @@ function answer(choice) {
     render();
     return;
   }
+  if (modal.kind === 'minigame') { clearInterval(eyeTimer); G.answerModal(state, choice === 'pass'); render(); toast(choice === 'pass' ? 'Passed!' : 'Not this time', modal.game === 'drivingQuiz' ? (choice === 'pass' ? 'You got your license.' : 'You can try again next year.') : (choice === 'pass' ? 'Your eyes are fine.' : 'You got glasses.'), choice === 'pass' ? 'green' : 'red'); return; }
   if (modal.kind !== 'decision') { G.answerModal(state); render(); return; }
   const index = choice === 'random' ? G.randomChoice(state, modal) : Number(choice);
   const followUp = G.answerModal(state, index);
@@ -157,6 +184,7 @@ async function handle(action, data) {
       if (data.asset) sel.asset = data.asset;
       if (data.shop) sel.shop = data.shop;
       if (data.category) sel.category = data.category;
+      if (data.source) sel.source = data.source;
       go(data.target); break;
     case 'home': go('main'); break;
     case 'age': onAge(); break;
@@ -184,7 +212,34 @@ async function handle(action, data) {
     case 'about': go('about'); break;
     case 'person': sel.person = data.person; go('person'); break;
     case 'asset': sel.asset = data.asset; go('asset'); break;
-    case 'activity': report(G.doActivity(state, data.activity)); break;
+    case 'activity': {
+      const act = Activities.findActivity(data.activity);
+      if (act && act.cost > 0 && !Activities.unavailableReason(state, act)) {
+        const effects = Object.entries(act.effects).filter(([, v]) => v).map(([k, v]) => `${v > 0 ? '+' : ''}${v} ${k[0].toUpperCase()}${k.slice(1)}`).join(', ');
+        const c = await ask({ title: act.name, band: 'Activities', icon: act.icon || 'star', text: act.sub, facts: [['Cost', money(act.cost)], ...(effects ? [['Effect', effects]] : []), ['Bank Balance', money(state.player.money)]], choices: [act.name, 'Not now'] });
+        if (c !== 0) break;
+      }
+      report(G.doActivity(state, data.activity)); break;
+    }
+    case 'hr': report(G.humanResources(state, data.hr)); break;
+    case 'assetAction': {
+      if (data.do === 'scrap') { const c = await ask({ title: 'Scrap it?', band: 'Belongings', icon: 'exit', text: 'Scrapping pays only a tenth of the value.', choices: ['Scrap', 'Keep'], danger: true }); if (c !== 0) break; }
+      const result = G.assetAction(state, data.asset, data.do, data.person || null);
+      if (result.ok && ['scrap', 'gift'].includes(data.do)) screen = 'assets';
+      report(result); break;
+    }
+    case 'adoptConfirm': {
+      const c = await ask({ title: 'Adopt this pet?', band: 'Pets', icon: 'paw', text: 'A pet joins your family for life.', choices: ['Adopt', 'Not now'] });
+      if (c === 0) { const result = G.adoptFromSource(state, data.source, data.animal); if (result.ok) screen = 'pets'; report(result); }
+      break;
+    }
+    case 'programConfirm': {
+      const pr = Education.PROGRAMS[data.program];
+      if (!pr) break;
+      const c = await ask({ title: pr.name, band: 'Education', icon: 'cap', text: `${pr.school}: ${pr.note}.`, facts: [['Length', `${pr.years} years`], ['Tuition', `${money(pr.tuition)} / year`], ['Result', pr.credential]], choices: ['Enroll', 'Not now'] });
+      if (c === 0) { if (G.enrollProgram(state, data.program)) { go('main'); toast('Enrolled', `You are now studying at ${pr.school}.`, 'green'); } }
+      break;
+    }
     case 'interact': report(G.interactWith(state, data.person, data.do)); break;
     case 'study': report(G.studyAction(state, data.study)); break;
     case 'job': report(G.jobAction(state, data.job)); break;
@@ -249,7 +304,8 @@ async function handle(action, data) {
 
 root.addEventListener('click', (event) => {
   const el = event.target.closest('[data-action]');
-  if (!el || modalRoot.firstChild) return;
+  if (!el) return;
+  if (modalRoot.firstChild && !modalRoot.querySelector('.bl-banner')) return;   // badge banners do not block navigation
   handle(el.dataset.action, el.dataset);
 });
 modalRoot.addEventListener('click', (event) => {

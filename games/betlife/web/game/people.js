@@ -7,10 +7,10 @@ import { uniqueName, randomGender, PARENT_JOBS, PET_NAMES, withArticle } from '.
 import { relativeDies } from './mortality.js';
 
 export const ROLE_LABELS = {
-  mother: 'Mother', father: 'Father', sister: 'Sister', brother: 'Brother', friend: 'Friend', bestFriend: 'Best Friend',
+  mother: 'Mother', father: 'Father', stepmother: 'Stepmother', stepfather: 'Stepfather', sister: 'Sister', brother: 'Brother', friend: 'Friend', bestFriend: 'Best Friend',
   partner: 'Partner', fiance: 'Fiancé(e)', spouse: 'Spouse', son: 'Son', daughter: 'Daughter', coworker: 'Coworker', pet: 'Pet',
 };
-export const FAMILY_ROLES = ['mother', 'father', 'sister', 'brother'];
+export const FAMILY_ROLES = ['mother', 'father', 'stepmother', 'stepfather', 'sister', 'brother'];
 export const PARTNER_ROLES = ['partner', 'fiance', 'spouse'];
 export const CHILD_ROLES = ['son', 'daughter'];
 export const PET_SPECIES = {
@@ -21,7 +21,8 @@ export const MAX_FRIENDS = 6;
 
 function person(state, fields) {
   const id = `p${state.nextPersonId++}`;
-  return { id, closeness: 50, alive: true, interactedThisYear: false, occupation: '', since: state.player.age, ...fields };
+  const traits = { looks: between(state, 20, 95), smarts: between(state, 20, 95), kindness: between(state, 20, 95) };
+  return { id, closeness: 50, alive: true, interactedThisYear: false, occupation: '', since: state.player.age, traits, ...fields };
 }
 
 // ---- Creating people --------------------------------------------------------------------
@@ -72,7 +73,8 @@ function occupationForAge(state, age) {
 
 export const alive = (state) => state.relationships.filter((r) => r.alive);
 export const byRole = (state, ...roles) => alive(state).filter((r) => roles.includes(r.role));
-export const parents = (state) => byRole(state, 'mother', 'father');
+export const parents = (state) => byRole(state, 'mother', 'father', 'stepmother', 'stepfather');
+export const bloodParents = (state) => byRole(state, 'mother', 'father');
 export const siblings = (state) => byRole(state, 'sister', 'brother');
 export const friends = (state) => byRole(state, 'friend', 'bestFriend', 'coworker');
 export const children = (state) => byRole(state, 'son', 'daughter');
@@ -118,10 +120,21 @@ export function haveChild(state) {
   return child;
 }
 
-export function adoptPet(state, species, name) {
+export function adoptPet(state, species, name, breed = null, age = 0) {
   const pet = createPet(state, species, name);
+  if (breed) pet.breed = breed;
+  pet.age = age;
   state.relationships.push(pet);
   return pet;
+}
+
+// A parent remarries: a step-parent joins the family.
+export function addStepParent(state, forRole) {
+  const role = forRole === 'mother' ? 'stepfather' : 'stepmother';
+  const gender = role === 'stepmother' ? 'female' : 'male';
+  const p = person(state, { name: uniqueName(state, gender), gender, role, age: between(state, 30, 50) + Math.max(0, state.player.age - 5), closeness: between(state, 25, 45), occupation: pick(state, PARENT_JOBS), retired: false });
+  state.relationships.push(p);
+  return p;
 }
 
 // ---- A year passes for everyone -----------------------------------------------------------
@@ -162,7 +175,7 @@ export function ageRelationships(state) {
 // Milestones in other people's lives, so the world moves even when the player does nothing.
 function otherPeopleMoveOn(state, p) {
   const name = firstName(p);
-  if (p.role === 'mother' || p.role === 'father') {
+  if (['mother', 'father', 'stepmother', 'stepfather'].includes(p.role)) {
     if (!p.retired && p.age >= 65 && chance(state, 0.45)) {
       p.retired = true;
       addJournal(state, `Your ${p.role} retired after many years as ${withArticle(p.occupation)}.`);
@@ -197,6 +210,7 @@ function relativeLifeCycle(state, p) {
   addJournal(state, `Your ${label}, ${name}, passed away at the age of ${p.age}. You miss ${p.gender === 'female' ? 'her' : 'him'} very much.`, 'negative');
   changeStat(state, 'happiness', -15, `${name} passed away`);
   if (p.role === 'mother' || p.role === 'father') {
+    for (const step of byRole(state, p.role === 'mother' ? 'stepfather' : 'stepmother')) { /* the step-parent stays in the family */ void step; }
     const inheritance = between(state, 40, 600) * 100;
     changeMoney(state, inheritance, 'inheritance');
     addJournal(state, `You inherited $${inheritance.toLocaleString('en-US')} from your ${label}.`);
@@ -285,6 +299,13 @@ export function interact(state, p, action) {
       p.role = 'fiance'; changeCloseness(p, 8); changeStat(state, 'happiness', 8, 'engaged');
       return `You proposed to ${name}, and ${name} said yes. You are engaged!`;
     }
+    case 'startFamily': {
+      if (children(state).length >= 4) return null;
+      if (!chance(state, 0.6)) { changeCloseness(p, 2); return `You and ${name} talked about starting a family and decided to keep trying.`; }
+      const baby = haveChild(state);
+      changeCloseness(p, 8); changeStat(state, 'happiness', 8, 'new baby');
+      return `You and ${name} welcomed a baby ${baby.gender === 'female' ? 'girl' : 'boy'} named ${firstName(baby)} into the world.`;
+    }
     case 'marry': {
       if (you.money < 500) return null;
       changeMoney(state, -500, 'wedding'); p.role = 'spouse'; changeCloseness(p, 8); changeStat(state, 'happiness', 10, 'married');
@@ -299,6 +320,16 @@ export function interact(state, p, action) {
     case 'release':
       p.alive = false; changeStat(state, 'happiness', -5, `rehomed ${p.name}`);
       return `You found ${p.name} a loving new home.`;
+    case 'bathePet':
+      changeCloseness(p, 3); changeStat(state, 'happiness', 1, `bathed ${p.name}`);
+      return `You gave ${p.name} a bath. Most of the water ended up on you.`;
+    case 'askOut': {
+      if (partner(state)) return `You are already with someone.`;
+      const yes = p.closeness >= 45 && chance(state, 0.6);
+      if (!yes) { changeCloseness(p, -5); changeStat(state, 'happiness', -3, `${name} said no`); return `You asked ${name} out. ${name} said it was better to stay friends.`; }
+      p.role = 'partner'; p.yearsTogether = 0; changeCloseness(p, 8); changeStat(state, 'happiness', 6, `started dating ${name}`);
+      return `You asked ${name} out, and ${name} said yes. You are now a couple.`;
+    }
     default:
       return null;
   }
@@ -308,7 +339,7 @@ export function interact(state, p, action) {
 export function actionsFor(state, p) {
   const age = state.player.age;
   if (p.role === 'pet') {
-    const list = [['playPet', 'Play', 'Spend time together'], ['treatPet', 'Treat', '$10 · a special snack']];
+    const list = [['bathePet', 'Bathe', 'Give them a bath'], ['playPet', 'Play', 'Spend time together'], ['treatPet', 'Treat', '$10 · a special snack']];
     if (p.species === 'dog') list.push(['walkPet', 'Walk', 'Good for you both']);
     list.push(['release', 'Rehome', 'Find a new family']);
     return list;
@@ -329,8 +360,10 @@ export function actionsFor(state, p) {
     list.push(['anniversary', 'Celebrate Anniversary', '$120 · a night out']);
     if (p.role === 'partner' && age >= 20) list.push(['propose', 'Propose', 'Ask the big question']);
     if (p.role === 'fiance') list.push(['marry', 'Get Married', '$500 · plan the wedding']);
+    if (p.role === 'spouse' && age >= 20 && age <= 45 && children(state).length < 4) list.push(['startFamily', 'Start a Family', 'Try for a baby']);
     list.push(['breakUp', 'Break Up', 'End the relationship']);
   }
+  if (['friend', 'bestFriend', 'coworker'].includes(p.role) && age >= 16 && !partner(state) && Math.abs(p.age - age) <= 8 && p.age >= 16) list.push(['askOut', 'Ask Out', 'Ask them on a date']);
   if (['friend', 'bestFriend', 'coworker'].includes(p.role)) list.push(['unfriend', 'Drift Apart', 'Stop seeing them']);
   return list;
 }

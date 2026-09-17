@@ -67,6 +67,8 @@ export const TEEN_EVENTS = [
     text: (c) => `${c.whoName} taught you how to change a tire, budget a paycheck, and stay calm about both.`, effects: { smarts: 2, closeness: 3 } }),
   ev({ id: 'siblingAdvice', category: 'family', stages: T, person: 'sibling', cooldown: 4,
     text: (c) => `${c.whoName} gave you honest advice about school, and it turned out to be right.`, effects: { closeness: 4, smarts: 1 } }),
+  ev({ id: 'drivingTestOffer', category: 'personal', stages: T, minAge: 16, needs: ['noLicence'], once: true, weight: 6, band: 'License', title: 'Driving License',
+    text: 'It is time to take your driving test. The examiner starts with a road-sign question.', minigame: 'drivingQuiz' }),
   ev({ id: 'learnToDrive', category: 'personal', stages: T, minAge: 16, needs: ['noLicence'], person: 'parent', once: true,
     text: (c) => `${c.whoName} took you to an empty parking lot to practice driving. Only one cone was harmed.`, effects: { smarts: 1, closeness: 2 } }),
   ev({ id: 'drivingRoadTrip', category: 'personal', stages: T, minAge: 16, needs: ['licence'], once: true, kind: 'positive',

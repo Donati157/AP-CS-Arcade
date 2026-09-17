@@ -14,7 +14,7 @@ export function createCareer() {
   return {
     careerId: null, rung: 0, salary: 0, performance: 0, tenure: 0, rungTenure: 0, hiredAt: null,
     yearsWorked: 0, warnings: 0, workedHardThisYear: false, askedRaiseThisYear: false, lastRaiseAge: null,
-    retired: false, retiredAt: null, pension: 0, history: [], earnings: 0, promotions: 0, raises: 0,
+    retired: false, retiredAt: null, pension: 0, history: [], earnings: 0, promotions: 0, raises: 0, stress: 0, hrThisYear: false,
   };
 }
 
@@ -39,6 +39,7 @@ export function hire(state, careerDef) {
   career.rung = 0;
   career.salary = careerDef.ladder[0].salary;
   career.performance = between(state, 60, 75);
+  career.stress = between(state, 15, 30);
   career.tenure = 0;
   career.rungTenure = 0;
   career.hiredAt = state.player.age;
@@ -64,6 +65,7 @@ function leaveJob(state, reason) {
   career.rung = 0;
   career.salary = 0;
   career.performance = 0;
+  career.stress = 0;
   career.tenure = 0;
   career.rungTenure = 0;
   career.warnings = 0;
@@ -100,6 +102,7 @@ export function workHarder(state) {
   const done = state.yearly.activities.workHarder || 0;
   state.yearly.activities.workHarder = done + 1;
   changePerformance(career, Math.round(between(state, 6, 9) / (done + 1)));
+  career.stress = clampStat(career.stress + (done === 0 ? 8 : 3));
   career.workedHardThisYear = true;
   if (done === 0) { changeStat(state, 'happiness', -2, 'worked harder'); changeStat(state, 'health', -1, 'worked harder'); }
   return 'You put in long hours and your work got noticed.';
@@ -107,6 +110,7 @@ export function workHarder(state) {
 
 export function takeItEasy(state) {
   changePerformance(state.career, -between(state, 3, 5));
+  state.career.stress = clampStat(state.career.stress - 12);
   changeStat(state, 'happiness', 3, 'took it easy at work');
   return 'You coasted through the year at work.';
 }
@@ -123,6 +127,36 @@ export function askForRaise(state) {
   }
   changeStat(state, 'happiness', -2, 'raise refused');
   return 'Your manager said the budget could not stretch this year.';
+}
+
+// Human Resources: workplace requests. Each costs one action (checked by the caller).
+export const HR_OPTIONS = [
+  ['flexHours', 'Ask for flexible hours', 'Less stress, slightly less output'],
+  ['training', 'Request training', 'Learn on the company\'s time'],
+  ['transfer', 'Ask for a team change', 'A fresh start with new colleagues'],
+  ['complaint', 'Report a problem', 'When a coworker makes work miserable'],
+];
+
+export function humanResources(state, option, coworker = null) {
+  const career = state.career;
+  career.hrThisYear = true;
+  switch (option) {
+    case 'flexHours':
+      career.stress = clampStat(career.stress - 15); changePerformance(career, -2); changeStat(state, 'happiness', 3, 'flexible hours');
+      return 'HR approved flexible hours. Your mornings got a lot calmer.';
+    case 'training':
+      changePerformance(career, 4); changeStat(state, 'smarts', 2, 'HR training');
+      return 'HR signed you up for a training course, and it paid off at work.';
+    case 'transfer':
+      career.stress = clampStat(career.stress - 10); changePerformance(career, between(state, -3, 3)); changeStat(state, 'happiness', 2, 'team change');
+      return 'HR moved you to a different team. New faces, new coffee machine.';
+    case 'complaint':
+      if (coworker) { coworker.closeness = Math.min(100, coworker.closeness + 15); coworker.interactedThisYear = true; }
+      career.stress = clampStat(career.stress - 8); changeStat(state, 'happiness', 2, 'HR complaint');
+      return coworker ? `HR mediated your problem with ${coworker.name.split(' ')[0]}, and things settled down.` : 'HR listened to your complaint and promised to keep an eye on things.';
+    default:
+      return null;
+  }
 }
 
 export function changePerformance(career, amount) {
@@ -158,13 +192,17 @@ export function processCareerYear(state) {
   career.earnings += career.salary;
 
   // Performance drifts: hard work holds it up, neglect lets it slide, and a bit of luck.
-  let drift = career.workedHardThisYear ? between(state, -3, 1) : between(state, -6, -1);
+  let drift = career.workedHardThisYear ? between(state, -3, 1) : between(state, -4, 1);
   if (state.player.smarts >= 75) drift += 1;
   if (state.player.happiness < 30) drift -= 2;
   if (state.player.health < 35) drift -= 2;
   changePerformance(career, drift);
+  // Stress builds with responsibility and eases with time off; high stress costs health and happiness.
+  career.stress = clampStat(career.stress + between(state, -9, 3) + career.rung - (state.yearly.activities.vacation ? 12 : 0));
+  if (career.stress >= 70) { changeStat(state, 'happiness', -2, 'work stress'); changeStat(state, 'health', -1, 'work stress'); }
   career.workedHardThisYear = false;
   career.askedRaiseThisYear = false;
+  career.hrThisYear = false;
 
   if (def.partTime) {
     if (age >= 19 && chance(state, 0.5)) {

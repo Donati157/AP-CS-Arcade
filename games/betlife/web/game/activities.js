@@ -3,7 +3,7 @@
 // Every action costs one of the year's actions; repeating one in the same year pays less.
 import { chance, between, pick } from './rng.js';
 import { changeStat, changeMoney, applyEffects, diminished } from './stats.js';
-import { addJournal, info } from './journal.js';
+import { addJournal, info, pushModal } from './journal.js';
 import * as People from './people.js';
 import { ownsKind } from './assets.js';
 import { PLACES } from './life-generator.js';
@@ -82,7 +82,7 @@ export const ACTIVITY_MENU = [
   { id: 'love', name: 'Love', sub: 'Find someone to love', icon: 'heart', menu: 'love' },
   { id: 'mindBody', name: 'Mind & Body', sub: 'Work on self-improvement', icon: 'figure', menu: 'mindBody' },
   { id: 'movies', name: 'Movie Theater', sub: 'Go to the movies', icon: 'film', menu: 'leisure' },
-  { id: 'pets', name: 'Pets', sub: 'Get a pet', icon: 'paw', menu: 'pets' },
+  { id: 'pets', name: 'Pets', sub: 'Get a pet', icon: 'paw', screen: 'pets' },
   { id: 'playOutside', name: 'Play Outside', sub: 'Run around until dark', icon: 'sun', action: item('playOutside', 'Play Outside', 'Run around', 3, { happiness: 3, health: 2 }, 'You played outside until it got dark.', { maxAge: 12 }) },
   { id: 'salon', name: 'Salon & Spa', sub: 'Take time for yourself', icon: 'sparkle', menu: 'salon' },
   { id: 'shopping', name: 'Shopping', sub: 'Buy something', icon: 'bag', screen: 'shopping' },
@@ -203,11 +203,10 @@ export function perform(state, activity) {
       break;
     }
     case 'driving': {
-      const passed = chance(state, 0.45 + state.player.smarts / 200);
-      if (passed) { state.player.hasLicence = true; text = 'You passed your driving test and got your license!'; changeStat(state, 'happiness', 4, 'driving licence'); }
-      else { text = 'You failed the driving test. You can try again next year.'; changeStat(state, 'happiness', -2, 'failed driving test'); }
-      addJournal(state, text, passed ? 'milestone' : 'negative');
-      return { ok: true, title: passed ? 'Licensed!' : 'Not This Time', text };
+      // The examiner opens with a road-sign question (same mini-game as the teen event).
+      pushModal(state, { kind: 'minigame', game: 'drivingQuiz', eventId: 'drivingTestActivity', band: 'License', title: 'Driving Test',
+        text: 'The examiner starts with a road-sign question before the road test.' });
+      return { ok: true, title: 'Driving Test', text: 'Your test is starting.', silent: true };
     }
     default: break;
   }

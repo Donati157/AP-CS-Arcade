@@ -198,6 +198,20 @@ button.bl-row:hover, button.bl-row:focus-visible, a.bl-row:hover { background: v
 .bl-btn-yellow { background: var(--bl-yellow); color: #3a2c00; }
 .bl-text-light { color: #9ec7ff; font-size: 15px; }
 
+.bl-badge-pill { display: inline-flex; align-items: center; gap: 4px; background: transparent; cursor: pointer; }
+.bl-badge-pill svg { font-size: 14px; color: var(--bl-yellow); }
+.bl-traits { background: #fff; padding: 8px 12px 10px; border-bottom: 1px solid var(--bl-divider); display: grid; gap: 6px; }
+.bl-trait { display: grid; grid-template-columns: 70px 1fr; align-items: center; gap: 10px; font-size: 13px; font-weight: 700; color: var(--bl-text2); text-align: right; }
+.bl-trait .bl-track { height: 12px; border-radius: 3px; }
+.bl-banner { position: fixed; top: 58px; left: 50%; transform: translateX(-50%); width: min(360px, calc(100% - 24px)); min-height: 56px; background: #fff; border-radius: 999px; padding: 8px 18px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35); display: flex; align-items: center; gap: 10px; z-index: 70; border: 2px solid var(--bl-yellow); animation: bl-toast-in 0.3s ease; cursor: pointer; font-family: var(--bl-font); }
+.bl-banner-icon { font-size: 26px; color: #d69a00; display: inline-flex; }
+.bl-banner-text { flex: 1; display: flex; flex-direction: column; line-height: 1.2; min-width: 0; } .bl-banner-text strong { display: block; font-size: 15px; color: var(--bl-link); text-transform: uppercase; letter-spacing: 0.03em; } .bl-banner-text span { display: block; font-size: 12px; color: var(--bl-text2); }
+.bl-banner-kicker { font-size: 10px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--bl-muted); }
+.bl-eye-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px; margin: 6px 0 10px; }
+.bl-eye-cell { border: 0; background: transparent; font: 800 17px var(--bl-font); color: var(--bl-text); cursor: pointer; padding: 3px 0; border-radius: 4px; }
+.bl-eye-cell:hover { background: #eef2f7; }
+.bl-eye-timer { color: var(--bl-danger); }
+
 /* ---- Toast ---- */
 #toast-root { position: fixed; top: 60px; left: 0; right: 0; display: flex; justify-content: center; pointer-events: none; z-index: 60; padding: 0 12px; }
 .bl-toast { max-width: 360px; background: #fff; border-radius: 999px; padding: 8px 18px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3); display: flex; flex-direction: column; align-items: center; text-align: center; font-family: var(--bl-font); border: 2px solid var(--bl-action); animation: bl-toast-in 0.25s ease; }

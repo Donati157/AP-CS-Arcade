@@ -105,7 +105,7 @@ function pickFromPool(state, pool, excludeCategory) {
   const category = pickWeighted(state, categories, (cat) => {
     const recentIndex = memory.recentCategories.indexOf(cat);
     const size = pool.filter((e) => e.category === cat).length;
-    const sizeWeight = Math.min(size, 6) * (cat === 'rare' ? 0.3 : 1); // surprises stay rare
+    const sizeWeight = Math.min(size, 6) * (cat === 'rare' ? 0.3 : cat === 'news' ? 0.35 : 1); // surprises and news stay rare
     return recentIndex === -1 ? sizeWeight : sizeWeight * (0.25 + 0.25 * recentIndex);
   });
   const candidates = pool.filter((e) => e.category === category);
@@ -153,6 +153,10 @@ export function fireEvent(state, event) {
   memory.recentCategories.splice(CATEGORY_MEMORY);
   memory.log.push({ age: c.age, id: event.id });
 
+  if (event.minigame) {
+    pushModal(state, { kind: 'minigame', game: event.minigame, eventId: event.id, band: event.band || CATEGORY_LABELS[event.category], title: event.title || 'Test', text: render(event.text, c) });
+    return;
+  }
   if (event.choices) {
     const choices = event.choices.filter((ch) => !ch.when || ch.when(c)).map((ch) => ({ label: ch.label, index: event.choices.indexOf(ch) }));
     pushModal(state, { kind: 'decision', eventId: event.id, band: event.band || CATEGORY_LABELS[event.category], title: event.title || 'Decision',
