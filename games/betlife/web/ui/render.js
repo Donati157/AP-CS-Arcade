@@ -1,5 +1,5 @@
 // Small HTML building blocks shared by every screen. Everything returns a string.
-import { icon } from '../game/icons.js';
+import { icon, pic, avatarFor, EMOJI } from '../game/icons.js';
 import { stageId } from '../game/player.js';
 
 export const esc = (text) => String(text ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -14,8 +14,8 @@ export function strip(state) {
   const statusIcon = !p.alive ? 'candle' : p.age < 5 ? 'baby' : state.education.stage !== 'none' ? 'cap' : state.career.careerId ? 'briefcase' : state.career.retired ? 'flag' : 'person';
   const negative = p.money < 0;
   return `<div class="bl-strip${p.alive ? '' : ' is-dead'}">
-    <div class="bl-avatar stage-${stage} gender-${p.gender}" aria-hidden="true"><span class="bl-avatar-hair"></span><span class="bl-avatar-face"><i></i><i></i><b></b></span><span class="bl-avatar-shirt"></span></div>
-    <div class="bl-identity"><strong>${esc(p.name)}</strong><span><i class="bl-status-icon">${icon(statusIcon)}</i>${esc(p.occupation)}</span></div>
+    <div class="bl-avatar stage-${stage} bl-pic" aria-hidden="true">${avatarFor({ age: p.age, gender: p.gender, alive: p.alive })}</div>
+    <div class="bl-identity"><strong>${esc(p.name)}</strong><span><i class="bl-status-icon">${pic(statusIcon)}</i>${esc(p.occupation)}</span></div>
     <div class="bl-money"><strong class="${negative ? 'is-negative' : 'is-positive'}">${money(p.money)}</strong><span>Bank Balance</span></div></div>`;
 }
 
@@ -41,8 +41,9 @@ export function row(title, opts = {}) {
   const note = disabled && opts.note ? `<span class="bl-row-sub bl-row-note">${esc(opts.note)}</span>` : '';
   const badge = opts.badge ? `<span class="bl-tag">${esc(opts.badge)}</span>` : '';
   const rightHtml = right === 'none' ? '' : `<span class="bl-row-right">${icon(right === 'dots' ? 'dots' : 'chevron')}</span>`;
+  const iconHtml = opts.emoji ? `<span class="bl-pic" aria-hidden="true">${opts.emoji}</span>` : pic(opts.icon || 'star');
   return `<${tag} class="bl-row${disabled ? ' is-disabled' : ''}${opts.tone ? ` tone-${opts.tone}` : ''}"${opts.action && !disabled ? ` data-action="${esc(opts.action)}"${attrs(opts.data)}` : ''}${disabled ? ' aria-disabled="true"' : ''}>
-    <span class="bl-row-icon">${icon(opts.icon || 'star')}</span>
+    <span class="bl-row-icon">${iconHtml}</span>
     <span class="bl-row-text"><span class="bl-row-title">${esc(title)}${opts.titleNote ? ` <span class="bl-row-title-note">${esc(opts.titleNote)}</span>` : ''}${badge}</span>${sub}${note}${bar}</span>
     ${rightHtml}</${tag}>`;
 }
@@ -53,16 +54,17 @@ export function meter(label, value, iconName, tone = '') {
   const low = value < 25;
   return `<div class="bl-meter${low ? ' is-low' : ''}${tone ? ` tone-${tone}` : ''}" data-stat="${esc(label.toLowerCase())}">
     <span class="bl-meter-label">${low ? `<i class="bl-warn">${icon('warning')}</i>` : ''}${esc(label)}</span>
-    <i class="bl-stat-icon">${icon(iconName)}</i>
-    <span class="bl-track"><span class="bl-fill" style="width:${value}%"></span>${low ? `<button class="bl-boost" data-action="premium" data-feature="Boost">+ Boost</button>` : ''}<span class="bl-meter-value">${pct(value)}</span></span></div>`;
+    <i class="bl-stat-icon">${pic(iconName)}</i>
+    <span class="bl-track"><span class="bl-fill" style="width:calc((100% - 46px) * ${value / 100})"></span>${low ? `<button class="bl-boost" data-action="premium" data-feature="Boost">+ Boost</button>` : ''}<span class="bl-meter-value">${pct(value)}</span></span></div>`;
 }
 
-export const footerBar = (label, iconName, action, data = {}) => `<button class="bl-footer" data-action="${esc(action)}"${attrs(data)}>${icon(iconName)}<span>${esc(label)}</span></button>`;
+export const footerBar = (label, iconName, action, data = {}) => `<button class="bl-footer" data-action="${esc(action)}"${attrs(data)}>${pic(iconName)}<span>${esc(label)}</span></button>`;
 
 export const note = (text) => `<p class="bl-note">${esc(text)}</p>`;
 
 export const empty = (text) => `<div class="bl-empty">${esc(text)}</div>`;
 
 export function screen(state, title, body, opts = {}) {
-  return `${strip(state)}${titleBar(title, opts.back || 'main', opts.mode || 'close')}<div class="bl-scroll">${body}</div>`;
+  return `<div class="bl-secondary">${strip(state)}${titleBar(title, opts.back || 'main', opts.mode || 'close')}</div><div class="bl-scroll">${body}</div>`;
 }
+export { avatarFor, EMOJI, pic };

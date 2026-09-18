@@ -38,7 +38,7 @@ export function buildContext(state) {
     highSchool: Education.isHighSchool(edu), university: Education.isUniversity(edu), trade: Education.isTradeSchool(edu),
     student: Education.isEnrolled(edu), graduate: edu.highSchoolGraduate, degree: edu.degree,
     unemployedAdult: p.age >= 18 && !Career.isEmployed(career) && !Education.isEnrolled(edu) && !career.retired,
-    who: null, whoName: '', school: Education.schoolName(edu),
+    who: null, whoName: '', school: Education.schoolName(edu), glasses: !!state.flags.glasses,
   };
 }
 

@@ -135,3 +135,100 @@ Compared on interaction, information density and screen structure, not on button
 - Real-click playthrough on the local build at 390×844: birth → kindergarten (School screen, Study Harder) → parents' detail with trait bars → Library → eye exam (timed out, glasses) → part-time cashier at 16 (from the new Work section) → "What's Next?" → university (Computer Science) → Junior Developer at 22 → Work Harder / Ask for a Raise / HR flexible hours → dating app → partner → Propose → Get Married → driving test → used sedan → Drive / Maintenance → fired at 41 after warnings (passive play) → Job Recruiter → Retire at 63 (pension) → death at 76 → post-life menu (Continue as Arjun (43) / random / custom / try again) → New Random Life reset. Bulk aging between phases used the same handler the Age button calls.
 - Fixed on the way: `freelanceGig`, `jobRecruiter`, `changeName` and `adoptFromSource` threw a ReferenceError in 2.1 (missing `changeMoney` import); badge banners no longer swallow navigation taps; the Love favourite showed "Opens at age 18" when the real reason was an existing partner.
 - Tuning: childhood happiness baseline +10 (teens +5); a classmate friend joins at kindergarten and middle school (friends by 18: median 1 → 3 over 40 simulated lives); passive performance drift −4..+1 instead of −6..−1; lifestyle spending grows with savings (final net worth median $2.5M → $1.2M over 40 lives).
+
+## 5. Visual rebuild 2.3 (2026-09-18): rewatch, measurements and a new parity matrix
+
+Both recordings were re-extracted at 1 s (V1) and 2 s (V2) and read end to end on 13 contact sheets before any code changed.
+Reference geometry was measured on 585×1266 frames (1.5 px/pt); BetLife was captured headless at an exact 390×844 viewport
+at 1.5× and measured the same way. Paired sheets live in [comparisons/](comparisons/).
+
+### 5.1 Why 2.2 still looked different
+
+- Fonts: 2.2 used the system UI font at 12.5–13.5 px; the reference uses a rounded humanist face at 14–17 pt with condensed uppercase titles.
+- Icons: 2.2 drew thin line icons inside pale circles; the reference shows full-colour pictograms about 32 pt wide with no circle.
+- Rows: 2.2 rows were 66 px with 16 px titles in link blue and grey subtitles; the reference rows are 68–70 pt with 17 pt bold blue titles, blue subtitles and thick blue chevrons.
+- Journal: 2.2 lines were 12.5 px with 1.42 line height and 11 px year gaps; the reference is 13.5–14 pt, 1.13 line height, 14 pt gaps, so 2.2 showed fewer lines and looked airy.
+- Stats: 2.2 bars were 17 px with rounded ends and the percentage printed over the green; the reference bars are 15 pt, square, and the number sits on the light track end.
+- Modals: 2.2 cards were 340 px wide with 5 px borders, 16 px radius and 44 px buttons; the reference is about 308 pt wide, 3 pt border, 10 pt radius, 39 pt buttons with 12 pt gaps and a 34 pt category band.
+- Structure: Job actions lived under Occupation; the cold start showed a menu list instead of an empty life frame; the tombstone was a bordered card.
+
+### 5.2 Main Life screen measurements (pt at 390 wide)
+
+| Element | Reference | BetLife 2.2 | BetLife 2.3 |
+|---|---|---|---|
+| Header height | 47 | 52 | 47 |
+| Character strip height | 45 | 46 | 45 |
+| Journal top | 92 | 98 | 92 |
+| Year heading | 15 bold blue | 13.5 | 14.5 bold blue |
+| Entry text / line height | 14 / 1.13 | 12.5 / 1.42 | 13.5 / 1.13 |
+| Bottom nav height | 78 | 84 | 78 |
+| Nav ring / label | 33 / 12 | 30 / 10 | 33 / 10.5 |
+| Age button diameter | 90 | 94 | 90 |
+| Age button overlap above nav | 7 | 7 | 8 |
+| Rewind button | 37 | 34 | 37 |
+| Stat label | 14 bold blue | 12.5 | 14 bold blue |
+| Stat bar height / pitch | 15 / 20.5 | 17 / 21 | 15 / 21 |
+| Stat icon | emoji 16 | line icon 15 | emoji 16 |
+
+### 5.3 Secondary screen measurements
+
+| Element | Reference | BetLife 2.3 |
+|---|---|---|
+| Title bar height / title | 47 / condensed 22 uppercase | 47 / condensed 22 uppercase |
+| Close/back button | 30 circle, 14 from left | 30 circle, 14 from left |
+| Section header | 20 tall grey, 14 bold white | 20 tall grey, 14 bold white |
+| Row height | 68–70 | 68 (72 with a bar) |
+| Row icon | ~32 pictogram, 12 from left | 31 emoji, 12 from left |
+| Row title / subtitle | 17 bold blue / 13 blue | 17 bold blue / 13 blue |
+| Chevron | thick blue, 22 | thick blue, 22 |
+| Relationship bar | 128 × 10 | 128 × 10 |
+| Decision card width / border / radius | ~308 / 3 red / 10 | 308 / 3 red / 10 |
+| Category band | 34, gradient to red | 34, gradient to red |
+| Card button height / gap / radius | 39 / 12 / 5 | 39 / 12 / 5 |
+| Post-life buttons | pill 50, green then yellow, text link | pill 50, blue child row, green, yellow, text link |
+| Tombstone | grey stone, uppercase condensed name, grass, pill Continue | grey stone, uppercase condensed name, grass strip, pill Continue |
+
+### 5.4 Navigation and interaction changes
+
+| Flow | Reference | BetLife 2.2 | BetLife 2.3 |
+|---|---|---|---|
+| Cold start | empty frame → New Life (one tap) | menu list → New Life → Random/Custom dialog → birth card | empty frame → New Life (one tap, birth block in the journal) |
+| Job actions | Occupation → job row → Job (HR, Resign, Retire, Work Harder) | nav Job → actions mixed with facts | nav Job → Occupation (You + All) → job row → Job |
+| Occupation menu | You, All: Education, Freelance, Recruiter, Jobs, Military, Part-Time, Special | 6 sections with info rows | You, All: Career History, Education, Freelance Gigs, Job Recruiter, Jobs, Military, Part-Time Jobs, Special Careers |
+| Education | Occupation → Education → schools | Occupation section | Occupation → Education → University, Trade School, four schools |
+| Activities → Mind & Body → Library → result | 4 steps | 4 steps | 4 steps |
+| Relationships → person → action → result | 4 steps | 4 steps | 4 steps |
+| Assets → Go Shopping → dealer → item → confirm → buy | 6 steps | 6 steps | 6 steps |
+| Age with a badge banner showing | n/a | tap ignored until the banner closed | banner closes and the year advances |
+
+### 5.5 Parity matrix (rebuilt from screenshots)
+
+CLOSE MATCH means the paired sheet in comparisons/ shows the same hierarchy, proportions and density; PARTIAL means a visible
+difference remains; MISSING means the reference screen has no counterpart.
+
+| Screen / feature | Sheet | Geometry | Typography | Density | Interaction | Status | Remaining difference |
+|---|---|---|---|---|---|---|---|
+| Main Life | main.jpg | ✓ | ✓ | ✓ | ✓ | CLOSE MATCH | no promo banners, no premium pill; badge counter instead of ribbon counter |
+| Main Life (child) | main_child.jpg | ✓ | ✓ | ✓ | ✓ | CLOSE MATCH | second person voice |
+| Activities | activities.jpg | ✓ | ✓ | ✓ | ✓ | CLOSE MATCH | no Premium Activities section; disabled rows carry an italic reason |
+| Activities submenu (Mind & Body) | mindbody.jpg | ✓ | ✓ | ✓ | ✓ | CLOSE MATCH | different item set (school-appropriate) |
+| Relationships | relationships.jpg | ✓ | ✓ | ✓ | ✓ | CLOSE MATCH | no Enemies section; footer is teal |
+| Person detail | person.jpg | ✓ | ✓ | ✓ | ✓ | CLOSE MATCH | no Edit row (premium candidate); actions differ by policy |
+| Occupation | occupation.jpg | ✓ | ✓ | ✓ | ✓ | CLOSE MATCH | no Just For You premium block |
+| Job | job.jpg | ✓ | ✓ | ✓ | ✓ | CLOSE MATCH | header row with performance bar added; Take It Easy and Ask for a Raise extra |
+| Jobs list | jobs.jpg | ✓ | ✓ | ✓ | ✓ | CLOSE MATCH | unqualified jobs greyed instead of hidden |
+| School | school.jpg | – | – | – | – | NOT OBSERVED IN REFERENCE | built on the row system |
+| Assets | assets.jpg | ✓ | ✓ | ✓ | ✓ | CLOSE MATCH | no Landlord/Properties/Social Media rows |
+| Shopping | shopping.jpg | ✓ | ✓ | ✓ | ✓ | CLOSE MATCH | fewer dealers; Bank Balance row on top |
+| Store list (cars) | shop_cars.jpg | ✓ | ✓ | ✓ | ✓ | CLOSE MATCH | four cars vs a long list |
+| Vehicle detail | vehicle.jpg | ✓ | ✓ | ✓ | ✓ | CLOSE MATCH | no Abandon, Garage, Pay Off |
+| Decision modal | decision.jpg | ✓ | ✓ | ✓ | ✓ | CLOSE MATCH | "Flip a coin" wording |
+| Info modal | info.jpg | ✓ | ✓ | ✓ | ✓ | CLOSE MATCH | no achievement toast above |
+| Person card (traits) | personcard.jpg | ✓ | ✓ | ✓ | PARTIAL | PARTIAL | reference offers accept/reject; ours is OK only; Kindness instead of Craziness |
+| Tombstone | death.jpg | ✓ | ✓ | ✓ | ✓ | PARTIAL | flat CSS stone, no ribbon, no skull artwork beyond an emoji |
+| Post-life menu | postlife.jpg | ✓ | ✓ | ✓ | ✓ | CLOSE MATCH | extra Continue-as-child row |
+| Cold start / New Life | newlife.jpg | ✓ | ✓ | ✓ | ✓ | CLOSE MATCH | no splash, disclaimer or language picker |
+| Pets sources | pets.jpg | ✓ | ✓ | ✓ | ✓ | CLOSE MATCH | four sources vs five; no horse ranch |
+| Menu | menu.jpg | – | – | – | – | NOT OBSERVED IN REFERENCE | |
+| Achievement toast | – | | | | | MISSING | badge banner exists but styled differently (top pill card) |
+| Splash / disclaimer / language | – | | | | | MISSING | not built |

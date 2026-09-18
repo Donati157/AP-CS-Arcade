@@ -12,7 +12,7 @@ import { SCREENS } from './ui/screens.js';
 import * as Modals from './ui/modals.js';
 import { money, esc } from './ui/render.js';
 
-export const VERSION = '2.2.0-web';
+export const VERSION = '2.3.0-web';
 
 const root = document.getElementById('game');
 const modalRoot = document.getElementById('modal-root');
@@ -114,15 +114,12 @@ function startNewLife(custom) {
   screen = 'main';
   sel.person = sel.asset = sel.shop = sel.category = null;
   uiModal = null;
-  render();
   postLifeOpen = false;
-  const p = state.player;
-  uiModal = { title: 'A New Life Begins', text: `${p.name} was just born in ${p.birthplace}. Press Age to grow up, and make every year count.`, choices: ["Let's go"], icon: 'sparkle', band: 'Life', tone: 'green' };
   render();
 }
 
 async function newLifeFlow() {
-  const choice = await ask({ title: 'New Life', band: 'Life', icon: 'sparkle', text: state && state.player.alive ? 'Starting a new life erases the current one. Start with a random life or create your own.' : 'Start with a randomly generated life or create your own.',
+  const choice = await ask({ title: 'New Life', band: 'Life', icon: 'sparkle', text: 'Starting a new life erases the current one. Start with a random life or create your own.',
     choices: ['New Random Life', 'New Custom Life', 'Cancel'] });
   if (choice === 0) startNewLife({});
   else if (choice === 1) go('newlife');
@@ -132,6 +129,8 @@ async function newLifeFlow() {
 
 function onAge() {
   if (!state || !state.player.alive) return;
+  while (state.pending.length && state.pending[0].kind === 'badge') G.answerModal(state);   // a badge banner never blocks aging
+  clearTimeout(bannerTimer);
   if (state.pending.length > 0) { render(); return; }
   root.classList.add('is-aging');
   G.ageUp(state);
@@ -168,6 +167,7 @@ function answer(choice) {
   if (modal.kind === 'minigame') { clearInterval(eyeTimer); G.answerModal(state, choice === 'pass'); render(); toast(choice === 'pass' ? 'Passed!' : 'Not this time', modal.game === 'drivingQuiz' ? (choice === 'pass' ? 'You got your license.' : 'You can try again next year.') : (choice === 'pass' ? 'Your eyes are fine.' : 'You got glasses.'), choice === 'pass' ? 'green' : 'red'); return; }
   if (modal.kind !== 'decision') { G.answerModal(state); render(); return; }
   const index = choice === 'random' ? G.randomChoice(state, modal) : Number(choice);
+  if (!Number.isFinite(index) || !modal.choices[index]) { render(); return; }   // ignore stray answers to a decision
   const followUp = G.answerModal(state, index);
   if (followUp === 'university') screen = 'university';
   else if (followUp === 'tradeSchool') screen = 'tradeSchool';
@@ -188,7 +188,11 @@ async function handle(action, data) {
       go(data.target); break;
     case 'home': go('main'); break;
     case 'age': onAge(); break;
-    case 'newLife': if (state && !state.player.alive) { postLifeOpen = true; render(); } else await newLifeFlow(); break;
+    case 'newLife':
+      if (state && !state.player.alive) { postLifeOpen = true; render(); }
+      else if (!state) startNewLife({});
+      else await newLifeFlow();
+      break;
     case 'premium': toast(`${data.feature} is an admin tool`, 'Changing stats or rewinding years is a premium candidate and is not part of normal play.', 'blue'); break;
     case 'freelance': report(G.freelanceGig(state)); break;
     case 'recruiterConfirm': {
@@ -312,6 +316,29 @@ modalRoot.addEventListener('click', (event) => {
   const el = event.target.closest('[data-choice]');
   if (el) answer(el.dataset.choice);
 });
+
+// Screenshot fixtures (development only): ?seed=7&age=27 builds a deterministic life, and
+// &modal=decision|info|person|death|postlife|banner stages a dialog on top of it.
+const params = new URLSearchParams(location.search);
+if (params.has('seed')) {
+  const { simulateTo } = await import('./game/simulate.js');
+  state = simulateTo(Number(params.get('seed')) || 1, Number(params.get('age')) || 0);
+  state.pending.length = 0;
+  if (params.get('category')) sel.category = params.get('category');
+  if (params.get('shop')) sel.shop = params.get('shop');
+  if (params.get('person') === 'first') { const who = state.relationships.find((r) => r.alive && r.role !== 'pet'); if (who) sel.person = who.id; }
+  if (params.get('asset') === 'first') {
+    if (!state.assets.some((a) => a.type === 'vehicle')) { state.player.money += 20000; state.player.hasLicence = true; G.buyItem(state, 'usedCars', 'usedSedan'); }
+    const vehicle = state.assets.find((a) => a.type === 'vehicle') || state.assets[0]; if (vehicle) sel.asset = vehicle.id;
+  }
+  const fixtureModal = params.get('modal');
+  if (fixtureModal === 'decision') state.pending.push({ kind: 'decision', eventId: 'fixture', band: 'Childhood', title: 'Favorite Toy', icon: 'toy', text: 'You are playing with some friends when a smaller kid grabs the toy xylophone right out of your hands.', choices: [{ label: 'Cry' }, { label: 'Let them play with it' }, { label: 'Take it back' }, { label: 'Tell a grown-up' }] });
+  if (fixtureModal === 'info') state.pending.push({ kind: 'info', band: 'School', tone: 'blue', icon: 'cap', title: 'Primary School', text: 'You are starting primary school.', facts: [['School', 'Maple Grove Elementary'], ['Type', 'Public'], ['Level', 'Elementary School'], ['Years', '6']] });
+  if (fixtureModal === 'person') { const who = state.relationships.find((r) => r.role === 'friend') || state.relationships[0]; state.pending.push({ kind: 'info', band: 'Friend', tone: 'red', person: who.id, icon: 'friends', title: 'New Friend', text: `Your classmate, ${who.name.split(' ')[0]}, wants to become your friend.`, facts: [['Name', who.name], ['Gender', who.gender === 'female' ? 'Female' : 'Male'], ['Age', String(who.age)]], traits: who.traits }); }
+  if (fixtureModal === 'death') { state.player.alive = false; state.pending.push({ kind: 'death' }); }
+  if (fixtureModal === 'postlife') { state.player.alive = false; postLifeOpen = true; }
+  if (fixtureModal === 'banner') state.pending.push({ kind: 'badge', id: 'firstSteps', name: 'First Steps', desc: 'Reach age 1' });
+}
 
 // Deep links such as #menu open that screen directly (used for screenshots and tests).
 const hashScreen = location.hash.slice(1);

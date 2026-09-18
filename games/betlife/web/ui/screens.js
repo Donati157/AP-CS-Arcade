@@ -12,7 +12,7 @@ import * as Activities from '../game/activities.js';
 import { PLACES } from '../game/life-generator.js';
 import { journalYears } from '../game/journal.js';
 import { stageLabel } from '../game/player.js';
-import { icon } from '../game/icons.js';
+import { icon, pic, avatarFor } from '../game/icons.js';
 import { esc, money, pct, strip, section, row, infoRow, meter, footerBar, note, empty, screen } from './render.js';
 
 const isEmployed = (s) => Career.isEmployed(s.career);
@@ -21,17 +21,16 @@ const actionsLeft = (s) => `${s.actionsRemaining} of ${G.ACTIONS_PER_YEAR} actio
 // ---- Start, menu and new life ----------------------------------------------------------------------------
 
 export function start(ctx) {
-  const { state, version } = ctx;
-  const saved = state ? row(state.player.alive ? 'Continue' : 'Last Life', state.player.alive ? { sub: `${state.player.name}, age ${state.player.age}`, icon: 'person', action: 'go', data: { target: 'main' } }
-    : { sub: `${state.player.name} lived to ${state.player.age}`, icon: 'candle', action: 'go', data: { target: 'main' } }) : '';
-  return `<header class="bl-header bl-header-main"><span class="bl-header-spacer"></span>
-      <div class="bl-brand"><span>BET</span><span class="bl-brand-accent">LIFE</span></div><span class="bl-header-spacer"></span></header>
-    <div class="bl-scroll">${section('Main Menu')}
-    ${row('New Life', { sub: 'Start from birth', icon: 'sparkle', action: 'newLife', right: 'dots' })}${saved}
-    ${section('More')}
-    ${row('About BetLife', { sub: 'How the game works', icon: 'info', action: 'about', right: 'dots' })}
-    <a class="bl-row" href="../../"><span class="bl-row-icon">${icon('exit')}</span><span class="bl-row-text"><span class="bl-row-title">Back to Arcade</span><span class="bl-row-sub">Leave the game</span></span><span class="bl-row-right">${icon('chevron')}</span></a>
-    <p class="bl-footnote">BetLife ${esc(version)}</p></div>`;
+  const { version } = ctx;
+  return `<header class="bl-header bl-header-main">
+      <button class="bl-round-btn bl-menu-btn" data-action="go" data-target="menu" aria-label="Menu">${icon('menu')}</button>
+      <div class="bl-brand"><span>BET</span><span class="bl-brand-accent">LIFE</span></div>
+      <button class="bl-header-pill" data-action="about">About</button></header>
+    <div class="bl-strip"><div class="bl-identity"></div><div class="bl-money"><strong class="is-positive">$0</strong><span>Bank Balance</span></div></div>
+    <div class="bl-journal"><p class="bl-footnote">BetLife ${esc(version)}</p></div>
+    <nav class="bl-nav is-dead" aria-label="Game sections"><span class="bl-nav-empty"></span><span class="bl-nav-empty"></span><span class="bl-nav-gap" aria-hidden="true"></span><span class="bl-nav-empty"></span><span class="bl-nav-empty"></span>
+      <button class="bl-age is-newlife" data-action="newLife" aria-label="New life"><span class="bl-age-icon">${pic('seedling')}</span><span class="bl-age-label">New Life</span></button></nav>
+    <div class="bl-start-stats"></div>`;
 }
 
 export function newlife(ctx) {
@@ -58,6 +57,7 @@ export function menu(ctx) {
     ${infoRow('Character', state.player.name)}${infoRow('Age', `${state.player.age} years`)}${infoRow('Stage', state.player.alive ? stageLabel(state.player.age) : 'Life complete')}
     ${section('Options')}
     ${row('New Life', { sub: 'Start over from birth', icon: 'sparkle', action: 'newLife', right: 'dots' })}
+    ${row('Custom Life', { sub: 'Pick a name, gender and birthplace', icon: 'identity', action: 'go', data: { target: 'newlife' } })}
     ${row('Main Menu', { sub: 'Back to the start screen', icon: 'reset', action: 'go', data: { target: 'start' } })}
     ${row('About BetLife', { sub: `Version ${version}`, icon: 'info', action: 'about', right: 'dots' })}
     ${row('Life Badges', { sub: `${(state.badges || []).length} of ${BADGES.length} earned`, icon: 'medal', action: 'go', data: { target: 'badges' } })}
@@ -72,7 +72,7 @@ function firstNav(state) {
   const p = state.player;
   if (!p.alive) return ['Summary', 'candle', 'summary'];
   if (Education.isEnrolled(state.education)) return ['School', 'cap', 'school'];
-  if (isEmployed(state)) return ['Job', 'briefcase', 'job'];
+  if (isEmployed(state)) return ['Job', 'briefcase', 'occupation'];
   if (state.career.retired) return ['Retired', 'flag', 'occupation'];
   if (p.age >= 15) return ['Occupation', 'briefcase', 'occupation'];
   return [p.age < 4 ? 'Infant' : 'Child', p.age < 4 ? 'baby' : 'person', 'growing'];
@@ -82,16 +82,16 @@ export function main(ctx) {
   const { state } = ctx;
   const p = state.player;
   const journal = journalYears(state.timeline).map((year) => `<section class="bl-year"><h3>Age: ${year.age} ${year.age === 1 ? 'year' : 'years'}</h3>
-      ${year.entries.map((e) => `<p class="bl-entry kind-${e.kind}">${esc(e.text)}</p>`).join('')}</section>`).join('');
+      ${year.entries.map((e) => `<p class="bl-entry kind-${e.kind}">${esc(e.text)}</p>`).join('')}</section>`).join('') || '<div class="bl-journal-empty">Press Age to begin.</div>';
   const first = firstNav(state);
   const nav = (label, iconName, target, extra = '') => `<button class="bl-nav-item${extra}" data-action="go" data-target="${target}"><span class="bl-nav-ring">${icon(iconName)}</span><span>${label}</span></button>`;
   const ageButton = p.alive
     ? `<button class="bl-age" data-action="age" aria-label="Age one year"><span class="bl-age-plus">+</span><span class="bl-age-label">Age</span></button><button class="bl-rewind" data-action="premium" data-feature="Rewind" aria-label="Rewind a year (premium candidate)"><span>−</span><small>Age</small></button>`
-    : `<button class="bl-age is-newlife" data-action="newLife" aria-label="New life"><span class="bl-age-icon">${icon('seedling')}</span><span class="bl-age-label">New Life</span></button>`;
+    : `<button class="bl-age is-newlife" data-action="newLife" aria-label="New life"><span class="bl-age-icon">${pic('seedling')}</span><span class="bl-age-label">New Life</span></button>`;
   return `<header class="bl-header bl-header-main${p.alive ? '' : ' is-dead'}">
       <button class="bl-round-btn bl-menu-btn" data-action="go" data-target="menu" aria-label="Menu">${icon('menu')}</button>
       <div class="bl-brand"><span>BET</span><span class="bl-brand-accent">LIFE</span></div>
-      <button class="bl-header-pill bl-badge-pill" data-action="go" data-target="badges" aria-label="Life badges">${icon('medal')} ${(state.badges || []).length}</button></header>
+      <button class="bl-header-pill bl-badge-pill" data-action="go" data-target="badges" aria-label="Life badges">${pic('medal')} ${(state.badges || []).length}</button></header>
     ${strip(state)}
     <div class="bl-journal" id="bl-journal">${journal}</div>
     <nav class="bl-nav${p.alive ? '' : ' is-dead'}" aria-label="Game sections">
@@ -100,8 +100,8 @@ export function main(ctx) {
       ${p.alive ? nav('Relationships', 'heart', 'relationships') + nav('Activities', 'dots', 'activities') : '<span class="bl-nav-empty"></span><span class="bl-nav-empty"></span>'}
       ${ageButton}</nav>
     <div class="bl-stats${p.alive ? '' : ' is-dead'}">
-      ${meter('Happiness', p.happiness, p.happiness >= 50 ? 'smile' : 'frown', 'happiness')}${meter('Health', p.health, 'heart', 'health')}
-      ${meter('Smarts', p.smarts, 'bulb', 'smarts')}${meter('Looks', p.looks, 'sparkle', 'looks')}</div>`;
+      ${meter('Happiness', p.happiness, p.happiness >= 70 ? 'happy' : p.happiness >= 35 ? 'neutral' : 'sad', 'happiness')}${meter('Health', p.health, p.health < 25 ? 'healthLow' : 'health', 'health')}
+      ${meter('Smarts', p.smarts, 'brain', 'smarts')}${meter('Looks', p.looks, p.looks < 25 ? 'looksLow' : 'looks', 'looks')}</div>`;
 }
 
 // ---- Growing up (infant / child) ---------------------------------------------------------------------------
@@ -173,27 +173,33 @@ export function occupation(ctx) {
   const p = state.player;
   const c = state.career;
   const e = state.education;
-  const canHigher = Education.canEnrollHigher(e);
+  const canHigher = e.highSchoolGraduate && !Education.isEnrolled(e);
   const you = isEmployed(state)
-    ? row(Career.jobTitle(c), { sub: `${Career.employer(c)} · ${money(c.salary)} / year`, icon: 'briefcase', action: 'go', data: { target: 'job' }, bar: { label: 'Performance', value: c.performance } })
-    : c.retired ? row('Retired', { sub: c.pension > 0 ? `Pension ${money(c.pension)} / year` : 'No pension', icon: 'flag', right: 'none' })
+    ? row(Career.jobTitle(c), { sub: '', icon: 'performance', action: 'go', data: { target: 'job' }, bar: { label: 'Performance', value: c.performance, tone: c.performance < 40 ? 'warn' : '' } })
+      + row('Schedule', { icon: 'schedule', action: 'go', data: { target: 'hr' }, right: 'dots', bar: { label: 'Stress', value: c.stress, tone: c.stress >= 70 ? 'warn' : '' } })
+    : c.retired ? row('Retired', { sub: `Pension ${money(c.pension)} / year`, icon: 'retire', right: 'none' })
       : row(p.occupation, { sub: Education.educationSummary(e), icon: 'person', right: 'none' });
-  const findWork = c.retired ? '' : section('Find Work')
-    + row('Freelance Gigs', { sub: 'Make some quick money', icon: 'coin', action: 'freelance', right: 'dots', disabled: p.age < 16, note: 'Age 16+' })
-    + row('Job Recruiter', { sub: '$1,000 · find the best job you qualify for', icon: 'chat', action: 'recruiterConfirm', right: 'dots', disabled: p.age < 18 || !e.highSchoolGraduate, note: 'Needs a high school diploma' })
-    + row('Jobs', { sub: `Full-time listings · ${CAREERS.filter((j) => !j.partTime && Career.isEligible(state, j)).length} you qualify for`, icon: 'briefcase', action: 'go', data: { target: 'jobs' }, disabled: p.age < 16, note: 'Age 16+' })
-    + row('Part-Time Jobs', { sub: 'Hourly listings for students', icon: 'history', action: 'go', data: { target: 'partTimeJobs' }, disabled: p.age < G.JOBS_MIN_AGE, note: `Age ${G.JOBS_MIN_AGE}+` });
-  const programs = Object.values(Education.PROGRAMS).map((pr) => row(pr.name, { sub: `${pr.years} years · ${pr.note}`, icon: pr.id === 'law' ? 'list' : pr.id === 'medical' ? 'cross' : pr.id === 'business' ? 'briefcase' : 'cap', action: 'programConfirm', data: { program: pr.id }, right: 'dots',
+  const all = c.retired ? '' : section('All')
+    + (c.history.length || isEmployed(state) ? row('Career History', { sub: `${c.history.length + (isEmployed(state) ? 1 : 0)} positions · ${c.yearsWorked} years worked`, icon: 'history', action: 'go', data: { target: 'careerHistory' } }) : '')
+    + row('Education', { sub: e.degree ? `${e.degree} degree` : e.trade ? `${e.trade} certificate` : 'Go back to school', icon: 'cap', action: 'go', data: { target: 'education' }, disabled: !canHigher, note: Education.isEnrolled(e) ? 'You are enrolled right now' : 'Needs a high school diploma' })
+    + row('Freelance Gigs', { sub: 'Make some quick money', icon: 'freelance', action: 'freelance', right: 'dots', disabled: p.age < 16, note: 'Age 16+' })
+    + row('Job Recruiter', { sub: 'Visit the job recruiter', icon: 'recruiter', action: 'recruiterConfirm', right: 'dots', disabled: p.age < 18 || !e.highSchoolGraduate, note: 'Needs a high school diploma' })
+    + row('Jobs', { sub: 'Browse full-time job listings', icon: 'briefcase', action: 'go', data: { target: 'jobs' }, disabled: p.age < 16, note: 'Age 16+' })
+    + row('Military', { sub: 'Join the military', icon: 'military', action: 'go', data: { target: 'military' }, disabled: p.age < 18, note: 'Age 18+' })
+    + row('Part-Time Jobs', { sub: 'Browse hourly job listings', icon: 'history', action: 'go', data: { target: 'partTimeJobs' }, disabled: p.age < G.JOBS_MIN_AGE, note: `Age ${G.JOBS_MIN_AGE}+` })
+    + row('Special Careers', { sub: 'Find a special career', icon: 'dream', action: 'go', data: { target: 'dream' }, disabled: p.age < 16, note: 'Age 16+' });
+  return screen(state, 'Occupation', `${section('You')}${you}${all}`);
+}
+
+export function education(ctx) {
+  const { state } = ctx;
+  const e = state.education;
+  const programs = Object.values(Education.PROGRAMS).map((pr) => row(pr.name, { sub: pr.note, icon: pr.id === 'law' ? 'list' : pr.id === 'medical' ? 'stethoscope' : pr.id === 'business' ? 'briefcase' : 'cap', action: 'programConfirm', data: { program: pr.id }, right: 'dots',
     disabled: !Education.canEnrollProgram(e, pr), note: (e.credentials || []).includes(pr.credential) ? 'Completed' : !e.degree ? 'Needs a university degree' : pr.needs ? `Needs a ${pr.needs.join(' or ')} degree` : 'Not available right now' })).join('');
-  const education = canHigher && !c.retired ? section('Education')
-    + row('University', { sub: e.degree ? `You already hold a ${e.degree} degree` : `${Education.UNIVERSITY_YEARS} years · choose a major`, icon: 'cap', action: 'go', data: { target: 'university' }, disabled: !!e.degree })
-    + row('Trade School', { sub: e.trade ? `You already hold a ${e.trade} certificate` : `${Education.TRADE_SCHOOL_YEARS} years · hands-on training`, icon: 'tools', action: 'go', data: { target: 'tradeSchool' }, disabled: !!e.trade })
-    + programs : '';
-  const special = c.retired ? '' : section('Special Careers')
-    + row('Military', { sub: 'Enlist in one of five branches', icon: 'flag', action: 'go', data: { target: 'military' }, disabled: p.age < 18, note: 'Age 18+' })
-    + row('Dream Careers', { sub: 'Acting, athletics, music, writing, space, politics', icon: 'star', action: 'go', data: { target: 'dream' }, disabled: p.age < 16, note: 'Age 16+' });
-  const history = c.history.length || isEmployed(state) ? section('History') + row('Career History', { sub: `${c.history.length + (isEmployed(state) ? 1 : 0)} positions · ${c.yearsWorked} years worked`, icon: 'history', action: 'go', data: { target: 'careerHistory' } }) : '';
-  return screen(state, 'Occupation', `${section('You')}${you}${infoRow('Education', Education.educationSummary(e))}${findWork}${special}${education}${history}`);
+  return screen(state, 'Education', `
+    ${row('University', { sub: e.degree ? `You already hold a ${e.degree} degree` : 'Get a college degree', icon: 'cap', action: 'go', data: { target: 'university' }, disabled: !!e.degree })}
+    ${row('Trade School', { sub: e.trade ? `You already hold a ${e.trade} certificate` : 'Learn a hands-on trade', icon: 'tools', action: 'go', data: { target: 'tradeSchool' }, disabled: !!e.trade })}
+    ${programs}`, { back: 'occupation', mode: 'back' });
 }
 
 export function job(ctx) {
@@ -203,21 +209,15 @@ export function job(ctx) {
   const def = Career.currentCareer(c);
   const pos = Career.currentPosition(c);
   const next = def.ladder[c.rung + 1];
-  const actions = [
-    row('Work Harder', { sub: 'Performance up, a little tiring', icon: 'arrowUp', action: 'job', data: { job: 'workHarder' }, right: 'dots' }),
-    row('Take It Easy', { sub: 'Relax at the cost of performance', icon: 'sun', action: 'job', data: { job: 'takeItEasy' }, right: 'dots' }),
-    row('Ask for a Raise', { sub: c.askedRaiseThisYear ? 'Already asked this year' : 'Better odds with strong performance', icon: 'dollar', action: 'job', data: { job: 'askForRaise' }, right: 'dots', disabled: c.askedRaiseThisYear }),
-    row('Resign', { sub: `Leave ${def.employer}`, icon: 'exit', action: 'quitConfirm', right: 'dots', tone: 'danger' }),
-    row('Retire', { sub: Career.canRetire(state) ? 'Consider retirement' : `Available from age ${Career.RETIREMENT_MIN_AGE}`, icon: 'flag', action: 'retireConfirm', right: 'dots', disabled: !Career.canRetire(state), note: `Age ${Career.RETIREMENT_MIN_AGE}+` }),
-  ].join('');
   return screen(state, 'Job', `
-    ${section('You')}
-    ${row(pos.title, { sub: `${def.name} · ${def.employer}`, icon: 'briefcase', right: 'none', bar: { label: 'Performance', value: c.performance, tone: c.performance < 40 ? 'warn' : '' } })}
-    ${infoRow('Salary', `${money(c.salary)} / year`)}${infoRow('Years at company', String(c.tenure))}${infoRow('Level', `${c.rung + 1} of ${def.ladder.length}${next ? ` · next: ${next.title}` : ' · top of the ladder'}`)}
-    ${row('Schedule', { sub: c.stress >= 70 ? 'Burning out: take it easy or a vacation' : c.stress >= 40 ? 'Busy but manageable' : 'A healthy pace', icon: 'history', right: 'none', bar: { label: 'Stress', value: c.stress, tone: c.stress >= 70 ? 'warn' : '' } })}
-    ${infoRow('Warnings', c.warnings ? `${c.warnings} on file` : 'None')}${infoRow('Actions', actionsLeft(state))}
-    ${section('Actions')}${row('Human Resources', { sub: 'Requests and workplace problems', icon: 'people', action: 'go', data: { target: 'hr' } })}${actions}
-    ${section('Elsewhere')}${row('Job Listings', { sub: 'Look at other openings', icon: 'list', action: 'go', data: { target: 'jobs' } })}`);
+    ${row(pos.title, { titleNote: `(${def.name})`, sub: `${def.employer} · ${money(c.salary)} / year`, icon: careerIcon(def.category), right: 'none', bar: { label: 'Performance', value: c.performance, tone: c.performance < 40 ? 'warn' : '' } })}
+    ${row('Human Resources', { sub: 'Requests and workplace problems', icon: 'hr', action: 'go', data: { target: 'hr' }, right: 'dots' })}
+    ${row('Resign', { sub: 'Tender your resignation', icon: 'resign', action: 'quitConfirm', right: 'dots' })}
+    ${row('Retire', { sub: Career.canRetire(state) ? 'Consider retirement' : `Available from age ${Career.RETIREMENT_MIN_AGE}`, icon: 'retire', action: 'retireConfirm', right: 'dots', disabled: !Career.canRetire(state), note: `Age ${Career.RETIREMENT_MIN_AGE}+` })}
+    ${row('Work Harder', { sub: 'Put in some extra effort', icon: 'workHarder', action: 'job', data: { job: 'workHarder' }, right: 'dots' })}
+    ${row('Take It Easy', { sub: 'Relax at the cost of performance', icon: 'easy', action: 'job', data: { job: 'takeItEasy' }, right: 'dots' })}
+    ${row('Ask for a Raise', { sub: c.askedRaiseThisYear ? 'Already asked this year' : 'Better odds with strong performance', icon: 'raise', action: 'job', data: { job: 'askForRaise' }, right: 'dots', disabled: c.askedRaiseThisYear })}
+    ${c.warnings ? infoRow('Warnings', `${c.warnings} on file`, 'negative') : ''}`, { back: 'occupation', mode: 'back' });
 }
 
 function jobRow(state, career) {
@@ -225,32 +225,31 @@ function jobRow(state, career) {
   const entry = career.ladder[0];
   const current = state.career.careerId === career.id;
   if (career.tagline) {
-    return row(career.name, { sub: `${career.tagline} · starts as ${entry.title}, ${money(entry.salary)} / year`, icon: career.military ? 'flag' : 'star', action: 'applyConfirm', data: { career: career.id },
+    return row(career.name, { sub: `${career.tagline} · starts as ${entry.title}, ${money(entry.salary)} / year`, icon: career.military ? 'military' : 'dream', action: 'applyConfirm', data: { career: career.id },
       right: 'dots', disabled: !eligible || current, note: current ? 'Your current career' : `Requires ${requirementText(career)}` });
   }
-  return row(entry.title, { titleNote: `(${career.category})`, sub: `${money(entry.salary)} / year · ${requirementText(career)}`, icon: careerIcon(career.category), action: 'applyConfirm', data: { career: career.id },
+  return row(entry.title, { titleNote: `(${career.category})`, sub: money(entry.salary), icon: careerIcon(career.category), action: 'applyConfirm', data: { career: career.id },
     right: 'dots', disabled: !eligible || current, note: current ? 'Your current job' : `Requires ${requirementText(career)}` });
 }
 
 function careerIcon(category) {
-  return { Technology: 'bulb', Finance: 'dollar', Healthcare: 'cross', Education: 'cap', Science: 'eye', Engineering: 'tools', Creative: 'palette', Media: 'film', Trades: 'tools', Retail: 'bag', Restaurant: 'leaf', Logistics: 'car', Recreation: 'ball', Corporate: 'briefcase', 'Public Service': 'flag', Hospitality: 'house', 'Part-time': 'coin' }[category] || 'briefcase';
+  return { Technology: 'gadget', Finance: 'chart', Healthcare: 'stethoscope', Education: 'teacher', Science: 'brain', Engineering: 'tools', Creative: 'palette', Media: 'film', Trades: 'tools', Retail: 'shopping', Restaurant: 'hangout', Logistics: 'car', Recreation: 'ball', Corporate: 'chart', 'Public Service': 'flag', Hospitality: 'suitcase', 'Part-time': 'coin', 'Fire Service': 'cross', 'Law Firm': 'list' }[category] || 'briefcase';
 }
 
 export function jobs(ctx) {
   const { state } = ctx;
   const sorted = REGULAR.slice().sort((a, b) => b.ladder[0].salary - a.ladder[0].salary);
-  const groups = CATEGORIES.map((cat) => section(cat) + sorted.filter((c) => c.category === cat).map((c) => jobRow(state, c)).join(''));
-  return screen(state, 'Jobs', `${infoRow('Your education', Education.educationSummary(state.education))}${infoRow('Smarts', pct(state.player.smarts))}${groups.join('')}`, { back: isEmployed(state) ? 'job' : 'occupation', mode: 'back' });
+  return screen(state, 'Jobs', `<div class="bl-jobs">${sorted.map((c) => jobRow(state, c)).join('')}</div>`, { back: 'occupation', mode: 'back' });
 }
 
 export function military(ctx) {
   const { state } = ctx;
-  return screen(state, 'Military', `${note('Enlisting needs a high school diploma and good health. Ranks come with time and performance; the service retires you like any other career.')}${section('Branches')}${MILITARY.map((c) => jobRow(state, c)).join('')}`, { back: 'occupation', mode: 'back' });
+  return screen(state, 'Military', `${MILITARY.map((c) => jobRow(state, c)).join('')}`, { back: 'occupation', mode: 'back' });
 }
 
 export function dream(ctx) {
   const { state } = ctx;
-  return screen(state, 'Dream Careers', `${note('Rare paths that reward talent: Looks, Health or Smarts instead of a diploma. Entry pay is low; the top is not.')}${section('Careers')}${DREAM.map((c) => jobRow(state, c)).join('')}`, { back: 'occupation', mode: 'back' });
+  return screen(state, 'Special Careers', `${DREAM.map((c) => jobRow(state, c)).join('')}`, { back: 'occupation', mode: 'back' });
 }
 
 export function hr(ctx) {
@@ -258,13 +257,13 @@ export function hr(ctx) {
   const c = state.career;
   if (!isEmployed(state)) return occupation(ctx);
   const rows = HR_OPTIONS.map(([id, title, sub]) => row(title, { sub, icon: id === 'complaint' ? 'warning' : id === 'training' ? 'book' : id === 'transfer' ? 'people' : 'history', action: 'hr', data: { hr: id }, right: 'dots', disabled: c.hrThisYear, note: 'HR already handled a request this year' })).join('');
-  return screen(state, 'Human Resources', `${infoRow('Employer', Career.employer(c))}${row('Stress', { icon: 'history', right: 'none', bar: { label: 'Stress', value: c.stress, tone: c.stress >= 70 ? 'warn' : '' } })}${infoRow('Actions', actionsLeft(state))}${section('Requests')}${rows}`, { back: 'job', mode: 'back' });
+  return screen(state, 'Human Resources', `${row('Schedule', { sub: Career.employer(c), icon: 'schedule', right: 'none', bar: { label: 'Stress', value: c.stress, tone: c.stress >= 70 ? 'warn' : '' } })}${section('Requests')}${rows}`, { back: 'occupation', mode: 'back' });
 }
 
 export function partTimeJobs(ctx) {
   const { state } = ctx;
   const list = CAREERS.filter((c) => c.partTime).map((c) => jobRow(state, c)).join('');
-  return screen(state, 'Part-time Jobs', `${note('Part-time work fits around school and usually ends around 19.')}${section('Openings')}${list}`, { back: 'occupation', mode: 'back' });
+  return screen(state, 'Part-Time Jobs', `${list}`, { back: 'occupation', mode: 'back' });
 }
 
 export function careerHistory(ctx) {
@@ -281,13 +280,13 @@ export function careerHistory(ctx) {
 export function assets(ctx) {
   const { state } = ctx;
   const p = state.player;
-  const assetRows = (list) => list.map((a) => row(a.name, { titleNote: a.label ? `(${a.label})` : '', sub: `Value ${money(a.value)}`, icon: a.kind === 'car' ? 'car' : a.kind === 'bike' ? 'bike' : a.kind === 'home' ? 'house' : a.kind === 'instrument' ? 'music' : a.kind === 'jewelry' ? 'ring' : 'game',
+  const assetRows = (list) => list.map((a) => row(a.name, { titleNote: a.label ? `(${a.label})` : '', sub: a.type === 'possession' ? `Value ${money(a.value)}` : '', icon: a.kind === 'car' ? 'car' : a.kind === 'bike' ? 'bike' : a.kind === 'home' ? 'home' : a.kind === 'instrument' ? 'instrument' : a.kind === 'jewelry' ? 'jewelry' : 'gadget',
     action: 'asset', data: { asset: a.id }, bar: a.type !== 'possession' ? { label: 'Condition', value: a.condition, tone: a.condition < 30 ? 'warn' : '' } : null })).join('');
   const homes = Assets.homes(state); const vehicles = Assets.vehicles(state); const things = Assets.possessions(state);
   return screen(state, 'Assets', `
     ${section('Finances')}
-    ${row('Finances', { sub: `Net worth ${money(G.netWorth(state))} · ${p.money < 0 ? 'in debt' : 'in the black'}`, icon: 'dollar', action: 'go', data: { target: 'finances' } })}
-    ${row('Housing', { sub: homes.length ? homes[0].name : p.livesWithParents ? 'Living with your parents' : 'Renting', icon: 'house', right: 'none' })}
+    ${row('Finances', { sub: 'View your finances', icon: 'finances', action: 'go', data: { target: 'finances' }, right: 'dots' })}
+    ${row('Housing', { sub: homes.length ? homes[0].name : p.livesWithParents ? 'Living with your parents' : 'Renting', icon: 'housing', right: 'none' })}
     ${section('Real Estate')}${assetRows(homes) || empty('No property yet.')}
     ${section('Vehicles')}${assetRows(vehicles) || empty('No vehicles yet.')}
     ${section('Possessions')}${assetRows(things) || empty('Nothing yet.')}
@@ -318,7 +317,7 @@ export function asset(ctx) {
       + row('Repair', { sub: `${money(Assets.repairCost(a))} · back to perfect condition`, icon: 'tools', action: 'repair', data: { asset: a.id }, right: 'dots', disabled: a.condition >= 100, note: 'Already in perfect condition' })
       + row('Gift', { sub: 'Give it to someone', icon: 'gift', action: 'go', data: { target: 'giftAsset', asset: a.id } })
       + row('Sell', { sub: 'Turn it back into cash', icon: 'dollar', action: 'sellConfirm', data: { asset: a.id }, right: 'dots' })
-      + row('Scrap', { sub: 'Sell it for parts', icon: 'exit', action: 'assetAction', data: { asset: a.id, do: 'scrap' }, right: 'dots', tone: 'danger' });
+      + row('Scrap', { sub: 'Sell it for parts', icon: 'trash', action: 'assetAction', data: { asset: a.id, do: 'scrap' }, right: 'dots' });
   } else if (a.type === 'home') {
     actions = row('Renovate', { sub: 'Raise the value and freshen it up', icon: 'tools', action: 'assetAction', data: { asset: a.id, do: 'renovate' }, right: 'dots' })
       + row('Sell', { sub: 'Put it on the market', icon: 'dollar', action: 'sellConfirm', data: { asset: a.id }, right: 'dots' });
@@ -326,9 +325,10 @@ export function asset(ctx) {
     actions = row('Gift', { sub: 'Give it to someone', icon: 'gift', action: 'go', data: { target: 'giftAsset', asset: a.id } })
       + row('Sell', { sub: 'Turn it back into cash', icon: 'dollar', action: 'sellConfirm', data: { asset: a.id }, right: 'dots' });
   }
-  return screen(state, a.name, `
-    ${row(a.name, { titleNote: a.label ? `(${a.label})` : '', sub: `${kind} · owned since age ${a.boughtAt}`, icon: a.kind === 'car' ? 'car' : a.kind === 'bike' ? 'bike' : a.kind === 'home' ? 'house' : a.kind === 'instrument' ? 'music' : a.kind === 'jewelry' ? 'ring' : 'game', right: 'none', bar: wear ? { label: 'Condition', value: a.condition, tone: a.condition < 30 ? 'warn' : '' } : null })}
-    ${infoRow('Paid', money(a.cost))}${infoRow('Value now', money(a.value))}${infoRow('Yearly upkeep', money(Math.round(a.value * a.upkeep)))}${infoRow('Actions', actionsLeft(state))}
+  const years = state.player.age - a.boughtAt;
+  const title = a.type === 'vehicle' ? (a.label || 'Vehicle').replace(/^(Used|New) /, '') : a.type === 'home' ? 'Property' : 'Possession';
+  return screen(state, title, `
+    ${row(a.name, { sub: `Your ${years > 0 ? `${years}-year-old ` : ''}${(a.label || kind).toLowerCase()} · worth ${money(a.value)}`, icon: a.kind === 'car' ? 'car' : a.kind === 'bike' ? 'bike' : a.kind === 'home' ? 'home' : a.kind === 'instrument' ? 'instrument' : a.kind === 'jewelry' ? 'jewelry' : 'gadget', right: 'none', bar: wear ? { label: 'Condition', value: a.condition, tone: a.condition < 30 ? 'warn' : '' } : null })}
     ${section('Activities')}${actions}`, { back: 'assets', mode: 'back' });
 }
 
@@ -343,7 +343,7 @@ export function giftAsset(ctx) {
 export function shopping(ctx) {
   const { state } = ctx;
   const age = state.player.age;
-  const shopIcon = (s) => (s.id.includes('Cars') ? 'car' : s.id === 'bikes' ? 'bike' : s.id === 'homes' ? 'house' : s.id === 'music' ? 'music' : s.category === 'Jewelers' ? 'ring' : 'game');
+  const shopIcon = (s) => (s.id.includes('Cars') ? 'car' : s.id === 'bikes' ? 'bike' : s.id === 'homes' ? 'home' : s.id === 'music' ? 'instrument' : s.category === 'Jewelers' ? 'jewelry' : 'gadget');
   const categories = [...new Set(Assets.SHOPS.map((s) => s.category))].sort();
   const groups = categories.map((cat) => section(cat) + Assets.SHOPS.filter((s) => s.category === cat).map((s) => row(s.name, { sub: s.tagline, icon: shopIcon(s),
     action: 'go', data: { target: 'shop', shop: s.id }, disabled: age < s.minAge, note: `Age ${s.minAge}+` })).join('')).join('');
@@ -358,7 +358,7 @@ export function shop(ctx) {
   const rows = s.items.map((item) => {
     const verdict = Assets.canBuy(state, s, item);
     const notes = { tooYoung: `Age ${item.minAge || s.minAge}+`, noLicence: 'Needs a driving licence', owned: 'Already owned', noMoney: 'Not enough money' };
-    return row(item.name, { titleNote: item.label ? `(${item.label})` : '', sub: money(item.cost), icon: item.kind === 'car' ? 'car' : item.kind === 'bike' ? 'bike' : item.kind === 'home' ? 'house' : item.kind === 'instrument' ? 'music' : item.kind === 'jewelry' ? 'ring' : 'game',
+    return row(item.name, { titleNote: item.label ? `(${item.label})` : '', sub: money(item.cost), icon: item.kind === 'car' ? 'car' : item.kind === 'bike' ? 'bike' : item.kind === 'home' ? 'home' : item.kind === 'instrument' ? 'instrument' : item.kind === 'jewelry' ? 'jewelry' : 'gadget',
       action: 'buyConfirm', data: { shop: s.id, item: item.id }, right: 'dots', disabled: verdict !== 'ok', note: notes[verdict] });
   }).join('');
   return screen(state, s.name, `${infoRow('Bank Balance', money(state.player.money))}${section(s.tagline)}${rows}`, { back: 'shopping', mode: 'back' });
@@ -368,7 +368,7 @@ export function shop(ctx) {
 
 function personRow(r) {
   const label = r.role === 'pet' ? People.PET_SPECIES[r.species].label : People.ROLE_LABELS[r.role];
-  return row(r.name, { titleNote: `(${label})`, icon: r.role === 'pet' ? 'paw' : 'person', action: 'person', data: { person: r.id }, bar: { label: 'Relationship', value: r.closeness, tone: r.closeness < 30 ? 'warn' : '' } });
+  return row(r.name, { titleNote: `(${label})`, emoji: avatarFor(r), action: 'person', data: { person: r.id }, bar: { label: 'Relationship', value: r.closeness, tone: r.closeness < 30 ? 'warn' : '' } });
 }
 
 export function relationships(ctx) {
@@ -383,23 +383,16 @@ export function person(ctx) {
   const r = People.findPerson(state, sel.person);
   if (!r || !r.alive) return relationships(ctx);
   const label = People.roleLabel(r);
-  const facts = [infoRow('Age', `${r.age} years`)];
-  if (r.role === 'pet') facts.push(infoRow('Breed', r.breed || People.PET_SPECIES[r.species].label));
-  else if (r.occupation) facts.push(infoRow('Occupation', r.occupation));
-  if (r.yearsTogether !== undefined) facts.push(infoRow('Years together', String(r.yearsTogether)));
-  facts.push(infoRow('In your life since', r.since === 0 ? 'birth' : `age ${r.since}`));
-  facts.push(infoRow('Actions', actionsLeft(state)));
-  const actions = People.actionsFor(state, r).map(([id, title, sub]) => row(title, { sub, icon: actionIcon(id), action: 'interact', data: { person: r.id, do: id }, right: 'dots', tone: ['argue', 'breakUp', 'unfriend', 'release'].includes(id) ? 'danger' : '' })).join('');
+  const actions = People.actionsFor(state, r).map(([id, title, sub]) => row(title, { sub, icon: actionIcon(id), action: 'interact', data: { person: r.id, do: id }, right: 'dots' })).join('');
+  const detail = r.role === 'pet' ? `${r.breed || People.PET_SPECIES[r.species].label}` : [r.occupation, r.yearsTogether !== undefined ? `${r.yearsTogether} years together` : null].filter(Boolean).join(' · ');
   return screen(state, label, `
-    ${row(r.name, { titleNote: `(Age ${r.age})`, icon: r.role === 'pet' ? 'paw' : 'person', right: 'none', bar: { label: 'Relationship', value: r.closeness, tone: r.closeness < 30 ? 'warn' : '' } })}
-    ${facts.join('')}
-    ${r.traits && r.role !== 'pet' ? `<div class="bl-traits">${['looks', 'smarts', 'kindness'].map((t) => `<div class="bl-trait"><span>${t[0].toUpperCase()}${t.slice(1)}</span><span class="bl-track"><span class="bl-fill" style="width:${r.traits[t]}%"></span></span></div>`).join('')}</div>` : ''}
+    ${row(r.name, { titleNote: `(Age ${r.age})`, emoji: avatarFor(r), right: 'none', bar: { label: 'Relationship', value: r.closeness, tone: r.closeness < 30 ? 'warn' : '' } })}
     ${section('Activities')}${actions}`, { back: 'relationships', mode: 'back' });
 }
 
 function actionIcon(id) {
-  return { spendTime: 'sun', conversation: 'chat', compliment: 'smile', gift: 'gift', advice: 'bulb', argue: 'frown', allowance: 'coin', homework: 'book', playPet: 'ball', walkPet: 'footprints', treatPet: 'leaf',
-    anniversary: 'heart', propose: 'ring', marry: 'ring', breakUp: 'exit', unfriend: 'exit', release: 'exit' }[id] || 'star';
+  return { spendTime: 'spendTime', conversation: 'conversation', compliment: 'compliment', gift: 'gift', advice: 'advice', argue: 'argue', allowance: 'allowance', homework: 'homework', playPet: 'playPet', walkPet: 'walkPet', treatPet: 'treatPet', bathePet: 'bathePet',
+    anniversary: 'anniversary', propose: 'propose', marry: 'marry', breakUp: 'breakUp', unfriend: 'unfriend', release: 'release', askOut: 'askOut', startFamily: 'startFamily', doctorVisit: 'doctorVisit', movie: 'movie', concert: 'concert', play: 'play', rehome: 'rehome' }[id] || 'star';
 }
 
 // ---- Activities ----------------------------------------------------------------------------------------------
@@ -423,8 +416,7 @@ export function activities(ctx) {
   const favorites = Activities.FAVORITES.map((id) => Activities.ACTIVITY_MENU.find((e) => e.id === id)).filter(Boolean);
   const all = Activities.ACTIVITY_MENU.filter((e) => !Activities.FAVORITES.includes(e.id));
   return screen(state, 'Activities', `${section('Favorites')}${favorites.map((e) => menuRow(state, e)).join('')}
-    ${section('All')}${all.map((e) => menuRow(state, e)).join('')}
-    ${infoRow('Actions', actionsLeft(state))}`);
+    ${section('All')}${all.map((e) => menuRow(state, e)).join('')}`);
 }
 
 export function activity(ctx) {
@@ -436,17 +428,18 @@ export function activity(ctx) {
     const effects = Object.entries(item.effects).filter(([, v]) => v).map(([k, v]) => `${v > 0 ? '+' : ''}${v} ${k[0].toUpperCase()}${k.slice(1)}`).join(', ');
     const sub = [item.cost ? money(item.cost) : null, item.sub, effects].filter(Boolean).join(' · ');
     const isForm = item.special === 'nameForm';
-    return row(item.name, { sub, icon: item.icon, action: isForm ? 'go' : 'activity', data: isForm ? { target: 'identity' } : { activity: item.id }, right: isForm ? 'chevron' : 'dots', disabled: !!reason, note: reason });
+    return row(item.name, { sub: [item.cost ? money(item.cost) : null, item.sub].filter(Boolean).join(' · '), icon: item.icon, action: isForm ? 'go' : 'activity', data: isForm ? { target: 'identity' } : { activity: item.id }, right: isForm ? 'chevron' : 'dots', disabled: !!reason, note: reason });
   }).join('');
-  return screen(state, c.name, `${section(c.sub)}${rows}${infoRow('Actions', actionsLeft(state))}`, { back: 'activities', mode: 'back' });
+  return screen(state, c.name, `${rows}`, { back: 'activities', mode: 'back' });
 }
 
 export function pets(ctx) {
   const { state } = ctx;
   const age = state.player.age;
-  const rows = Pets.SOURCES.map((s) => row(s.name, { sub: s.sub, icon: s.icon, action: 'go', data: { target: 'petSource', source: s.id }, disabled: age < s.minAge, note: `Age ${s.minAge}+` })).join('');
-  const mine = People.pets(state).map((p) => row(p.name, { titleNote: `(${p.breed || People.PET_SPECIES[p.species].label})`, icon: 'paw', action: 'person', data: { person: p.id }, bar: { label: 'Relationship', value: p.closeness } })).join('');
-  return screen(state, 'Pets', `${section('Find a pet')}${rows}${section('Your pets')}${mine || empty('No pets yet.')}`, { back: 'activities', mode: 'back' });
+  const petIcon = { rescue: 'paw', catBreeder: 'cat', dogBreeder: 'dog', petShop: 'hamster' };
+  const rows = Pets.SOURCES.map((s) => row(s.name, { sub: s.sub, icon: petIcon[s.id] || s.icon, action: 'go', data: { target: 'petSource', source: s.id }, disabled: age < s.minAge, note: `Age ${s.minAge}+` })).join('');
+  const mine = People.pets(state).map((p) => row(p.name, { titleNote: `(${p.breed || People.PET_SPECIES[p.species].label})`, emoji: avatarFor(p), action: 'person', data: { person: p.id }, bar: { label: 'Relationship', value: p.closeness } })).join('');
+  return screen(state, 'Pets', `${rows}${mine ? section('Your pets') + mine : ''}`, { back: 'activities', mode: 'back' });
 }
 
 export function petSource(ctx) {
@@ -454,7 +447,7 @@ export function petSource(ctx) {
   const source = Pets.SOURCES.find((s) => s.id === sel.source);
   if (!source) return pets(ctx);
   const taken = state.flags.adoptedFrom || [];
-  const rows = Pets.inventory(state, source).map((a) => row(a.name, { titleNote: `(${a.breed})`, sub: `${a.age === 0 ? 'Baby' : `${a.age}-year-old`} ${People.PET_SPECIES[a.species].label.toLowerCase()} · ${money(a.fee)}`, icon: 'paw', action: 'adoptConfirm', data: { source: source.id, animal: a.id }, right: 'dots', disabled: taken.includes(a.id), note: 'Already adopted' })).join('');
+  const rows = Pets.inventory(state, source).map((a) => row(a.name, { titleNote: `(${a.breed})`, sub: `${a.age === 0 ? 'Baby' : `${a.age}-year-old`} ${People.PET_SPECIES[a.species].label.toLowerCase()} · ${money(a.fee)}`, emoji: avatarFor({ role: 'pet', species: a.species }), action: 'adoptConfirm', data: { source: source.id, animal: a.id }, right: 'dots', disabled: taken.includes(a.id), note: 'Already adopted' })).join('');
   return screen(state, source.name, `${infoRow('Bank Balance', money(state.player.money))}${section('Available today')}${rows}${note('The list changes every year.')}`, { back: 'pets', mode: 'back' });
 }
 
@@ -481,7 +474,7 @@ export function summary(ctx) {
   const { state } = ctx;
   const s = G.lifeSummary(state);
   return screen(state, 'Life Summary', `
-    <div class="bl-summary-head"><span class="bl-summary-icon">${icon('candle')}</span><h2>${esc(s.name)}</h2><p>Aged ${s.age} years</p></div>
+    <div class="bl-summary-head"><span class="bl-summary-icon">${pic('tombstone')}</span><h2>${esc(s.name)}</h2><p>Aged ${s.age} years</p></div>
     ${section('Life')}${s.facts.map(([k, v]) => infoRow(k, v)).join('')}
     ${section('Milestones')}${s.milestones.map((m) => `<p class="bl-entry">${esc(m)}</p>`).join('') || empty('A quiet life.')}
     ${section('In Memory')}${note(s.epitaph)}
@@ -497,4 +490,4 @@ export function about(ctx) {
     : `<header class="bl-header bl-header-main"><span class="bl-header-spacer"></span><div class="bl-brand"><span>BET</span><span class="bl-brand-accent">LIFE</span></div><span class="bl-header-spacer"></span></header><div class="bl-titlebar"><button class="bl-round-btn" data-action="go" data-target="start" aria-label="Back">${icon('back')}</button><h1 class="bl-screen-title">About</h1></div><div class="bl-scroll">${body}</div>`;
 }
 
-export const SCREENS = { start, newlife, menu, main, growing, school, university, tradeSchool, occupation, job, jobs, partTimeJobs, careerHistory, military, dream, hr, assets, asset, finances, giftAsset, shopping, shop, relationships, person, activities, activity, identity, pets, petSource, badges, summary, about };
+export const SCREENS = { start, newlife, menu, main, growing, school, university, tradeSchool, occupation, education, job, jobs, partTimeJobs, careerHistory, military, dream, hr, assets, asset, finances, giftAsset, shopping, shop, relationships, person, activities, activity, identity, pets, petSource, badges, summary, about };

@@ -63,3 +63,39 @@ export const ICONS = {
 export function icon(name) {
   return ICONS[name] || ICONS.star;
 }
+
+// Content pictograms use the system colour emoji set, sized like the reference (about 32pt in rows).
+// Chrome (menu, back, close, chevron, dots) stays with the thin white line icons above.
+export const EMOJI = {
+  sparkle: '✨', info: 'ℹ️', exit: '🚪', person: '🧑', candle: '🕯️', baby: '👶', cap: '🎓', briefcase: '💼', flag: '🎖️', house: '🏠', heart: '❤️',
+  people: '👥', coin: '🪙', chat: '💬', history: '🗓️', list: '📋', cross: '🏥', tools: '🔧', star: '⭐', medal: '🏅', book: '📚', sun: '☀️', arrowUp: '📈',
+  arrowDown: '📉', dollar: '💵', bulb: '💡', eye: '👁️', palette: '🎨', film: '🎬', plane: '✈️', game: '🎮', bag: '🛍️', paw: '🐾', car: '🚗', bike: '🚲',
+  music: '🎸', ring: '💍', gift: '🎁', warning: '⚠️', leaf: '🥗', seedling: '🌱', figure: '🧘', ball: '⚽', footprints: '🚶', smile: '😊', frown: '😞',
+  key: '🔑', reset: '🔄', dice: '🎲', check: '✅', menu: '☰', toy: '🧸', school: '🏫', work: '👔', money: '💰', bank: '🏦', calendar: '📅', chart: '📊',
+  trash: '🗑️', handshake: '🤝', talk: '🗣️', angry: '😠', flowers: '💐', phone: '📱', stethoscope: '🩺', popcorn: '🍿', dog: '🐕', cat: '🐈', hamster: '🐹',
+  bird: '🦜', rabbit: '🐇', fish: '🐟', horse: '🐎', spa: '💆', scissors: '✂️', nails: '💅', gym: '🏋️', walk: '🚶', meditate: '🧘', garden: '🪴', diet: '🥗',
+  martial: '🥋', memory: '🧩', library: '📖', theater: '🎭', concert: '🎤', vacation: '🏖️', zoo: '🦁', volunteer: '🤝', will: '📜', loan: '🏦', identity: '🪪',
+  licence: '🪪', clubs: '🎳', adoption: '👶', emigrate: '🌍', doctor: '🩺', hangout: '🍕', videoGames: '🎮', playOutside: '🛝', shopping: '🛒', pets: '🐶',
+  love: '❤️', mindBody: '🧘', salon: '💇', movies: '🎬', jewelry: '💎', instrument: '🎸', gadget: '🎧', home: '🏡', brain: '🧠', looks: '🌤️', looksLow: '🌧️',
+  happy: '😊', neutral: '😐', sad: '😢', health: '❤️', healthLow: '💔', military: '🪖', dream: '🌟', recruiter: '🕵️', freelance: '🧾', hr: '📣', raise: '💵',
+  resign: '🚪', retire: '🏖️', workHarder: '📈', easy: '🛋️', schedule: '📅', performance: '📊', finances: '💰', housing: '🏠', property: '🏘️', tombstone: '🪦',
+  argue: '😠', compliment: '😊', advice: '💡', spendTime: '🌞', conversation: '💬', anniversary: '🎂', propose: '💍', marry: '💒', breakUp: '💔',
+  unfriend: '🚫', release: '🐾', askOut: '💌', startFamily: '👶', allowance: '💵', homework: '📚', playPet: '🎾', walkPet: '🦮', treatPet: '🦴', bathePet: '🛁',
+  doctorVisit: '🩺', movie: '🎬', play: '🧸', rehome: '🏡', suitcase: '🧳', teacher: '👩‍🏫', club: '🎳', skip: '🏃', study: '📚', graduate: '🎓',
+};
+export function pic(name, extraClass = '') {
+  return `<span class="bl-pic${extraClass ? ` ${extraClass}` : ''}" aria-hidden="true">${EMOJI[name] || EMOJI.star}</span>`;
+}
+
+// Emoji avatar for a person or pet, by age, gender and species (the same system everywhere).
+export function avatarFor(p) {
+  if (!p) return EMOJI.person;
+  if (p.role === 'pet') return { dog: '🐕', cat: '🐈', hamster: '🐹', bird: '🦜', rabbit: '🐇', fish: '🐟', horse: '🐎' }[p.species] || '🐾';
+  if (p.alive === false) return '🪦';
+  const f = p.gender === 'female';
+  if (p.age < 3) return '👶';
+  if (p.age < 13) return f ? '👧' : '👦';
+  if (p.age < 18) return f ? '👩‍🦱' : '👨‍🦱';
+  if (p.age < 60) return f ? '👩' : '👨';
+  return f ? '👵' : '👴';
+}

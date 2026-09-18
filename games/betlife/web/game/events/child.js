@@ -42,7 +42,7 @@ export const CHILD_EVENTS = [
   ev({ id: 'parentRemarries', category: 'family', minAge: 2, maxAge: 17, cooldown: 3, max: 2, weight: 3, person: (c) => c.state.flags.parentsSeparated ? c.parents.filter((p) => (p.role === 'mother' || p.role === 'father') && !p.remarried) : [],
     text: (c) => `${c.whoName} got married again. You gained a ${c.who.role === 'mother' ? 'stepfather' : 'stepmother'}.`, kind: 'milestone',
     then: (state, c) => { if (c.who) { c.who.remarried = true; const step = addStepParent(state, c.who.role); info(state, 'A New Family Member', `${c.whoName} married ${step.name}. Welcome your new ${step.role === 'stepmother' ? 'stepmother' : 'stepfather'}.`, { band: 'Family', tone: 'green', person: step.id, facts: [['Name', step.name], ['Relationship', step.role === 'stepmother' ? 'Stepmother' : 'Stepfather'], ['Occupation', step.occupation]] }); } } }),
-  ev({ id: 'eyeExamCheck', category: 'health', minAge: 7, maxAge: 40, cooldown: 8, max: 2, weight: 0.8, band: 'Healthcare', title: 'Eyesight',
+  ev({ id: 'eyeExamCheck', category: 'health', minAge: 7, maxAge: 40, cooldown: 8, max: 2, weight: 0.8, band: 'Healthcare', title: 'Eyesight', when: (c) => !c.glasses,
     text: 'Your eyesight seems to be getting worse. Your parents booked an eye exam: find the odd character before time runs out.', minigame: 'eyeExam' }),
   ev({ id: 'parentsArgue', category: 'family', stages: CP, minAge: 5, cooldown: 6, max: 2, when: (c) => c.mother && c.father,
     text: 'Your parents argued about money one evening. They made up, but you noticed.', effects: { happiness: -2 } }),

@@ -3,6 +3,9 @@
 // kind: 'normal' | 'positive' | 'negative' | 'milestone'
 export function addJournal(state, text, kind = 'normal') {
   const entry = { age: state.player.age, text, kind };
+  // The same sentence never repeats inside one year (repeated actions read as one line).
+  const dup = state.timeline.find((e) => e.age === entry.age && e.text === text);
+  if (dup) return dup;
   state.timeline.push(entry);
   return entry;
 }

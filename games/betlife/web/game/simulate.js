@@ -109,3 +109,19 @@ export function snapshot(state) {
     partner: People.partner(state) ? People.partner(state).role : null, children: People.children(state).length,
   };
 }
+
+// A deterministic life stopped at a given age (used by screenshot fixtures and visual tests).
+export function simulateTo(seed, targetAge, options = {}) {
+  const policyRng = createRngLike(seed ^ 0x9e3779b9);
+  const traits = { studious: policyRng() < 0.6, driven: policyRng() < 0.6, social: policyRng() < 0.7, spender: policyRng() < 0.5 };
+  options = { ...options, traits };
+  const state = G.createNewGame(options.custom || {}, seed);
+  drain(state, policyRng);
+  while (state.player.alive && state.player.age < targetAge) {
+    act(state, policyRng, options);
+    drain(state, policyRng);
+    if (!G.ageUp(state)) break;
+    drain(state, policyRng);
+  }
+  return state;
+}

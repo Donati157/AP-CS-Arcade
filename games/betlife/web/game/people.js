@@ -92,7 +92,7 @@ export function changeCloseness(person, amount) {
 // Sections for the Relationships screen, in the order the screen shows them.
 export function relationshipSections(state) {
   const groups = [
-    ['Partner', byRole(state, ...PARTNER_ROLES)], ['Parents', parents(state)], ['Siblings', siblings(state)],
+    ['Love', byRole(state, ...PARTNER_ROLES)], ['Parents', parents(state)], ['Siblings', siblings(state)],
     ['Children', children(state)], ['Friends', byRole(state, 'bestFriend', 'friend')], ['Coworkers', byRole(state, 'coworker')], ['Pets', pets(state)],
   ];
   return groups.filter(([, people]) => people.length > 0);
