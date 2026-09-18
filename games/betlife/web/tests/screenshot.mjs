@@ -20,6 +20,7 @@ for (const pair of pairs) {
   const [name, query] = pair.split('=', 2).length === 2 ? [pair.slice(0, pair.indexOf('=')), pair.slice(pair.indexOf('=') + 1)] : [pair, ''];
   await send('Page.navigate', { url: `${base}?r=${Date.now()}&${query}` });
   await sleep(1400);
+  for (let w = 0; w < 10; w++) { const r = await send('Runtime.evaluate', { expression: "!!document.querySelector('.bl-phone') && document.querySelector('.bl-phone').children.length > 0", returnByValue: true }); if (r && r.result && r.result.value) break; await sleep(500); }
   let shot; for (let t = 0; t < 3; t++) { try { shot = await send('Page.captureScreenshot', { format: 'png' }); break; } catch (e) { await sleep(800); } }
   if (!shot) { process.stdout.write(`[${name} failed] `); continue; }
   writeFileSync(`${outDir}/${name}.png`, Buffer.from(shot.data, 'base64'));
