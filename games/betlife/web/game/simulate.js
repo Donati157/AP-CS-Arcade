@@ -48,6 +48,7 @@ export function drain(state, policyRng) {
     if (modal.kind !== 'decision') { G.answerModal(state); continue; }
     let choice;
     if (modal.eventId === 'afterHighSchool') { const r = policyRng(); choice = state.player.smarts >= 60 && r < 0.65 ? 0 : r < 0.85 ? 1 : 2; }
+    else if (modal.eventId === 'friendRequest' || modal.eventId === 'loveRequest') choice = policyRng() < 0.85 ? 0 : 1;   // most people say yes
     else choice = modal.choices[Math.floor(policyRng() * modal.choices.length)].index;
     const followUp = G.answerModal(state, choice);
     if (followUp === 'university') G.enrollUniversity(state, MAJORS[Math.floor(policyRng() * MAJORS.length)].id);

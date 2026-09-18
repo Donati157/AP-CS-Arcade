@@ -19,7 +19,7 @@ import * as People from './people.js';
 import * as Assets from './assets.js';
 import * as Economy from './economy.js';
 import { ACTIONS_PER_YEAR, pocketMoney } from './activities.js';
-import { runYearlyEvents } from './events/engine.js';
+import { runYearlyEvents, personRequest } from './events/engine.js';
 import { checkMortality } from './mortality.js';
 import { stageId } from './player.js';
 import { checkBadges } from './badges.js';
@@ -69,6 +69,7 @@ export function ageUp(state) {
 
   // 9. labels and badges
   updateOccupation(state);
+  socialYear(state);
   awardBadges(state);
   return true;
 }
@@ -145,11 +146,15 @@ export function resolveAfterHighSchool(state, choiceIndex) {
 }
 
 // A classmate becomes a friend when school starts, so childhood is not spent alone.
+function socialYear(state) {
+  const accounts = state.social || {};
+  for (const account of Object.values(accounts)) account.followers = Math.max(0, Math.round(account.followers * (0.97 + state.player.looks / 1000)));
+}
+
 function classmateFriend(state, where) {
   const friend = People.addFriend(state, { age: state.player.age + between(state, -1, 1), occupation: 'student' });
   if (!friend) return;
-  addJournal(state, `You made a friend at ${where}: ${friend.name}.`, 'positive');
-  info(state, 'New Friend', `You and ${friend.name} became friends at ${where}.`, { band: 'Friends', tone: 'blue', person: friend.id, facts: [['Name', friend.name], ['Age', String(friend.age)]] });
+  personRequest(state, friend, 'friendRequest');
 }
 
 // ---- Stat settlement: how age and circumstances move the four stats each year ------------------

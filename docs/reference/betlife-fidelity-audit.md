@@ -232,3 +232,26 @@ difference remains; MISSING means the reference screen has no counterpart.
 | Menu | menu.jpg | – | – | – | – | NOT OBSERVED IN REFERENCE | |
 | Achievement toast | – | | | | | MISSING | badge banner exists but styled differently (top pill card) |
 | Splash / disclaimer / language | – | | | | | MISSING | not built |
+
+## 6. Parity pass 2.4 (2026-09-18): rebuilt PARTIAL and MISSING items from the recordings
+
+Rewatched again from the start (V1 every second, V2 every two seconds). Fresh mismatch checklist and what changed:
+
+| Checklist item (reference) | 2.3 state | 2.4 |
+|---|---|---|
+| Cold start: red splash with logo mark and publisher line → disclaimer screen → language card (globe band, prompt, big icon, dropdown, blue button) → empty life frame | MISSING | built: splash (1.7 s), disclaimer (tap or 3.5 s), language card with English/Spanish/French/Portuguese, remembered once |
+| Header: logo mark before the brand, ribbon counter in the middle, two-line pill on the right | logo missing, pill single line | logo mark, 🏅 counter, "Become a / PLAYER+" pill (premium candidate) |
+| Character strip: flag before the underlined name, status pictogram (🍎 student, 📊 job) | no flag, briefcase icon | flag from the country of residence, 🍎/📊/🍼 status icons, 42 pt avatar, 16 pt name |
+| New friend card: avatar band "Name · Friend/Classmate", 🤗 New Friend, facts, Looks/Smarts/Craziness bars with an axis line, "Become friends with him/her" / "Reject him/her", Surprise me | info card with OK, Looks/Smarts/Kindness | decision card with the same structure; rejecting removes the person |
+| Love interest card: ❤️ Love Interest, Activity and Clique facts, Looks/Grades/Popularity, "Start going out with him/her" / "Reject him/her" | info card | decision card with the same facts and trait set |
+| Achievement toast: full-width white strip over the header with a trophy pattern, 🏆, uppercase condensed title, subtitle | pill banner | rebuilt as the strip; slides in, closes on tap or after 3 s, never blocks Age |
+| Tombstone: ragged stone with mottling, corner ribbon with an icon and one word, skull, uppercase name, "AGED N YEARS", epitaph, grass with rocks and a flower, pill Continue, yellow undo link | flat stone | rebuilt (ribbon words: Unlucky, Wealthy, Ancient, Family, Hard Worker, Scholar, Long Life, Ordinary); the undo link is a premium-candidate toast |
+| Post-life: ☠️ + name 24 pt, blue "Continue as Child (age)" with a lighter age, green, yellow, link | 20 pt title, tighter gaps | 24 pt title, reference spacing, lighter age |
+| Relationships: Enemies section, Late Pets section ("Died N years ago", skull, dots), 🕰️ "Spend Time With All..." footer | none | school rival event creates an enemy (Make Peace / Confront / Ignore); dead pets listed; footer text and icon |
+| Assets: Misc. → Social Media (channels, "Sign up for X", Inactive Channels) | none | Social Media with four original platforms, followers, Post and Delete Account |
+| Vehicle: Abandon row | none | Abandon (Garage needs the racing pack and Pay Off needs loans: not built) |
+| Jobs: every row active; rejection on apply | unqualified rows greyed | rows active; "Application Rejected" card on apply |
+| Death nav slot "Death" with a tombstone ring | "Summary" with a candle | "Death" with 🪦 |
+
+Still intentionally absent (premium or content policy): Edit/God Mode row, Landlord, Golden items, Premium Activities, Just For You, Garage, Pay Off, the "Complete a Life" challenge capsule.
+Still different: journal voice stays second person; icons are colour emoji rather than the reference's own artwork; the stone is CSS, not an illustration.

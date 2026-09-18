@@ -121,6 +121,12 @@ export function maintenance(state, asset) {
   return `You had the ${asset.name.toLowerCase()} serviced for $${cost.toLocaleString('en-US')}.`;
 }
 
+export function abandon(state, asset) {
+  state.assets = state.assets.filter((a) => a.id !== asset.id);
+  changeStat(state, 'happiness', -2, `abandoned ${asset.name}`);
+  return `You left the ${asset.name.toLowerCase()} somewhere and walked away. It was somebody else's problem now.`;
+}
+
 export function scrap(state, asset) {
   const money = Math.round(asset.value * 0.1);
   changeMoney(state, money, `scrapped ${asset.name}`);

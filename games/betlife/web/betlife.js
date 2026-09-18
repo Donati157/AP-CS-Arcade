@@ -12,7 +12,7 @@ import { SCREENS } from './ui/screens.js';
 import * as Modals from './ui/modals.js';
 import { money, esc } from './ui/render.js';
 
-export const VERSION = '2.3.0-web';
+export const VERSION = '2.4.0-web';
 
 const root = document.getElementById('game');
 const modalRoot = document.getElementById('modal-root');
@@ -43,7 +43,7 @@ let toastTimer = null;
 // ---- Rendering ----------------------------------------------------------------------------------------------
 
 function render() {
-  if (!state && !['start', 'newlife', 'about'].includes(screen)) screen = 'start';
+  if (!state && !['start', 'newlife', 'about', 'splash', 'disclaimer'].includes(screen)) screen = 'start';
   if (state) G.saveGame(state);
   const ctx = { state, sel, version: VERSION };
   root.innerHTML = (SCREENS[screen] || SCREENS.main)(ctx);
@@ -56,6 +56,7 @@ function render() {
 }
 
 function renderModal() {
+  if (uiModal && uiModal.kind === 'language') { modalRoot.innerHTML = Modals.languageCard(uiModal.current); return; }
   if (uiModal) { modalRoot.innerHTML = Modals.confirm(uiModal); focusModal(); return; }
   if (postLifeOpen && state) { modalRoot.innerHTML = Modals.postLife(state.player.name, !!state.profile, People.children(state)); focusModal(); return; }
   const modal = state ? G.currentModal(state) : null;
@@ -63,7 +64,7 @@ function renderModal() {
   if (modal.kind === 'badge') {
     modalRoot.innerHTML = Modals.badgeBanner(modal);
     clearTimeout(bannerTimer);
-    bannerTimer = setTimeout(() => { if (G.currentModal(state) === modal) answer('ok'); }, 2600);
+    bannerTimer = setTimeout(() => { if (G.currentModal(state) === modal) answer('ok'); }, 3000);
     return;
   }
   if (modal.kind === 'minigame') { modalRoot.innerHTML = Modals.minigame(modal, state); startEyeTimer(modal); focusModal(); return; }
@@ -79,7 +80,11 @@ function focusModal() {
 }
 
 function go(target) {
+  const wasIntro = screen === 'disclaimer' || screen === 'splash';
   screen = target === 'home' ? 'main' : target;
+  let setup = '1';
+  try { setup = localStorage.getItem('betlife.web.setup'); } catch { /* ignore */ }
+  if (wasIntro && screen === 'start' && !setup) uiModal = { kind: 'language', current: 'en' };
   render();
 }
 
@@ -140,6 +145,17 @@ function onAge() {
 
 // Answers the dialog on top of the queue (a saved simulation dialog or an interface confirmation).
 function answer(choice) {
+  if (choice === 'undoDeath') { toast('Rewind is an admin tool', 'Undoing a death is a premium candidate and is not part of normal play.', 'blue'); return; }
+  if (uiModal && uiModal.kind === 'language') {
+    if (choice !== 'language') return;
+    const select = document.getElementById('bl-lang');
+    const lang = select ? select.value : 'en';
+    try { localStorage.setItem('betlife.web.language', lang); localStorage.setItem('betlife.web.setup', '1'); } catch { /* private mode */ }
+    uiModal = null;
+    render();
+    if (lang !== 'en') toast('Language', 'BetLife text is available in English for now. Your choice was saved.', 'blue');
+    return;
+  }
   if (uiModal) {
     const m = uiModal;
     uiModal = null;
@@ -193,6 +209,9 @@ async function handle(action, data) {
       else if (!state) startNewLife({});
       else await newLifeFlow();
       break;
+    case 'socialSignUp': report(G.socialSignUp(state, data.source)); break;
+    case 'socialPost': report(G.socialPost(state, data.source)); break;
+    case 'socialDelete': { const c = await ask({ title: 'Delete account?', band: 'Social Media', icon: 'phone', text: 'Your followers will be gone for good.', choices: ['Delete', 'Keep it'], danger: true }); if (c === 0) { sel.source = null; screen = 'socialMedia'; report(G.socialDelete(state, data.source)); } break; }
     case 'premium': toast(`${data.feature} is an admin tool`, 'Changing stats or rewinding years is a premium candidate and is not part of normal play.', 'blue'); break;
     case 'freelance': report(G.freelanceGig(state)); break;
     case 'recruiterConfirm': {
@@ -253,7 +272,11 @@ async function handle(action, data) {
       if (!career) break;
       const entry = career.ladder[0];
       const c = await ask({ title: 'Apply for this job?', band: 'Career', icon: 'briefcase', text: `${career.employer} is hiring ${withArticle(entry.title)}.`, facts: [['Title', entry.title], ['Career', career.name], ['Salary', `${money(entry.salary)} / year`], ['Requires', Careers.requirementText(career)]], choices: ['Apply', 'Not now'] });
-      if (c === 0) { const result = G.applyForCareer(state, data.career); screen = result.ok ? 'main' : screen; report(result); }
+      if (c === 0) {
+        const result = G.applyForCareer(state, data.career);
+        if (result.ok) { screen = 'main'; report(result); }
+        else { uiModal = { title: 'Application Rejected', band: 'Career', icon: 'briefcase', tone: 'red', text: `${career.employer} turned you down. ${result.text}`, choices: ['OK'] }; render(); }
+      }
       break;
     }
     case 'quitConfirm': {
@@ -334,15 +357,35 @@ if (params.has('seed')) {
   const fixtureModal = params.get('modal');
   if (fixtureModal === 'decision') state.pending.push({ kind: 'decision', eventId: 'fixture', band: 'Childhood', title: 'Favorite Toy', icon: 'toy', text: 'You are playing with some friends when a smaller kid grabs the toy xylophone right out of your hands.', choices: [{ label: 'Cry' }, { label: 'Let them play with it' }, { label: 'Take it back' }, { label: 'Tell a grown-up' }] });
   if (fixtureModal === 'info') state.pending.push({ kind: 'info', band: 'School', tone: 'blue', icon: 'cap', title: 'Primary School', text: 'You are starting primary school.', facts: [['School', 'Maple Grove Elementary'], ['Type', 'Public'], ['Level', 'Elementary School'], ['Years', '6']] });
-  if (fixtureModal === 'person') { const who = state.relationships.find((r) => r.role === 'friend') || state.relationships[0]; state.pending.push({ kind: 'info', band: 'Friend', tone: 'red', person: who.id, icon: 'friends', title: 'New Friend', text: `Your classmate, ${who.name.split(' ')[0]}, wants to become your friend.`, facts: [['Name', who.name], ['Gender', who.gender === 'female' ? 'Female' : 'Male'], ['Age', String(who.age)]], traits: who.traits }); }
+  if (fixtureModal === 'person' || fixtureModal === 'love') {
+    const { personRequest } = await import('./game/events/engine.js');
+    const People = await import('./game/people.js');
+    const who = fixtureModal === 'love' ? People.startDating(state) : People.addFriend(state, { age: state.player.age, occupation: 'student' });
+    if (who) personRequest(state, who, fixtureModal === 'love' ? 'loveRequest' : 'friendRequest');
+  }
+  if (params.get('enemy')) { const People = await import('./game/people.js'); People.makeEnemy(state, { age: state.player.age }); const pet = state.relationships.find((r) => r.role === 'pet'); if (pet) { pet.alive = false; pet.diedAt = state.player.age - 3; } }
+  if (params.get('social')) { const acc = G.socialAccounts(state); acc.chirper = { followers: 1240, since: 18, posts: 12 }; }
   if (fixtureModal === 'death') { state.player.alive = false; state.pending.push({ kind: 'death' }); }
   if (fixtureModal === 'postlife') { state.player.alive = false; postLifeOpen = true; }
   if (fixtureModal === 'banner') state.pending.push({ kind: 'badge', id: 'firstSteps', name: 'First Steps', desc: 'Reach age 1' });
 }
 
+// First start ever: splash, disclaimer, then the empty life frame with the language card.
+let firstRun = false;
+try { firstRun = !state && !localStorage.getItem('betlife.web.setup') && !params.has('seed') && !location.hash; } catch { firstRun = false; }
+if (firstRun) {
+  screen = 'splash';
+  setTimeout(() => { if (screen === 'splash') { screen = 'disclaimer'; render(); } }, 1700);
+  setTimeout(() => { if (screen === 'disclaimer') go('start'); }, 5200);
+}
+if (params.get('fixture') === 'splash') screen = 'splash';
+if (params.get('fixture') === 'disclaimer') screen = 'disclaimer';
+if (params.get('fixture') === 'language') { screen = 'start'; uiModal = { kind: 'language', current: 'en' }; }
+
 // Deep links such as #menu open that screen directly (used for screenshots and tests).
 const hashScreen = location.hash.slice(1);
 if (SCREENS[hashScreen] && (state || ['start', 'newlife', 'about'].includes(hashScreen))) screen = hashScreen;
+if (!SCREENS[screen]) screen = state ? 'main' : 'start';
 render();
 
 // Exposed for automated testing and debugging only.

@@ -1,6 +1,6 @@
 // Ages 4-12: childhood and the preteen years. Original BetLife writing.
 import { ev } from './define.js';
-import { addStepParent } from '../people.js';
+import { makeEnemy, addStepParent } from '../people.js';
 import { info } from '../journal.js';
 
 const C = ['child'];
@@ -44,6 +44,9 @@ export const CHILD_EVENTS = [
     then: (state, c) => { if (c.who) { c.who.remarried = true; const step = addStepParent(state, c.who.role); info(state, 'A New Family Member', `${c.whoName} married ${step.name}. Welcome your new ${step.role === 'stepmother' ? 'stepmother' : 'stepfather'}.`, { band: 'Family', tone: 'green', person: step.id, facts: [['Name', step.name], ['Relationship', step.role === 'stepmother' ? 'Stepmother' : 'Stepfather'], ['Occupation', step.occupation]] }); } } }),
   ev({ id: 'eyeExamCheck', category: 'health', minAge: 7, maxAge: 40, cooldown: 8, max: 2, weight: 0.8, band: 'Healthcare', title: 'Eyesight', when: (c) => !c.glasses,
     text: 'Your eyesight seems to be getting worse. Your parents booked an eye exam: find the odd character before time runs out.', minigame: 'eyeExam' }),
+  ev({ id: 'schoolRival', category: 'friendship', stages: ['child', 'preteen', 'teen'], minAge: 8, once: true, weight: 2.5, needs: ['school'],
+    text: 'A kid at school decided you were the competition. Every group project turned into a contest.', effects: { happiness: -2 },
+    then: (state) => { const e = makeEnemy(state, { age: state.player.age + 1, occupation: 'student' }); state.timeline.push({ age: state.player.age, text: `${e.name} became your rival.`, kind: 'negative' }); } }),
   ev({ id: 'parentsArgue', category: 'family', stages: CP, minAge: 5, cooldown: 6, max: 2, when: (c) => c.mother && c.father,
     text: 'Your parents argued about money one evening. They made up, but you noticed.', effects: { happiness: -2 } }),
   ev({ id: 'helpedCooking', category: 'family', stages: CP, minAge: 6, person: 'parent', cooldown: 5,

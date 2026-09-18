@@ -311,6 +311,7 @@ export function assetAction(state, assetId, action, personId = null) {
   if (action === 'drive') text = Assets.drive(state, asset);
   else if (action === 'maintenance') text = Assets.maintenance(state, asset);
   else if (action === 'scrap') text = Assets.scrap(state, asset);
+  else if (action === 'abandon') text = Assets.abandon(state, asset);
   else if (action === 'renovate') text = Assets.renovate(state, asset);
   else if (action === 'gift') { const who = People.findPerson(state, personId); if (!who) return { ok: false, title: 'Gift', text: 'Choose someone to give it to.' }; text = Assets.gift(state, asset, who); }
   else return { ok: false, title: 'Unknown', text: 'Unknown action.' };
@@ -416,4 +417,51 @@ export function repairAsset(state, assetId) {
 export function eventTitle(eventId) {
   const e = findEvent(eventId);
   return e ? e.title : '';
+}
+
+// ---- Social media (original platforms) --------------------------------------------------------------
+export const SOCIAL_PLATFORMS = [
+  { id: 'chirper', name: 'Chirper', icon: '🐦', sub: 'Sign up for Chirper' },
+  { id: 'streamly', name: 'Streamly', icon: '📺', sub: 'Sign up for Streamly' },
+  { id: 'soundwave', name: 'SoundWave', icon: '☁️', sub: 'Sign up for SoundWave' },
+  { id: 'snapshot', name: 'Snapshot', icon: '📸', sub: 'Sign up for Snapshot' },
+];
+export const SOCIAL_MIN_AGE = 13;
+export function socialAccounts(state) { return state.social || (state.social = {}); }
+export function socialSignUp(state, platformId) {
+  const blocked = guard(state);
+  if (blocked) return blocked;
+  if (state.player.age < SOCIAL_MIN_AGE) return { ok: false, title: 'Too Young', text: `You can sign up at ${SOCIAL_MIN_AGE}.` };
+  const platform = SOCIAL_PLATFORMS.find((p) => p.id === platformId);
+  if (!platform) return { ok: false, title: 'Unknown', text: 'That platform does not exist.' };
+  const accounts = socialAccounts(state);
+  if (accounts[platformId]) return { ok: false, title: 'Already Signed Up', text: `You already have a ${platform.name} account.` };
+  state.actionsRemaining -= 1;
+  accounts[platformId] = { followers: between(state, 3, 40), since: state.player.age, posts: 0 };
+  const text = `You signed up for ${platform.name}.`;
+  addJournal(state, text);
+  return { ok: true, title: platform.name, text };
+}
+export function socialPost(state, platformId) {
+  const blocked = guard(state);
+  if (blocked) return blocked;
+  const platform = SOCIAL_PLATFORMS.find((p) => p.id === platformId);
+  const account = socialAccounts(state)[platformId];
+  if (!platform || !account) return { ok: false, title: 'No Account', text: 'Sign up first.' };
+  state.actionsRemaining -= 1;
+  account.posts += 1;
+  const gain = Math.round(between(state, 1, 12) * (1 + state.player.looks / 100 + Math.max(0, account.followers) / 400));
+  account.followers += gain;
+  changeStat(state, 'happiness', 1, `posted on ${platform.name}`);
+  const text = `You posted on ${platform.name} and picked up ${gain.toLocaleString('en-US')} new followers.`;
+  addJournal(state, text);
+  return { ok: true, title: platform.name, text };
+}
+export function socialDelete(state, platformId) {
+  const accounts = socialAccounts(state);
+  const platform = SOCIAL_PLATFORMS.find((p) => p.id === platformId);
+  if (!accounts[platformId] || !platform) return { ok: false, title: 'No Account', text: 'Nothing to delete.' };
+  delete accounts[platformId];
+  addJournal(state, `You deleted your ${platform.name} account.`);
+  return { ok: true, title: platform.name, text: 'Account deleted.' };
 }

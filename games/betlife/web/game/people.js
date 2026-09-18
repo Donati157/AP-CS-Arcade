@@ -8,7 +8,7 @@ import { relativeDies } from './mortality.js';
 
 export const ROLE_LABELS = {
   mother: 'Mother', father: 'Father', stepmother: 'Stepmother', stepfather: 'Stepfather', sister: 'Sister', brother: 'Brother', friend: 'Friend', bestFriend: 'Best Friend',
-  partner: 'Partner', fiance: 'Fiancé(e)', spouse: 'Spouse', son: 'Son', daughter: 'Daughter', coworker: 'Coworker', pet: 'Pet',
+  partner: 'Partner', fiance: 'Fiancé(e)', spouse: 'Spouse', son: 'Son', daughter: 'Daughter', coworker: 'Coworker', pet: 'Pet', enemy: 'Enemy',
 };
 export const FAMILY_ROLES = ['mother', 'father', 'stepmother', 'stepfather', 'sister', 'brother'];
 export const PARTNER_ROLES = ['partner', 'fiance', 'spouse'];
@@ -21,7 +21,7 @@ export const MAX_FRIENDS = 6;
 
 function person(state, fields) {
   const id = `p${state.nextPersonId++}`;
-  const traits = { looks: between(state, 20, 95), smarts: between(state, 20, 95), kindness: between(state, 20, 95) };
+  const traits = { looks: between(state, 20, 95), smarts: between(state, 20, 95), kindness: between(state, 20, 95), craziness: between(state, 5, 90), popularity: between(state, 10, 95) };
   return { id, closeness: 50, alive: true, interactedThisYear: false, occupation: '', since: state.player.age, traits, ...fields };
 }
 
@@ -37,11 +37,20 @@ export function createSibling(state, gender, age) {
     age, closeness: between(state, 60, 85), occupation: age < 5 ? '' : age < 18 ? 'student' : pick(state, PARENT_JOBS) });
 }
 
+const ACTIVITIES = ['Track Team', 'Chess Club', 'Drama Club', 'Robotics', 'Swim Team', 'School Band', 'Art Club', 'Debate Team', 'Soccer', 'Yearbook'];
+const CLIQUES = ['Jocks', 'Brains', 'Artists', 'Gamers', 'Skaters', 'Theater Kids', 'Band Kids', 'Floaters'];
 export function createFriend(state, options = {}) {
   const gender = options.gender || randomGender(state);
   const age = options.age ?? state.player.age + between(state, -2, 2);
   return person(state, { name: uniqueName(state, gender), gender, role: options.role || 'friend', age: Math.max(0, age),
-    closeness: between(state, 45, 65), occupation: options.occupation || occupationForAge(state, age) });
+    closeness: between(state, 45, 65), occupation: options.occupation || occupationForAge(state, age), activity: pick(state, ACTIVITIES), clique: pick(state, CLIQUES) });
+}
+export const latePets = (state) => state.relationships.filter((r) => r.role === 'pet' && !r.alive && r.diedAt !== undefined);
+export function makeEnemy(state, options = {}) {
+  const enemy = createFriend(state, options);
+  enemy.role = 'enemy'; enemy.closeness = between(state, 5, 20);
+  state.relationships.push(enemy);
+  return enemy;
 }
 
 export function createPartner(state) {
@@ -94,6 +103,7 @@ export function relationshipSections(state) {
   const groups = [
     ['Love', byRole(state, ...PARTNER_ROLES)], ['Parents', parents(state)], ['Siblings', siblings(state)],
     ['Children', children(state)], ['Friends', byRole(state, 'bestFriend', 'friend')], ['Coworkers', byRole(state, 'coworker')], ['Pets', pets(state)],
+    ['Enemies', byRole(state, 'enemy')], ['Late Pets', latePets(state)],
   ];
   return groups.filter(([, people]) => people.length > 0);
 }
@@ -196,7 +206,7 @@ function otherPeopleMoveOn(state, p) {
 function petLifeCycle(state, pet) {
   const lifespan = PET_SPECIES[pet.species].lifespan;
   if (pet.age >= lifespan - 2 && chance(state, pet.age >= lifespan + 2 ? 0.6 : 0.25)) {
-    pet.alive = false;
+    pet.alive = false; pet.diedAt = state.player.age;
     addJournal(state, `Your ${PET_SPECIES[pet.species].label.toLowerCase()} ${pet.name} passed away peacefully at ${pet.age}.`, 'negative');
     changeStat(state, 'happiness', -8, `${pet.name} passed away`);
   }
@@ -317,6 +327,15 @@ export function interact(state, p, action) {
     case 'unfriend':
       p.alive = false; changeStat(state, 'happiness', -2, `unfriended ${name}`);
       return `You decided to stop spending time with ${name}.`;
+    case 'makePeace':
+      if (chance(state, 0.5)) { p.role = 'friend'; p.closeness = 40; changeStat(state, 'happiness', 4, `made peace with ${name}`); return `You and ${name} buried the hatchet. It felt like a weight lifted.`; }
+      changeCloseness(p, 4); return `You offered ${name} an olive branch. ${name} was not ready yet.`;
+    case 'confront':
+      changeCloseness(p, -6); changeStat(state, 'happiness', 2, `confronted ${name}`);
+      return `You told ${name} exactly what you thought. Neither of you backed down.`;
+    case 'ignore':
+      changeStat(state, 'happiness', 1, `ignored ${name}`);
+      return `You ignored ${name} completely. It bothered ${p.gender === 'female' ? 'her' : 'him'} more than you.`;
     case 'release':
       p.alive = false; changeStat(state, 'happiness', -5, `rehomed ${p.name}`);
       return `You found ${p.name} a loving new home.`;
@@ -365,6 +384,7 @@ export function actionsFor(state, p) {
   }
   if (['friend', 'bestFriend', 'coworker'].includes(p.role) && age >= 16 && !partner(state) && Math.abs(p.age - age) <= 8 && p.age >= 16) list.push(['askOut', 'Ask Out', 'Ask them on a date']);
   if (['friend', 'bestFriend', 'coworker'].includes(p.role)) list.push(['unfriend', 'Drift Apart', 'Stop seeing them']);
+  if (p.role === 'enemy') return [['makePeace', 'Make Peace', `Bury the hatchet with ${p.gender === 'female' ? 'her' : 'him'}`], ['confront', 'Confront', 'Say what you think'], ['ignore', 'Ignore', 'Rise above it']];
   return list;
 }
 

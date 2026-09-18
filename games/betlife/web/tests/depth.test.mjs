@@ -116,3 +116,30 @@ test('freelance gigs, the job recruiter and name changes move money (2.1 regress
   assert.ok(recruiter.ok || recruiter.title === 'No Matches', recruiter.text);
   if (recruiter.ok) assert.equal(state.player.money, afterName - 1000, 'recruiter fee charged');
 });
+
+test('2.4: friend requests can be rejected, enemies and social media work, vehicles can be abandoned', async () => {
+  const { personRequest } = await import('../game/events/engine.js');
+  const s = G.createNewGame({}, 2424);
+  ageTo(s, 14);
+  s.pending.length = 0;
+  const friend = People.addFriend(s, { age: 14, occupation: 'student' });
+  personRequest(s, friend, 'friendRequest');
+  assert.equal(s.pending[0].kind, 'decision');
+  assert.ok(s.pending[0].choices[1].label.startsWith('Reject'));
+  G.answerModal(s, 1);
+  assert.equal(friend.alive, false, 'rejected friend leaves the list');
+  const enemy = People.makeEnemy(s, { age: 14 });
+  assert.ok(People.relationshipSections(s).some(([t]) => t === 'Enemies'));
+  assert.ok(People.actionsFor(s, enemy).some(([id]) => id === 'makePeace'));
+  s.actionsRemaining = 6;
+  assert.equal(G.socialSignUp(s, 'chirper').ok, true);
+  assert.equal(G.socialPost(s, 'chirper').ok, true);
+  assert.ok(s.social.chirper.followers > 0);
+  s.player.money = 20000;
+  assert.equal(G.buyItem(s, 'bikes', 'roadBike'), 'ok');
+  const car = s.assets.find((a) => a.type === 'vehicle');
+  assert.equal(G.assetAction(s, car.id, 'abandon').ok, true);
+  assert.ok(!s.assets.some((a) => a.id === car.id));
+  const copy = restoreState(JSON.parse(JSON.stringify(s)));
+  assert.equal(copy.social.chirper.followers, s.social.chirper.followers, 'social accounts survive a save');
+});

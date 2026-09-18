@@ -9,7 +9,7 @@ const titleIcon = (modal) => pic(modal.icon || BAND_ICONS[modal.band] || 'sparkl
 
 function band(modal, state) {
   const person = modal.person ? People.findPerson(state, modal.person) : null;
-  if (person) return `<div class="bl-band bl-band-person"><span class="bl-band-avatar bl-pic">${avatarFor(person)}</span><span class="bl-band-name">${esc(person.name)}</span><span class="bl-band-role">${esc(People.roleLabel(person))}</span></div>`;
+  if (person) return `<div class="bl-band bl-band-person"><span class="bl-band-avatar bl-pic">${avatarFor(person)}</span><span class="bl-band-name">${esc(person.name)}</span><span class="bl-band-role">${esc(modal.bandRole || People.roleLabel(person))}</span></div>`;
   if (modal.band) return `<div class="bl-band"><span class="bl-band-role">${esc(modal.band)}</span></div>`;
   return '';
 }
@@ -20,7 +20,9 @@ function traitBars(modal, state) {
   const person = modal.person ? People.findPerson(state, modal.person) : null;
   const t = modal.traits || (person && person.traits);
   if (!t || !modal.facts || !modal.facts.length) return '';
-  return `<div class="bl-modal-traits">${[['Looks', t.looks], ['Smarts', t.smarts], ['Kindness', t.kindness]].map(([k, v]) => `<div class="bl-modal-trait"><span>${k}</span><span class="bl-track"><span class="bl-fill" style="width:${Math.round(v)}%"></span></span></div>`).join('')}</div>`;
+  // Same visible trait structure as the reference: classmates show Looks / Grades / Popularity, everyone else Looks / Smarts / Craziness.
+  const rows = modal.traitSet === 'school' ? [['Looks', t.looks], ['Grades', t.smarts], ['Popularity', t.popularity ?? t.kindness]] : [['Looks', t.looks], ['Smarts', t.smarts], ['Craziness', t.craziness ?? 100 - t.kindness]];
+  return `<div class="bl-modal-traits">${rows.map(([k, v]) => `<div class="bl-modal-trait"><span>${k}</span><span class="bl-track"><span class="bl-fill" style="width:${Math.round(v)}%"></span></span></div>`).join('')}</div>`;
 }
 
 export function decision(modal, state) {
@@ -29,7 +31,7 @@ export function decision(modal, state) {
   return card('decision', `${band(modal, state)}
     <h2 class="bl-modal-title">${titleIcon(modal)}<span>${esc(modal.title)}</span></h2>
     <p class="bl-modal-text">${esc(modal.text)}</p>${facts(modal.facts)}${traitBars(modal, state)}
-    <p class="bl-modal-question">What will you do?</p>
+    ${modal.noQuestion ? '' : '<p class="bl-modal-question">What will you do?</p>'}
     <div class="bl-modal-buttons">${buttons}</div>${coin}`);
 }
 
@@ -51,20 +53,27 @@ export function confirm(opts) {
     <div class="bl-modal-buttons">${buttons}</div>`);
 }
 
+// Tombstone: a ragged grey stone with a corner ribbon, skull, name, age, epitaph and grass; then Continue.
 export function death(summary) {
-  const facts = summary.facts.filter(([k]) => ['Net worth', 'Career', 'Education', 'Children', 'Spouse', 'Birthplace'].includes(k)).slice(0, 5);
-  return `<div class="bl-overlay"><div class="bl-stone-wrap" role="dialog" aria-modal="true">
-    <div class="bl-stone"><div class="bl-stone-skull bl-pic" aria-hidden="true">☠️</div><h2 class="bl-stone-name">${esc(summary.name)}</h2><p class="bl-stone-age">Aged ${summary.age} years</p>
-      <p class="bl-stone-epitaph">${esc(summary.epitaph)}</p></div>
-    <button class="bl-btn bl-btn-green" data-choice="continue">Continue</button></div></div>`;
+  const ribbon = summary.ribbon || { label: 'Ordinary', icon: '🍂' };
+  return `<div class="bl-overlay bl-overlay-dark"><div class="bl-stone-wrap" role="dialog" aria-modal="true">
+    <div class="bl-stone">
+      <div class="bl-ribbon"><span class="bl-pic">${ribbon.icon}</span><span>${esc(ribbon.label)}</span></div>
+      <div class="bl-stone-skull bl-pic" aria-hidden="true">☠️</div>
+      <h2 class="bl-stone-name">${esc(summary.name)}</h2><p class="bl-stone-age">Aged ${summary.age} years</p>
+      <p class="bl-stone-epitaph">${esc(summary.epitaph)}</p>
+      <div class="bl-grass" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><b></b><b></b><b></b><b></b><s></s></div>
+    </div>
+    <button class="bl-btn bl-btn-green bl-btn-pill" data-choice="continue">Continue</button>
+    <button class="bl-text-btn bl-text-yellow" data-choice="undoDeath">Undo this death with a Rewind!</button></div></div>`;
 }
 
 // After the summary: start again, like the reference's post-life menu.
 export function postLife(name, hasProfile, children = []) {
   return `<div class="bl-overlay"><div class="bl-postlife" role="dialog" aria-modal="true">
-    <h2>${pic('tombstone')}<span>${esc(name)}</span></h2>
+    <h2><span class="bl-pic">☠️</span><span>${esc(name)}</span></h2>
     <p>Start an all-new life or try again as ${esc(name.split(' ')[0])}!</p>
-    ${children.map((k) => `<button class="bl-btn bl-btn-blue bl-btn-big" data-choice="child:${esc(k.id)}">Continue as ${esc(k.name.split(' ')[0])} (${k.age})</button>`).join('')}
+    ${children.map((k) => `<button class="bl-btn bl-btn-blue bl-btn-big" data-choice="child:${esc(k.id)}">Continue as ${esc(k.name.split(' ')[0])} <span class="bl-light">(${k.age})</span></button>`).join('')}
     <button class="bl-btn bl-btn-green bl-btn-big" data-choice="random">Start a new random life!</button>
     <button class="bl-btn bl-btn-yellow bl-btn-big" data-choice="custom">Start a custom life!</button>
     ${hasProfile ? `<button class="bl-text-btn bl-text-light" data-choice="retry">try again as ${esc(name.split(' ')[0])}</button>` : ''}</div></div>`;
@@ -107,8 +116,21 @@ export function minigame(modal, state) {
 }
 
 // Badge banner: a top strip that slides in and dismisses itself.
+// Achievement banner: a full-width strip that slides in over the header, trophy pattern behind a trophy, uppercase title and subtitle.
 export function badgeBanner(modal) {
-  return `<div class="bl-banner" data-choice="ok"><span class="bl-banner-icon">${pic('medal')}</span><span class="bl-banner-text"><strong>${esc(modal.name)}</strong><span>${esc(modal.desc)}</span></span><span class="bl-banner-kicker">Badge earned</span></div>`;
+  return `<div class="bl-banner" data-choice="ok"><span class="bl-banner-pattern" aria-hidden="true">${'🏆 '.repeat(60)}</span><span class="bl-banner-icon bl-pic">🏆</span><span class="bl-banner-text"><strong>${esc(modal.name)}</strong><span>${esc(modal.desc)}</span></span></div>`;
+}
+
+// Language picker shown once, on the very first start (the game text is English; the choice is remembered).
+export function languageCard(current = 'en') {
+  const langs = [['en', 'English'], ['es', 'Spanish'], ['fr', 'French'], ['pt', 'Portuguese']];
+  return `<div class="bl-overlay"><div class="bl-modal bl-lang" role="dialog" aria-modal="true">
+    <div class="bl-band bl-band-lang"><span class="bl-band-avatar bl-pic">🌎</span><span class="bl-band-role">Hello! Hola! Olá! Hallo!</span></div>
+    <p class="bl-lang-prompt">Please select your preferred language!</p>
+    <div class="bl-lang-icon bl-pic" aria-hidden="true">🌐</div>
+    <label class="bl-lang-label" for="bl-lang">Choose a language:</label>
+    <select id="bl-lang" class="bl-lang-select">${langs.map(([v, l]) => `<option value="${v}"${v === current ? ' selected' : ''}>${l}</option>`).join('')}</select>
+    <button class="bl-btn bl-btn-blue" data-choice="language">I'm ready!</button></div></div>`;
 }
 
 function card(tone, body, extra = '', dismissable = false) {

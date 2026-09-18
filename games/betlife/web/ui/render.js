@@ -1,6 +1,7 @@
 // Small HTML building blocks shared by every screen. Everything returns a string.
 import { icon, pic, avatarFor, EMOJI } from '../game/icons.js';
 import { stageId } from '../game/player.js';
+import { flagFor } from '../game/life-generator.js';
 
 export const esc = (text) => String(text ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 export const money = (n) => (n < 0 ? '-' : '') + '$' + Math.abs(Math.round(n)).toLocaleString('en-US');
@@ -11,11 +12,11 @@ const attrs = (data) => Object.entries(data || {}).map(([k, v]) => ` data-${k}="
 export function strip(state) {
   const p = state.player;
   const stage = p.alive ? stageId(p.age) : 'gone';
-  const statusIcon = !p.alive ? 'candle' : p.age < 5 ? 'baby' : state.education.stage !== 'none' ? 'cap' : state.career.careerId ? 'briefcase' : state.career.retired ? 'flag' : 'person';
+  const status = !p.alive ? '🪦' : p.age < 5 ? '🍼' : state.education.stage !== 'none' ? '🍎' : state.career.careerId ? '📊' : state.career.retired ? '🏖️' : '🧑';
   const negative = p.money < 0;
   return `<div class="bl-strip${p.alive ? '' : ' is-dead'}">
     <div class="bl-avatar stage-${stage} bl-pic" aria-hidden="true">${avatarFor({ age: p.age, gender: p.gender, alive: p.alive })}</div>
-    <div class="bl-identity"><strong>${esc(p.name)}</strong><span><i class="bl-status-icon">${pic(statusIcon)}</i>${esc(p.occupation)}</span></div>
+    <div class="bl-identity"><strong><i class="bl-flag bl-pic">${flagFor(p.residence || p.birthplace)}</i><u>${esc(p.name)}</u></strong><span><i class="bl-status-icon bl-pic">${status}</i>${esc(p.occupation)}</span></div>
     <div class="bl-money"><strong class="${negative ? 'is-negative' : 'is-positive'}">${money(p.money)}</strong><span>Bank Balance</span></div></div>`;
 }
 

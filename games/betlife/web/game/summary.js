@@ -23,7 +23,7 @@ export function lifeSummary(state) {
   if (kids.length) facts.push(['Children', kids.map(People.firstName).join(', ')]);
   facts.push(['Friends made', String(friendsMade)]);
   if (state.assets.length) facts.push(['Belongings', state.assets.map((a) => a.name).join(', ')]);
-  return { name: p.name, age: p.age, cause: p.deathCause, facts, milestones: milestones.slice(-8), epitaph: epitaph(state, career, spouse, kids) };
+  return { name: p.name, age: p.age, cause: p.deathCause, facts, milestones: milestones.slice(-8), epitaph: epitaph(state, career, spouse, kids), ribbon: ribbon(state, career, kids) };
 }
 
 function epitaph(state, career, spouse, kids) {
@@ -37,4 +37,18 @@ function epitaph(state, career, spouse, kids) {
 
 export function money(n) {
   return (n < 0 ? '-' : '') + '$' + Math.abs(Math.round(n)).toLocaleString('en-US');
+}
+
+// A corner ribbon that sums the life up in one word (original set).
+function ribbon(state, career, kids) {
+  const p = state.player;
+  const worth = state.player.money + state.assets.reduce((sum, a) => sum + a.value, 0);
+  if (p.age < 30) return { label: 'Unlucky', icon: '🌧️' };
+  if (worth >= 1000000) return { label: 'Wealthy', icon: '💰' };
+  if (p.age >= 95) return { label: 'Ancient', icon: '🕰️' };
+  if (kids.length >= 3) return { label: 'Family', icon: '👨‍👩‍👧‍👦' };
+  if (career.yearsWorked >= 40) return { label: 'Hard Worker', icon: '🛠️' };
+  if (state.education.degree) return { label: 'Scholar', icon: '🎓' };
+  if (p.age >= 80) return { label: 'Long Life', icon: '🌳' };
+  return { label: 'Ordinary', icon: '🍂' };
 }

@@ -9,6 +9,7 @@ import { SENIOR_EVENTS } from './senior.js';
 import { RELATIONSHIP_EVENTS } from './relationship.js';
 import { FINANCE_EVENTS } from './finance.js';
 import { NEWS_EVENTS } from './news.js';
+import { PEOPLE_EVENTS } from './people.js';
 import { CHILDHOOD_DECISIONS } from '../decisions/childhood.js';
 import { SCHOOL_DECISIONS } from '../decisions/school.js';
 import { UNIVERSITY_DECISIONS } from '../decisions/university.js';
@@ -27,8 +28,9 @@ export const DECISION_GROUPS = {
 
 export const EVENTS = [...Object.values(EVENT_GROUPS).flat(), ...Object.values(DECISION_GROUPS).flat()];
 
+// Person request cards are answered through the same decision path but never drawn by the yearly picker.
 const byId = new Map();
-for (const event of EVENTS) {
+for (const event of [...EVENTS, ...PEOPLE_EVENTS]) {
   if (byId.has(event.id)) throw new Error(`Duplicate event id: ${event.id}`);
   byId.set(event.id, event);
 }

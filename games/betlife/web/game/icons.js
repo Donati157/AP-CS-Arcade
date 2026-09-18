@@ -71,7 +71,7 @@ export const EMOJI = {
   people: '👥', coin: '🪙', chat: '💬', history: '🗓️', list: '📋', cross: '🏥', tools: '🔧', star: '⭐', medal: '🏅', book: '📚', sun: '☀️', arrowUp: '📈',
   arrowDown: '📉', dollar: '💵', bulb: '💡', eye: '👁️', palette: '🎨', film: '🎬', plane: '✈️', game: '🎮', bag: '🛍️', paw: '🐾', car: '🚗', bike: '🚲',
   music: '🎸', ring: '💍', gift: '🎁', warning: '⚠️', leaf: '🥗', seedling: '🌱', figure: '🧘', ball: '⚽', footprints: '🚶', smile: '😊', frown: '😞',
-  key: '🔑', reset: '🔄', dice: '🎲', check: '✅', menu: '☰', toy: '🧸', school: '🏫', work: '👔', money: '💰', bank: '🏦', calendar: '📅', chart: '📊',
+  key: '🔑', reset: '🔄', social: '👥', clock: '🕰️', hug: '🤗', dice: '🎲', check: '✅', menu: '☰', toy: '🧸', school: '🏫', work: '👔', money: '💰', bank: '🏦', calendar: '📅', chart: '📊',
   trash: '🗑️', handshake: '🤝', talk: '🗣️', angry: '😠', flowers: '💐', phone: '📱', stethoscope: '🩺', popcorn: '🍿', dog: '🐕', cat: '🐈', hamster: '🐹',
   bird: '🦜', rabbit: '🐇', fish: '🐟', horse: '🐎', spa: '💆', scissors: '✂️', nails: '💅', gym: '🏋️', walk: '🚶', meditate: '🧘', garden: '🪴', diet: '🥗',
   martial: '🥋', memory: '🧩', library: '📖', theater: '🎭', concert: '🎤', vacation: '🏖️', zoo: '🦁', volunteer: '🤝', will: '📜', loan: '🏦', identity: '🪪',

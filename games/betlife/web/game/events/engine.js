@@ -158,7 +158,7 @@ export function fireEvent(state, event) {
     return;
   }
   if (event.choices) {
-    const choices = event.choices.filter((ch) => !ch.when || ch.when(c)).map((ch) => ({ label: ch.label, index: event.choices.indexOf(ch) }));
+    const choices = event.choices.filter((ch) => !ch.when || ch.when(c)).map((ch) => ({ label: render(ch.label, c), index: event.choices.indexOf(ch) }));
     pushModal(state, { kind: 'decision', eventId: event.id, band: event.band || CATEGORY_LABELS[event.category], title: event.title || 'Decision',
       text: render(event.text, c), facts: event.facts ? event.facts(c) : null, choices, person: c.who ? c.who.id : null });
     return;
@@ -195,15 +195,13 @@ export function applyEventEffects(state, effects, c, reason) {
     else if (Career.isEmployed(state.career)) Career.changePerformance(state.career, effects.performance);
   }
   if (effects.closeness && c.who) { People.changeCloseness(c.who, effects.closeness); c.who.interactedThisYear = true; }
+  if (effects.rejectPerson && c.who) { c.who.alive = false; c.who.rejected = true; }
   if (effects.family) for (const r of c.parents.concat(c.siblings)) People.changeCloseness(r, effects.family);
   if (effects.friends) for (const f of c.friends) People.changeCloseness(f, effects.friends);
   if (effects.partnerCloseness && c.partner) People.changeCloseness(c.partner, effects.partnerCloseness);
   if (effects.newFriend) {
     const friend = People.addFriend(state, effects.newFriend === true ? {} : effects.newFriend);
-    if (friend) {
-      addJournal(state, `You became friends with ${friend.name}.`, 'positive');
-      info(state, 'New Friend', `You are now friends with ${friend.name}.`, { band: 'Friends', tone: 'blue', person: friend.id, facts: [['Name', friend.name], ['Age', String(friend.age)], ['Occupation', friend.occupation || 'none yet']] });
-    }
+    if (friend) personRequest(state, friend, 'friendRequest');
   }
   if (effects.newCoworker) {
     const mate = People.addFriend(state, { role: 'coworker', age: state.player.age + Math.round((rand(state) - 0.5) * 20), occupation: c.job ? `${c.job} colleague` : 'coworker' });
@@ -218,8 +216,7 @@ export function applyEventEffects(state, effects, c, reason) {
   }
   if (effects.newPartner && !c.partner) {
     const love = People.startDating(state);
-    addJournal(state, `You started going out with ${love.name}.`, 'positive');
-    info(state, 'Love Interest', `${love.name} asked you out, and you said yes. You are now going out together.`, { band: 'Love', tone: 'blue', person: love.id, facts: [['Name', love.name], ['Age', String(love.age)], ['Occupation', love.occupation || 'student']] });
+    if (love) personRequest(state, love, 'loveRequest');
   }
   if (effects.newChild) {
     const baby = People.haveChild(state);
@@ -244,4 +241,24 @@ export function applyEventEffects(state, effects, c, reason) {
 
 export function eligibleIds(state) {
   return eligibleEvents(state, true).map((e) => e.id);
+}
+
+// A person card with accept/reject buttons (new friend, love interest). The person already exists in
+// the relationships list; rejecting removes them again.
+export function personRequest(state, who, eventId) {
+  const event = findEvent(eventId);
+  const c = buildContext(state);
+  c.who = who; c.whoName = People.firstName(who);
+  const p = state.player;
+  const classmate = p.age < 18 && who.age < 19 && Education.isEnrolled(state.education);
+  const role = classmate ? 'Classmate' : who.role === 'coworker' ? 'Coworker' : eventId === 'loveRequest' ? 'Love Interest' : 'Friend';
+  const first = People.firstName(who);
+  const text = eventId === 'loveRequest'
+    ? (classmate ? `Your classmate, ${first}, has asked you out.` : `${first} has asked you out.`)
+    : (classmate ? `Your classmate, ${first}, wants to become your friend.` : `${first} wants to become your friend.`);
+  const facts = [['Name', who.name], ['Gender', who.gender === 'female' ? 'Female' : 'Male'], ['Age', String(who.age)]];
+  if (classmate && eventId === 'loveRequest') facts.push(['Activity', who.activity || 'None'], ['Clique', who.clique || 'None']);
+  else if (!classmate && who.occupation) facts.push(['Occupation', who.occupation]);
+  pushModal(state, { kind: 'decision', eventId, band: role, bandRole: role, title: event.title, text, facts, person: who.id, icon: eventId === 'loveRequest' ? 'heart' : 'hug', noQuestion: true,
+    traitSet: classmate ? 'school' : 'adult', choices: event.choices.map((ch, i) => ({ label: render(ch.label, c), index: i })) });
 }

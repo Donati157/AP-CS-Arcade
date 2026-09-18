@@ -20,12 +20,23 @@ const actionsLeft = (s) => `${s.actionsRemaining} of ${G.ACTIONS_PER_YEAR} actio
 
 // ---- Start, menu and new life ----------------------------------------------------------------------------
 
+const brand = () => `<div class="bl-brand"><span class="bl-logo bl-pic" aria-hidden="true">🌱</span><span>BET</span><span class="bl-brand-accent">LIFE</span></div>`;
+
+export function splash() {
+  return `<div class="bl-splash"><div class="bl-splash-mark bl-pic">🌱</div>${brand()}<div class="bl-splash-foot">AP CS Arcade · a student project</div></div>`;
+}
+
+export function disclaimer() {
+  return `<div class="bl-splash bl-disclaimer" data-action="go" data-target="start"><p>Every person, place and event in this game is made up and generated at random. Any likeness to real people or real events is a coincidence.</p>
+    <p>All names, companies and brands in the game are fictional too. BetLife is a student project for the AP CS Arcade.</p></div>`;
+}
+
 export function start(ctx) {
   const { version } = ctx;
   return `<header class="bl-header bl-header-main">
       <button class="bl-round-btn bl-menu-btn" data-action="go" data-target="menu" aria-label="Menu">${icon('menu')}</button>
-      <div class="bl-brand"><span>BET</span><span class="bl-brand-accent">LIFE</span></div>
-      <button class="bl-header-pill" data-action="about">About</button></header>
+      ${brand()}
+      <button class="bl-header-pill bl-premium-pill" data-action="premium" data-feature="Plus membership"><span>Become a</span><b>PLAYER+</b></button></header>
     <div class="bl-strip"><div class="bl-identity"></div><div class="bl-money"><strong class="is-positive">$0</strong><span>Bank Balance</span></div></div>
     <div class="bl-journal"><p class="bl-footnote">BetLife ${esc(version)}</p></div>
     <nav class="bl-nav is-dead" aria-label="Game sections"><span class="bl-nav-empty"></span><span class="bl-nav-empty"></span><span class="bl-nav-gap" aria-hidden="true"></span><span class="bl-nav-empty"></span><span class="bl-nav-empty"></span>
@@ -70,7 +81,7 @@ export function menu(ctx) {
 
 function firstNav(state) {
   const p = state.player;
-  if (!p.alive) return ['Summary', 'candle', 'summary'];
+  if (!p.alive) return ['Death', 'tombstone', 'summary'];
   if (Education.isEnrolled(state.education)) return ['School', 'cap', 'school'];
   if (isEmployed(state)) return ['Job', 'briefcase', 'occupation'];
   if (state.career.retired) return ['Retired', 'flag', 'occupation'];
@@ -84,14 +95,15 @@ export function main(ctx) {
   const journal = journalYears(state.timeline).map((year) => `<section class="bl-year"><h3>Age: ${year.age} ${year.age === 1 ? 'year' : 'years'}</h3>
       ${year.entries.map((e) => `<p class="bl-entry kind-${e.kind}">${esc(e.text)}</p>`).join('')}</section>`).join('') || '<div class="bl-journal-empty">Press Age to begin.</div>';
   const first = firstNav(state);
-  const nav = (label, iconName, target, extra = '') => `<button class="bl-nav-item${extra}" data-action="go" data-target="${target}"><span class="bl-nav-ring">${icon(iconName)}</span><span>${label}</span></button>`;
+  const nav = (label, iconName, target, extra = '') => `<button class="bl-nav-item${extra}" data-action="go" data-target="${target}"><span class="bl-nav-ring">${iconName === 'tombstone' ? pic('tombstone') : icon(iconName)}</span><span>${label}</span></button>`;
   const ageButton = p.alive
     ? `<button class="bl-age" data-action="age" aria-label="Age one year"><span class="bl-age-plus">+</span><span class="bl-age-label">Age</span></button><button class="bl-rewind" data-action="premium" data-feature="Rewind" aria-label="Rewind a year (premium candidate)"><span>−</span><small>Age</small></button>`
     : `<button class="bl-age is-newlife" data-action="newLife" aria-label="New life"><span class="bl-age-icon">${pic('seedling')}</span><span class="bl-age-label">New Life</span></button>`;
   return `<header class="bl-header bl-header-main${p.alive ? '' : ' is-dead'}">
       <button class="bl-round-btn bl-menu-btn" data-action="go" data-target="menu" aria-label="Menu">${icon('menu')}</button>
-      <div class="bl-brand"><span>BET</span><span class="bl-brand-accent">LIFE</span></div>
-      <button class="bl-header-pill bl-badge-pill" data-action="go" data-target="badges" aria-label="Life badges">${pic('medal')} ${(state.badges || []).length}</button></header>
+      ${brand()}
+      <button class="bl-counter" data-action="go" data-target="badges" aria-label="Life badges"><span class="bl-counter-icon bl-pic">🏅</span><span class="bl-counter-num">${(state.badges || []).length}</span></button>
+      <button class="bl-header-pill bl-premium-pill" data-action="premium" data-feature="Plus membership"><span>Become a</span><b>PLAYER+</b></button></header>
     ${strip(state)}
     <div class="bl-journal" id="bl-journal">${journal}</div>
     <nav class="bl-nav${p.alive ? '' : ' is-dead'}" aria-label="Game sections">
@@ -115,7 +127,7 @@ export function growing(ctx) {
     ${infoRow('Name', p.name)}${infoRow('Age', `${p.age} years`)}${infoRow('Stage', stageLabel(p.age))}${infoRow('Born in', p.birthplace)}${infoRow('Birthday', p.birthday)}
     ${infoRow('School', p.age < Education.SCHOOL_START_AGE ? `Starts at age ${Education.SCHOOL_START_AGE}` : Education.schoolName(state.education))}
     ${section('Family')}
-    ${family.map((r) => personRow(r)).join('')}
+    ${family.map((r) => personRow(r, state)).join('')}
     ${section('Tip')}${note(p.age < G.ACTIVITY_MIN_AGE ? 'Spend time with your family in Relationships. Activities open up at age 3.' : 'Play, read and spend time with people: every action shapes your stats and your story.')}`);
 }
 
@@ -229,7 +241,7 @@ function jobRow(state, career) {
       right: 'dots', disabled: !eligible || current, note: current ? 'Your current career' : `Requires ${requirementText(career)}` });
   }
   return row(entry.title, { titleNote: `(${career.category})`, sub: money(entry.salary), icon: careerIcon(career.category), action: 'applyConfirm', data: { career: career.id },
-    right: 'dots', disabled: !eligible || current, note: current ? 'Your current job' : `Requires ${requirementText(career)}` });
+    right: 'dots', disabled: current, note: 'Your current job' });
 }
 
 function careerIcon(category) {
@@ -290,7 +302,30 @@ export function assets(ctx) {
     ${section('Real Estate')}${assetRows(homes) || empty('No property yet.')}
     ${section('Vehicles')}${assetRows(vehicles) || empty('No vehicles yet.')}
     ${section('Possessions')}${assetRows(things) || empty('Nothing yet.')}
-    ${footerBar('Go Shopping…', 'bag', 'go', { target: 'shopping' })}`);
+    ${section('Misc.')}${row('Social Media', { sub: 'Manage your online identity', icon: 'social', action: 'go', data: { target: 'socialMedia' }, disabled: p.age < G.SOCIAL_MIN_AGE, note: `Age ${G.SOCIAL_MIN_AGE}+` })}
+    ${footerBar('Go Shopping…', 'shopping', 'go', { target: 'shopping' })}`);
+}
+
+export function socialMedia(ctx) {
+  const { state } = ctx;
+  const accounts = G.socialAccounts(state);
+  const active = G.SOCIAL_PLATFORMS.filter((p) => accounts[p.id]);
+  const inactive = G.SOCIAL_PLATFORMS.filter((p) => !accounts[p.id]);
+  const activeRows = active.map((p) => row(p.name, { sub: `${accounts[p.id].followers.toLocaleString('en-US')} followers`, emoji: p.icon, action: 'go', data: { target: 'socialAccount', source: p.id } })).join('');
+  const inactiveRows = inactive.map((p) => row(p.name, { sub: p.sub, emoji: p.icon, action: 'socialSignUp', data: { source: p.id }, right: 'dots', disabled: state.player.age < G.SOCIAL_MIN_AGE, note: `Age ${G.SOCIAL_MIN_AGE}+` })).join('');
+  return screen(state, 'Social Media', `${activeRows}${inactiveRows ? section('Inactive Channels') + inactiveRows : ''}`, { back: 'assets', mode: 'back' });
+}
+
+export function socialAccount(ctx) {
+  const { state, sel } = ctx;
+  const platform = G.SOCIAL_PLATFORMS.find((p) => p.id === sel.source);
+  const account = platform && G.socialAccounts(state)[platform.id];
+  if (!account) return socialMedia(ctx);
+  return screen(state, platform.name, `
+    ${row(platform.name, { sub: `${account.followers.toLocaleString('en-US')} followers · ${account.posts} posts`, emoji: platform.icon, right: 'none' })}
+    ${section('Activities')}
+    ${row('Post', { sub: 'Share something with your followers', icon: 'phone', action: 'socialPost', data: { source: platform.id }, right: 'dots' })}
+    ${row('Delete Account', { sub: `Leave ${platform.name} for good`, icon: 'trash', action: 'socialDelete', data: { source: platform.id }, right: 'dots' })}`, { back: 'socialMedia', mode: 'back' });
 }
 
 export function finances(ctx) {
@@ -312,7 +347,8 @@ export function asset(ctx) {
   const kind = a.type === 'home' ? 'Real estate' : a.type === 'vehicle' ? 'Vehicle' : 'Possession';
   let actions = '';
   if (a.type === 'vehicle') {
-    actions = row('Drive', { sub: 'Take it out for a spin', icon: 'car', action: 'assetAction', data: { asset: a.id, do: 'drive' }, right: 'dots' })
+    actions = row('Abandon', { sub: 'Leave it somewhere', icon: 'trash', action: 'assetAction', data: { asset: a.id, do: 'abandon' }, right: 'dots' })
+      + row('Drive', { sub: 'Take it out for a spin', icon: 'car', action: 'assetAction', data: { asset: a.id, do: 'drive' }, right: 'dots' })
       + row('Maintenance', { sub: 'A service keeps it running', icon: 'tools', action: 'assetAction', data: { asset: a.id, do: 'maintenance' }, right: 'dots' })
       + row('Repair', { sub: `${money(Assets.repairCost(a))} · back to perfect condition`, icon: 'tools', action: 'repair', data: { asset: a.id }, right: 'dots', disabled: a.condition >= 100, note: 'Already in perfect condition' })
       + row('Gift', { sub: 'Give it to someone', icon: 'gift', action: 'go', data: { target: 'giftAsset', asset: a.id } })
@@ -366,16 +402,20 @@ export function shop(ctx) {
 
 // ---- Relationships --------------------------------------------------------------------------------------------
 
-function personRow(r) {
+function personRow(r, state) {
   const label = r.role === 'pet' ? People.PET_SPECIES[r.species].label : People.ROLE_LABELS[r.role];
+  if (r.role === 'pet' && !r.alive) {
+    const ago = state.player.age - r.diedAt;
+    return row(r.name, { titleNote: `(${label})`, emoji: '💀', sub: ago <= 0 ? 'Died this year' : `Died ${ago} year${ago === 1 ? '' : 's'} ago`, right: 'dots' });
+  }
   return row(r.name, { titleNote: `(${label})`, emoji: avatarFor(r), action: 'person', data: { person: r.id }, bar: { label: 'Relationship', value: r.closeness, tone: r.closeness < 30 ? 'warn' : '' } });
 }
 
 export function relationships(ctx) {
   const { state } = ctx;
-  const sections = People.relationshipSections(state).map(([title, people]) => section(title) + people.map(personRow).join('')).join('');
+  const sections = People.relationshipSections(state).map(([title, people]) => section(title) + people.map((r) => personRow(r, state)).join('')).join('');
   const count = People.alive(state).length;
-  return screen(state, 'Relationships', `${sections || empty('Nobody in your life yet.')}${count ? footerBar(`Spend Time With All (${count})`, 'people', 'familyDay') : ''}`);
+  return screen(state, 'Relationships', `${sections || empty('Nobody in your life yet.')}${count ? footerBar('Spend Time With All...', 'clock', 'familyDay') : ''}`);
 }
 
 export function person(ctx) {
@@ -490,4 +530,4 @@ export function about(ctx) {
     : `<header class="bl-header bl-header-main"><span class="bl-header-spacer"></span><div class="bl-brand"><span>BET</span><span class="bl-brand-accent">LIFE</span></div><span class="bl-header-spacer"></span></header><div class="bl-titlebar"><button class="bl-round-btn" data-action="go" data-target="start" aria-label="Back">${icon('back')}</button><h1 class="bl-screen-title">About</h1></div><div class="bl-scroll">${body}</div>`;
 }
 
-export const SCREENS = { start, newlife, menu, main, growing, school, university, tradeSchool, occupation, education, job, jobs, partTimeJobs, careerHistory, military, dream, hr, assets, asset, finances, giftAsset, shopping, shop, relationships, person, activities, activity, identity, pets, petSource, badges, summary, about };
+export const SCREENS = { splash, disclaimer, start, newlife, menu, main, socialMedia, socialAccount, growing, school, university, tradeSchool, occupation, education, job, jobs, partTimeJobs, careerHistory, military, dream, hr, assets, asset, finances, giftAsset, shopping, shop, relationships, person, activities, activity, identity, pets, petSource, badges, summary, about };

@@ -67,3 +67,7 @@ export function generateProfile(state, custom = {}) {
 export function withArticle(noun) {
   return (/^[aeiou]/i.test(noun) ? 'an ' : 'a ') + noun;
 }
+
+export const FLAGS = { 'United States': '🇺🇸', Canada: '🇨🇦', Brazil: '🇧🇷', Portugal: '🇵🇹', Ireland: '🇮🇪', Japan: '🇯🇵', Australia: '🇦🇺', 'South Africa': '🇿🇦', Germany: '🇩🇪',
+  Mexico: '🇲🇽', 'South Korea': '🇰🇷', Spain: '🇪🇸', Nigeria: '🇳🇬', India: '🇮🇳', Norway: '🇳🇴', Argentina: '🇦🇷' };
+export const flagFor = (place) => FLAGS[String(place || '').split(', ').pop()] || '🏳️';
