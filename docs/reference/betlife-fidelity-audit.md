@@ -361,6 +361,28 @@ Production captures showed the journal set noticeably larger than the reference.
 | Body line pitch | 12.7-16.7 pt | 16.0 pt | 12.0-14.7 pt |
 | Gap into a new year block | 24.0 pt | 32.0 pt | 22.0 pt |
 
+### 8.2c Colour defects found by auditing computed styles (fixed in 2.6.2)
+
+A blanket `.bl-phone button { color: inherit }` rule outranked every single-class
+button rule, so four controls rendered dark grey where the reference is white.
+The rule now has zero specificity, so each control keeps its own colour.
+
+| Control | Reference | Before 2.6.2 | After |
+|---|---|---|---|
+| Nav labels | white | dark grey | white |
+| Age button label | white | dark grey | white |
+| Rewind button label | white | dark grey | white |
+| Teal footer bar | white | dark grey | white |
+
+Sampling the reference header also showed the brand yellow is a bright lemon,
+not the gold we shipped.
+
+| Item | Reference | Before | After |
+|---|---|---|---|
+| Brand yellow | rgb(255, 240, 0) | rgb(247, 210, 28) | rgb(255, 240, 0) |
+| Counter digits | rgb(255, 241, 76) | white | bright lemon |
+| Counter motion streaks | four slanted tapering streaks | three straight bars | four slanted streaks |
+
 ### 8.3 Still not identical after 2.6
 
 - Condensed title face. Our stack resolves to Avenir Next Condensed, whose narrow letters are tighter than the reference face. Tracking is set so short titles match exactly and "RELATIONSHIPS" lands 4.8 percent narrow. Matching both at once needs the reference's actual typeface.

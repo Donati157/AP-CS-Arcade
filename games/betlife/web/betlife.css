@@ -1,7 +1,7 @@
 /* BetLife 2.3 — geometry and typography measured from the reference recordings at 390pt wide.
    Header 47 · strip 45 · title bar 47 · section 20 · row 68 · nav 78 · Age 90 · stat bars 15 (21 pitch). */
 :root {
-  --bl-red: #e12e17; --bl-red-dark: #b3230f; --bl-yellow: #f7d21c;
+  --bl-red: #e12e17; --bl-red-dark: #b3230f; --bl-yellow: #fff000;
   --bl-navy: #114d8b; --bl-blue: #0b4a8f; --bl-link: #1657a8; --bl-action: #1c6fd6; --bl-sub: #3a6db3;
   --bl-teal: #0fb3bf; --bl-orange: #f5820d; --bl-green: #0d9a2e; --bl-green-dark: #0a7d24; --bl-green-bar: #2b8a3e;
   --bl-strip: #f2eff6; --bl-strip2: #e3e8ec; --bl-section: #666e79; --bl-text: #222; --bl-text2: #444; --bl-muted: #8b93a1;
@@ -17,7 +17,7 @@
   background: #fff; color: var(--bl-text); font-family: var(--bl-font); font-size: 14px; line-height: 1.25;
   display: flex; flex-direction: column; overflow: hidden; -webkit-font-smoothing: antialiased;
 }
-.bl-phone button { font-family: inherit; color: inherit; }
+:where(.bl-phone) button { font-family: inherit; color: inherit; }   /* zero specificity so each control keeps its own colour */
 @media (min-width: 600px) {
   .bl-body .shell-stage { padding: 12px 12px 20px; }
   .bl-phone { width: 390px; height: min(844px, calc(100vh - 84px)); min-height: 620px; border-radius: 22px; box-shadow: var(--bl-shadow); }

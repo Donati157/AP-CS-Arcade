@@ -279,7 +279,8 @@ export const NAV = {
 export const navGlyph = (name) => NAV[name] || NAV.dots;
 
 // Star-with-speed-lines counter mark (header) and the ribbon icons.
-export const STAR_COUNTER = svg(`${l('M2 11h9M1 16h7M2 21h9', C.yellow, 2.2)}${star(C.yellow, 0.85, 8, 2.5)}`);
+const COUNTER_YELLOW = '#fff000';   // the header counter is the reference's bright lemon, not the gold used by the other glyphs
+export const STAR_COUNTER = svg(`${l('M0.5 11.6 L11.5 10.2M1.5 16.2 L10 15.2M0.5 20.8 L11.5 19.6M4 24.4 L10.5 23.6', COUNTER_YELLOW, 2.1)}${star(COUNTER_YELLOW, 0.85, 8, 2.5)}`);
 export const LOGO_MARK = svg(`${c(16, 16, 15, C.white)}${p('M16 7c5 0 8 3 8 7 0 3-2 5-5 6l1 5h-4l-1-5c-3-1-5-3-5-6 0-4 3-7 6-7z', C.red)}${c(16, 13, 2, C.white)}`);
 export const SPLASH_MARK = `<svg viewBox="0 0 200 200" class="bl-splash-svg" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><defs><filter id="sh"><feDropShadow dx="0" dy="6" stdDeviation="6" flood-opacity="0.35"/></filter></defs><g filter="url(#sh)"><ellipse cx="132" cy="56" rx="52" ry="42" fill="#fff" transform="rotate(-28 132 56)"/><path d="M92 92c-8 26-14 40-32 52-20 13-40 10-52 30 14-14 30-10 50-24 24-16 32-36 40-58z" fill="#fff"/></g></svg>`;
 export { skull, trophy, C as COLORS, svg as svgWrap };

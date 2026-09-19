@@ -12,7 +12,7 @@ import { SCREENS } from './ui/screens.js';
 import * as Modals from './ui/modals.js';
 import { money, esc } from './ui/render.js';
 
-export const VERSION = '2.6.1-web';
+export const VERSION = '2.6.2-web';
 
 const root = document.getElementById('game');
 const modalRoot = document.getElementById('modal-root');
