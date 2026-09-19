@@ -100,6 +100,24 @@ await tapSel('#modal-root button', true);
 const afterFriend = await state();
 step(`6. accepted -> friends: ${afterFriend.friends.join(', ')} | journal: ${afterFriend.last.slice(0, 44)}`);
 
+// Activity rows are age-gated, so make sure the life is old enough before opening them.
+const ageTo = (target) => page.evaluate((want) => {
+  const B = window.betlife;
+  for (let guard = 0; guard < 200 && B.getState().player.age < want; guard++) {
+    const s = B.getState();
+    if (s.pending.length) {
+      const m = s.pending[0];
+      if (m.kind === 'minigame') B.answer('pass');
+      else if (m.kind === 'decision') B.answer('0');
+      else B.answer('ok');
+    } else if (document.querySelector('#modal-root button')) B.answer('ok');
+    else B.handle('age');
+  }
+  return B.getState().player.age;
+}, target);
+const grownTo = await ageTo(6);
+step(`6b. aged to ${grownTo} so activity rows are unlocked`);
+
 await tapText('Activities', 'activities');
 step(`7. nav Activities -> ${await screen()}`);
 await tapText('Mind & Body', 'activity');

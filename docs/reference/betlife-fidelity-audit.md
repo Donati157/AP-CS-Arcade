@@ -351,6 +351,16 @@ Rewatched both recordings, re-picked frames, then compared reference frames with
 | Relationship row height | 70.0-70.7 pt | 70.0 pt |
 | Row avatar | 35.3 pt, inset 12.7 pt | 36.0 pt, inset 12.0 pt |
 
+### 8.2b Journal typography (measured on production 2.6, fixed in 2.6.1)
+
+Production captures showed the journal set noticeably larger than the reference.
+
+| Item | Reference | 2.6 | 2.6.1 |
+|---|---|---|---|
+| Body ink height | 8.0-8.7 pt | 10.0 pt | 7.3-8.7 pt |
+| Body line pitch | 12.7-16.7 pt | 16.0 pt | 12.0-14.7 pt |
+| Gap into a new year block | 24.0 pt | 32.0 pt | 22.0 pt |
+
 ### 8.3 Still not identical after 2.6
 
 - Condensed title face. Our stack resolves to Avenir Next Condensed, whose narrow letters are tighter than the reference face. Tracking is set so short titles match exactly and "RELATIONSHIPS" lands 4.8 percent narrow. Matching both at once needs the reference's actual typeface.
