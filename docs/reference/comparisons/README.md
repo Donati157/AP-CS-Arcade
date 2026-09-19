@@ -1,6 +1,6 @@
-# BetLife visual comparisons (2.6.1)
+# BetLife visual comparisons (2.6.2)
 
-> Sheets regenerated for 2.6.1. Left panel is a frame from the reference recording, right panel is a WebKit capture of production (https://ap-cs-arcade.vercel.app). No Chromium was used to produce any image here.
+> Sheets regenerated for 2.6.2. Left panel is a frame from the reference recording, right panel is a WebKit capture of production (https://ap-cs-arcade.vercel.app). No Chromium was used to produce any image here.
 
 Each sheet is REFERENCE (left, a frame from the recordings in `games/betlife/Betlife videos/`, cropped to the app area)
 beside PRODUCTION 2.5 (right, captured headless from https://ap-cs-arcade.vercel.app at an exact 390×844 viewport, 1.5×, from `?seed=7&age=…` fixtures).
