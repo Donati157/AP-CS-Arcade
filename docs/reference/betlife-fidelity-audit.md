@@ -255,3 +255,54 @@ Rewatched again from the start (V1 every second, V2 every two seconds). Fresh mi
 
 Still intentionally absent (premium or content policy): Edit/God Mode row, Landlord, Golden items, Premium Activities, Just For You, Garage, Pay Off, the "Complete a Life" challenge capsule.
 Still different: journal voice stays second person; icons are colour emoji rather than the reference's own artwork; the stone is CSS, not an illustration.
+
+## 7. Parity pass 2.5 (2026-09-18): pictograms, tombstone artwork, capsule, splash, header audit
+
+Fresh mismatch list after re-reading the recordings against the 2.4 production captures at 2.5× (header, strip,
+journal, rows, bottom bar, cards), and what changed. Comparison sheets in [comparisons/](comparisons/) are now
+REFERENCE | PRODUCTION captures, not local builds.
+
+| # | Mismatch found on the rewatch | 2.5 fix |
+|---|---|---|
+| 1 | Row and card icons were OS emoji: inconsistent weight, wrong shapes, platform-dependent | New `pictograms.js`: ~190 original flat vector glyphs (filled colour shapes, ~35 pt in rows), used by every row, card title, stat, strip and header; no emoji left in the UI |
+| 2 | People were emoji faces; the reference draws individual heads | Drawn avatars per person (skin, hair, shirt, glasses, beard, grey hair after 60, baby/child variants), deterministic from the name, in rows, cards, strip and person screens |
+| 3 | Country flag was an emoji | SVG flags for the 16 birthplaces |
+| 4 | Header: uppercase display wordmark with a white outline, drawn logo mark, star-with-speed-lines counter | Logo mark (white disc, red figure), wordmark 27 pt condensed uppercase with a 2 pt drop shadow, speed-line star counter 26 pt, two-line pill |
+| 5 | Strip: name 17 pt, avatar 42 | Name 18 pt bold underlined blue, avatar 44 pt drawn head bleeding left like the reference, status glyph 15 pt, occupation 14 pt |
+| 6 | Journal: 14.5/13.5 pt, 12 pt inset | Year 15 pt bold blue, lines 14 pt at 1.15, 15 pt year gap, 15 pt left inset, #555 text |
+| 7 | Stat and relationship bars had no axis line | 2 pt dark axis at the left of every track |
+| 8 | Nav ring glyphs were thin strokes | White filled glyphs in the rings; Assets uses the money-bag; Age button "+" drawn at 4.5 pt stroke |
+| 9 | Tombstone was CSS gradients | SVG artwork: ragged silhouette with turbulence texture and cracks, red corner ribbon with word and icon, skull and crossbones, 22 grass blades, rocks, flower; name/age/epitaph overlaid |
+| 10 | No "Complete a Life" capsule | Capsule above the stone: green icon disc, small grey title, bold subtitle, pill shape, slide-in |
+| 11 | Splash used a seedling and one-line credit | White cell-with-tail mark 250 pt, logo + uppercase wordmark, two-part credit "AP CS Arcade | student project" (original, no publisher logos) |
+| 12 | Reference-only rows were omitted | Kept with original wording and grey pack badges: Reconnect (Special), Rewind and Life Editor (Premium Activities), Career Match (Just For You), Landlord, Garage, Pay Off, Edit |
+| 13 | Job screen had a header row and seven rows | Four rows like the reference (Human Resources, Resign, Retire, Work Harder); raise and take-it-easy moved under Human Resources |
+| 14 | Assets started with Finances/Housing | Real Estate (Landlord, Properties) → Vehicles → Possessions → Misc. (Social Media); Finances moved to the menu |
+| 15 | Shops greyed out unaffordable or unlicensed items and showed a bank row | Every item listed and tappable; refusal is a red card ("Not So Fast"), like the reference's post-tap refusal |
+| 16 | Love favourite greyed once you had a partner | Never greyed after 18 |
+| 17 | Post-life title used an emoji skull | Drawn skull glyph, 24 pt name |
+
+### 7.1 Header and strip pixel audit (390 pt frame, measured in the browser)
+
+| Element | Reference | 2.5 |
+|---|---|---|
+| Menu ring | 28 circle at x 12, y 10 | 28 circle at x 12, y 10 |
+| Logo mark | 32 disc at x 52 | 32 disc at x 52 |
+| Wordmark | condensed uppercase ~27 pt, yellow, dark drop shadow | condensed uppercase 27 pt, yellow, 2 pt shadow |
+| Counter | star with speed lines + 26 pt number, centred | same, x 206–288 |
+| Pill | two lines, 80 × 34, right 12 | 80 × 34, right 12 |
+| Avatar | ~44 drawn head, bleeds left, top 47 | 44 drawn head at x 8, top 47 |
+| Flag | 17 × 13 at x 60 | 17 × 13 at x 60 |
+| Name | 18 bold blue underlined, baseline ~66 | 18 bold blue underlined, box 51–71 |
+| Status line | glyph 15 + 14 pt blue at y 71 | glyph 15 + 14 pt blue at y 71 |
+| Money | 19 bold green, right 12; "Bank Balance" 13 blue | same |
+| Blues | name/status #1657a8, title bar #0b4a8f | same tokens |
+
+### 7.2 Still not identical after 2.5
+
+- The pictograms are original drawings; they share size, colour treatment and placement with the reference but are not the same pictures (for example the reference's plumber is water drops, ours is a wrench).
+- The tombstone is vector art drawn for this project; the silhouette, ribbon, skull, grass and rocks follow the reference layout but the illustration style differs.
+- The splash mark and credit line are original; the reference shows publisher logos.
+- Premium and pack badges are grey text labels, not the reference's illustrated badges.
+- Journal voice stays second person (original writing rule).
+- Advertising banners and the red close button of the reference's ad layer are not reproduced.
