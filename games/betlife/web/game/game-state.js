@@ -421,10 +421,10 @@ export function eventTitle(eventId) {
 
 // ---- Social media (original platforms) --------------------------------------------------------------
 export const SOCIAL_PLATFORMS = [
-  { id: 'chirper', name: 'Chirper', icon: '🐦', sub: 'Sign up for Chirper' },
-  { id: 'streamly', name: 'Streamly', icon: '📺', sub: 'Sign up for Streamly' },
-  { id: 'soundwave', name: 'SoundWave', icon: '☁️', sub: 'Sign up for SoundWave' },
-  { id: 'snapshot', name: 'Snapshot', icon: '📸', sub: 'Sign up for Snapshot' },
+  { id: 'chirper', name: 'Chirper', icon: 'chirp', sub: 'Sign up for Chirper' },
+  { id: 'streamly', name: 'Streamly', icon: 'tv', sub: 'Sign up for Streamly' },
+  { id: 'soundwave', name: 'SoundWave', icon: 'cloud', sub: 'Sign up for SoundWave' },
+  { id: 'snapshot', name: 'Snapshot', icon: 'photo', sub: 'Sign up for Snapshot' },
 ];
 export const SOCIAL_MIN_AGE = 13;
 export function socialAccounts(state) { return state.social || (state.social = {}); }

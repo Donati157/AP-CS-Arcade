@@ -43,12 +43,12 @@ export function money(n) {
 function ribbon(state, career, kids) {
   const p = state.player;
   const worth = state.player.money + state.assets.reduce((sum, a) => sum + a.value, 0);
-  if (p.age < 30) return { label: 'Unlucky', icon: '🌧️' };
-  if (worth >= 1000000) return { label: 'Wealthy', icon: '💰' };
-  if (p.age >= 95) return { label: 'Ancient', icon: '🕰️' };
-  if (kids.length >= 3) return { label: 'Family', icon: '👨‍👩‍👧‍👦' };
-  if (career.yearsWorked >= 40) return { label: 'Hard Worker', icon: '🛠️' };
-  if (state.education.degree) return { label: 'Scholar', icon: '🎓' };
-  if (p.age >= 80) return { label: 'Long Life', icon: '🌳' };
-  return { label: 'Ordinary', icon: '🍂' };
+  if (p.age < 30) return { label: 'Unlucky', icon: 'looksLow' };
+  if (worth >= 1000000) return { label: 'Wealthy', icon: 'money' };
+  if (p.age >= 95) return { label: 'Ancient', icon: 'clock' };
+  if (kids.length >= 3) return { label: 'Family', icon: 'people' };
+  if (career.yearsWorked >= 40) return { label: 'Hard Worker', icon: 'tools' };
+  if (state.education.degree) return { label: 'Scholar', icon: 'cap' };
+  if (p.age >= 80) return { label: 'Long Life', icon: 'leaf' };
+  return { label: 'Ordinary', icon: 'leaf' };
 }

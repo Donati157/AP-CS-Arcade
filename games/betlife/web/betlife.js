@@ -12,7 +12,7 @@ import { SCREENS } from './ui/screens.js';
 import * as Modals from './ui/modals.js';
 import { money, esc } from './ui/render.js';
 
-export const VERSION = '2.4.0-web';
+export const VERSION = '2.5.0-web';
 
 const root = document.getElementById('game');
 const modalRoot = document.getElementById('modal-root');
@@ -309,7 +309,7 @@ async function handle(action, data) {
       if (c === 0) {
         const verdict = G.buyItem(state, data.shop, data.item);
         if (verdict === 'ok') { toast('Purchased', `You bought ${withArticle(item.name.toLowerCase())}.`, 'green'); go(item.type === 'home' ? 'assets' : 'shop'); }
-        else toast('Not Possible', { tooYoung: 'You are too young for that.', noLicence: 'You need a driving licence first.', owned: 'You already own one.', noMoney: 'You cannot afford that right now.' }[verdict] || 'Something went wrong.', 'red');
+        else { uiModal = { title: 'Not So Fast', band: 'Shopping', icon: 'shopping', tone: 'red', text: { tooYoung: 'You are too young to buy that.', noLicence: `You need a driving licence before ${shop.name} will sell you ${withArticle(item.name.toLowerCase())}.`, owned: 'You already own one of those.', noMoney: `You cannot afford ${withArticle(item.name.toLowerCase())} right now.` }[verdict] || 'Something went wrong.', choices: ['OK'] }; render(); }
       }
       break;
     }

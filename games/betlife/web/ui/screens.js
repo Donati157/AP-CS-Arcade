@@ -12,7 +12,7 @@ import * as Activities from '../game/activities.js';
 import { PLACES } from '../game/life-generator.js';
 import { journalYears } from '../game/journal.js';
 import { stageLabel } from '../game/player.js';
-import { icon, pic, avatarFor } from '../game/icons.js';
+import { icon, pic, avatarFor, navGlyph, STAR_COUNTER, LOGO_MARK, SPLASH_MARK } from '../game/icons.js';
 import { esc, money, pct, strip, section, row, infoRow, meter, footerBar, note, empty, screen } from './render.js';
 
 const isEmployed = (s) => Career.isEmployed(s.career);
@@ -20,10 +20,10 @@ const actionsLeft = (s) => `${s.actionsRemaining} of ${G.ACTIONS_PER_YEAR} actio
 
 // ---- Start, menu and new life ----------------------------------------------------------------------------
 
-const brand = () => `<div class="bl-brand"><span class="bl-logo bl-pic" aria-hidden="true">🌱</span><span>BET</span><span class="bl-brand-accent">LIFE</span></div>`;
+const brand = () => `<div class="bl-brand"><span class="bl-logo" aria-hidden="true">${LOGO_MARK}</span><span class="bl-wordmark">BetLife</span></div>`;
 
 export function splash() {
-  return `<div class="bl-splash"><div class="bl-splash-mark bl-pic">🌱</div>${brand()}<div class="bl-splash-foot">AP CS Arcade · a student project</div></div>`;
+  return `<div class="bl-splash"><div class="bl-splash-mark">${SPLASH_MARK}</div>${brand()}<div class="bl-splash-foot"><span class="bl-credit-a">AP CS Arcade</span><span class="bl-credit-bar"></span><span class="bl-credit-b">student project</span></div></div>`;
 }
 
 export function disclaimer() {
@@ -40,7 +40,7 @@ export function start(ctx) {
     <div class="bl-strip"><div class="bl-identity"></div><div class="bl-money"><strong class="is-positive">$0</strong><span>Bank Balance</span></div></div>
     <div class="bl-journal"><p class="bl-footnote">BetLife ${esc(version)}</p></div>
     <nav class="bl-nav is-dead" aria-label="Game sections"><span class="bl-nav-empty"></span><span class="bl-nav-empty"></span><span class="bl-nav-gap" aria-hidden="true"></span><span class="bl-nav-empty"></span><span class="bl-nav-empty"></span>
-      <button class="bl-age is-newlife" data-action="newLife" aria-label="New life"><span class="bl-age-icon">${pic('seedling')}</span><span class="bl-age-label">New Life</span></button></nav>
+      <button class="bl-age is-newlife" data-action="newLife" aria-label="New life"><span class="bl-age-icon">${SPLASH_MARK}</span><span class="bl-age-label">New Life</span></button></nav>
     <div class="bl-start-stats"></div>`;
 }
 
@@ -69,6 +69,7 @@ export function menu(ctx) {
     ${section('Options')}
     ${row('New Life', { sub: 'Start over from birth', icon: 'sparkle', action: 'newLife', right: 'dots' })}
     ${row('Custom Life', { sub: 'Pick a name, gender and birthplace', icon: 'identity', action: 'go', data: { target: 'newlife' } })}
+    ${row('Finances', { sub: 'View your finances', icon: 'finances', action: 'go', data: { target: 'finances' } })}
     ${row('Main Menu', { sub: 'Back to the start screen', icon: 'reset', action: 'go', data: { target: 'start' } })}
     ${row('About BetLife', { sub: `Version ${version}`, icon: 'info', action: 'about', right: 'dots' })}
     ${row('Life Badges', { sub: `${(state.badges || []).length} of ${BADGES.length} earned`, icon: 'medal', action: 'go', data: { target: 'badges' } })}
@@ -95,19 +96,19 @@ export function main(ctx) {
   const journal = journalYears(state.timeline).map((year) => `<section class="bl-year"><h3>Age: ${year.age} ${year.age === 1 ? 'year' : 'years'}</h3>
       ${year.entries.map((e) => `<p class="bl-entry kind-${e.kind}">${esc(e.text)}</p>`).join('')}</section>`).join('') || '<div class="bl-journal-empty">Press Age to begin.</div>';
   const first = firstNav(state);
-  const nav = (label, iconName, target, extra = '') => `<button class="bl-nav-item${extra}" data-action="go" data-target="${target}"><span class="bl-nav-ring">${iconName === 'tombstone' ? pic('tombstone') : icon(iconName)}</span><span>${label}</span></button>`;
+  const nav = (label, iconName, target, extra = '') => `<button class="bl-nav-item${extra}" data-action="go" data-target="${target}"><span class="bl-nav-ring">${navGlyph(iconName)}</span><span>${label}</span></button>`;
   const ageButton = p.alive
-    ? `<button class="bl-age" data-action="age" aria-label="Age one year"><span class="bl-age-plus">+</span><span class="bl-age-label">Age</span></button><button class="bl-rewind" data-action="premium" data-feature="Rewind" aria-label="Rewind a year (premium candidate)"><span>−</span><small>Age</small></button>`
-    : `<button class="bl-age is-newlife" data-action="newLife" aria-label="New life"><span class="bl-age-icon">${pic('seedling')}</span><span class="bl-age-label">New Life</span></button>`;
+    ? `<button class="bl-age" data-action="age" aria-label="Age one year"><span class="bl-age-plus"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 5v22M5 16h22" stroke="#fff" stroke-width="4.5" stroke-linecap="round" fill="none"/></svg></span><span class="bl-age-label">Age</span></button><button class="bl-rewind" data-action="premium" data-feature="Rewind" aria-label="Rewind a year (premium candidate)"><span>−</span><small>Age</small></button>`
+    : `<button class="bl-age is-newlife" data-action="newLife" aria-label="New life"><span class="bl-age-icon">${SPLASH_MARK}</span><span class="bl-age-label">New Life</span></button>`;
   return `<header class="bl-header bl-header-main${p.alive ? '' : ' is-dead'}">
       <button class="bl-round-btn bl-menu-btn" data-action="go" data-target="menu" aria-label="Menu">${icon('menu')}</button>
       ${brand()}
-      <button class="bl-counter" data-action="go" data-target="badges" aria-label="Life badges"><span class="bl-counter-icon bl-pic">🏅</span><span class="bl-counter-num">${(state.badges || []).length}</span></button>
+      <button class="bl-counter" data-action="go" data-target="badges" aria-label="Life badges"><span class="bl-counter-icon">${STAR_COUNTER}</span><span class="bl-counter-num">${(state.badges || []).length}</span></button>
       <button class="bl-header-pill bl-premium-pill" data-action="premium" data-feature="Plus membership"><span>Become a</span><b>PLAYER+</b></button></header>
     ${strip(state)}
     <div class="bl-journal" id="bl-journal">${journal}</div>
     <nav class="bl-nav${p.alive ? '' : ' is-dead'}" aria-label="Game sections">
-      ${nav(first[0], first[1], first[2], ' is-first')}${p.alive ? nav('Assets', 'house', 'assets') : '<span class="bl-nav-empty"></span>'}
+      ${nav(first[0], first[1], first[2], ' is-first')}${p.alive ? nav('Assets', 'moneybag', 'assets') : '<span class="bl-nav-empty"></span>'}
       <span class="bl-nav-gap" aria-hidden="true"></span>
       ${p.alive ? nav('Relationships', 'heart', 'relationships') + nav('Activities', 'dots', 'activities') : '<span class="bl-nav-empty"></span><span class="bl-nav-empty"></span>'}
       ${ageButton}</nav>
@@ -191,6 +192,10 @@ export function occupation(ctx) {
       + row('Schedule', { icon: 'schedule', action: 'go', data: { target: 'hr' }, right: 'dots', bar: { label: 'Stress', value: c.stress, tone: c.stress >= 70 ? 'warn' : '' } })
     : c.retired ? row('Retired', { sub: `Pension ${money(c.pension)} / year`, icon: 'retire', right: 'none' })
       : row(p.occupation, { sub: Education.educationSummary(e), icon: 'person', right: 'none' });
+  const justForYou = c.retired ? '' : section('Just For You')
+    + row('Career Match', { sub: 'Jobs picked for your talents', icon: 'special', action: 'premium', data: { feature: 'Career Match' }, pack: 'PLUS', packIcon: 'lock' });
+  const specialCareers = c.retired ? '' : section('Special Careers')
+    + row('Special Careers', { sub: 'Find a special career', icon: 'dream', action: 'go', data: { target: 'dream' }, disabled: p.age < 16, note: 'Age 16+' });
   const all = c.retired ? '' : section('All')
     + (c.history.length || isEmployed(state) ? row('Career History', { sub: `${c.history.length + (isEmployed(state) ? 1 : 0)} positions · ${c.yearsWorked} years worked`, icon: 'history', action: 'go', data: { target: 'careerHistory' } }) : '')
     + row('Education', { sub: e.degree ? `${e.degree} degree` : e.trade ? `${e.trade} certificate` : 'Go back to school', icon: 'cap', action: 'go', data: { target: 'education' }, disabled: !canHigher, note: Education.isEnrolled(e) ? 'You are enrolled right now' : 'Needs a high school diploma' })
@@ -200,7 +205,7 @@ export function occupation(ctx) {
     + row('Military', { sub: 'Join the military', icon: 'military', action: 'go', data: { target: 'military' }, disabled: p.age < 18, note: 'Age 18+' })
     + row('Part-Time Jobs', { sub: 'Browse hourly job listings', icon: 'history', action: 'go', data: { target: 'partTimeJobs' }, disabled: p.age < G.JOBS_MIN_AGE, note: `Age ${G.JOBS_MIN_AGE}+` })
     + row('Special Careers', { sub: 'Find a special career', icon: 'dream', action: 'go', data: { target: 'dream' }, disabled: p.age < 16, note: 'Age 16+' });
-  return screen(state, 'Occupation', `${section('You')}${you}${all}`);
+  return screen(state, 'Occupation', `${section('You')}${you}${justForYou}${specialCareers}${all}`);
 }
 
 export function education(ctx) {
@@ -222,13 +227,10 @@ export function job(ctx) {
   const pos = Career.currentPosition(c);
   const next = def.ladder[c.rung + 1];
   return screen(state, 'Job', `
-    ${row(pos.title, { titleNote: `(${def.name})`, sub: `${def.employer} · ${money(c.salary)} / year`, icon: careerIcon(def.category), right: 'none', bar: { label: 'Performance', value: c.performance, tone: c.performance < 40 ? 'warn' : '' } })}
     ${row('Human Resources', { sub: 'Requests and workplace problems', icon: 'hr', action: 'go', data: { target: 'hr' }, right: 'dots' })}
     ${row('Resign', { sub: 'Tender your resignation', icon: 'resign', action: 'quitConfirm', right: 'dots' })}
     ${row('Retire', { sub: Career.canRetire(state) ? 'Consider retirement' : `Available from age ${Career.RETIREMENT_MIN_AGE}`, icon: 'retire', action: 'retireConfirm', right: 'dots', disabled: !Career.canRetire(state), note: `Age ${Career.RETIREMENT_MIN_AGE}+` })}
     ${row('Work Harder', { sub: 'Put in some extra effort', icon: 'workHarder', action: 'job', data: { job: 'workHarder' }, right: 'dots' })}
-    ${row('Take It Easy', { sub: 'Relax at the cost of performance', icon: 'easy', action: 'job', data: { job: 'takeItEasy' }, right: 'dots' })}
-    ${row('Ask for a Raise', { sub: c.askedRaiseThisYear ? 'Already asked this year' : 'Better odds with strong performance', icon: 'raise', action: 'job', data: { job: 'askForRaise' }, right: 'dots', disabled: c.askedRaiseThisYear })}
     ${c.warnings ? infoRow('Warnings', `${c.warnings} on file`, 'negative') : ''}`, { back: 'occupation', mode: 'back' });
 }
 
@@ -269,7 +271,9 @@ export function hr(ctx) {
   const c = state.career;
   if (!isEmployed(state)) return occupation(ctx);
   const rows = HR_OPTIONS.map(([id, title, sub]) => row(title, { sub, icon: id === 'complaint' ? 'warning' : id === 'training' ? 'book' : id === 'transfer' ? 'people' : 'history', action: 'hr', data: { hr: id }, right: 'dots', disabled: c.hrThisYear, note: 'HR already handled a request this year' })).join('');
-  return screen(state, 'Human Resources', `${row('Schedule', { sub: Career.employer(c), icon: 'schedule', right: 'none', bar: { label: 'Stress', value: c.stress, tone: c.stress >= 70 ? 'warn' : '' } })}${section('Requests')}${rows}`, { back: 'occupation', mode: 'back' });
+  const extra = row('Ask for a Raise', { sub: c.askedRaiseThisYear ? 'Already asked this year' : 'Better odds with strong performance', icon: 'raise', action: 'job', data: { job: 'askForRaise' }, right: 'dots', disabled: c.askedRaiseThisYear })
+    + row('Take It Easy', { sub: 'Relax at the cost of performance', icon: 'easy', action: 'job', data: { job: 'takeItEasy' }, right: 'dots' });
+  return screen(state, 'Human Resources', `${row('Schedule', { sub: Career.employer(c), icon: 'schedule', right: 'none', bar: { label: 'Stress', value: c.stress, tone: c.stress >= 70 ? 'warn' : '' } })}${section('Requests')}${rows}${extra}`, { back: 'job', mode: 'back' });
 }
 
 export function partTimeJobs(ctx) {
@@ -296,14 +300,21 @@ export function assets(ctx) {
     action: 'asset', data: { asset: a.id }, bar: a.type !== 'possession' ? { label: 'Condition', value: a.condition, tone: a.condition < 30 ? 'warn' : '' } : null })).join('');
   const homes = Assets.homes(state); const vehicles = Assets.vehicles(state); const things = Assets.possessions(state);
   return screen(state, 'Assets', `
-    ${section('Finances')}
-    ${row('Finances', { sub: 'View your finances', icon: 'finances', action: 'go', data: { target: 'finances' }, right: 'dots' })}
-    ${row('Housing', { sub: homes.length ? homes[0].name : p.livesWithParents ? 'Living with your parents' : 'Renting', icon: 'housing', right: 'none' })}
-    ${section('Real Estate')}${assetRows(homes) || empty('No property yet.')}
+    ${section('Real Estate')}
+    ${row('Landlord', { sub: 'Manage tenants and unlock more homes', icon: 'landlord', action: 'premium', data: { feature: 'Landlord' }, pack: 'LANDLORD', packIcon: 'landlord' })}
+    ${row('Properties', { sub: homes.length ? `Manage your ${homes.length} propert${homes.length === 1 ? 'y' : 'ies'}` : p.livesWithParents ? 'Living with your parents' : 'Renting · no property yet', icon: 'properties', action: 'go', data: { target: 'properties' } })}
     ${section('Vehicles')}${assetRows(vehicles) || empty('No vehicles yet.')}
     ${section('Possessions')}${assetRows(things) || empty('Nothing yet.')}
     ${section('Misc.')}${row('Social Media', { sub: 'Manage your online identity', icon: 'social', action: 'go', data: { target: 'socialMedia' }, disabled: p.age < G.SOCIAL_MIN_AGE, note: `Age ${G.SOCIAL_MIN_AGE}+` })}
     ${footerBar('Go Shopping…', 'shopping', 'go', { target: 'shopping' })}`);
+}
+
+export function properties(ctx) {
+  const { state } = ctx;
+  const p = state.player;
+  const homes = Assets.homes(state);
+  const rows = homes.map((a) => row(a.name, { titleNote: a.label ? `(${a.label})` : '', icon: 'home', action: 'asset', data: { asset: a.id }, bar: { label: 'Condition', value: a.condition, tone: a.condition < 30 ? 'warn' : '' } })).join('');
+  return screen(state, 'Properties', `${row('Housing', { sub: homes.length ? homes[0].name : p.livesWithParents ? 'Living with your parents' : 'Renting', icon: 'housing', right: 'none' })}${section('Your properties')}${rows || empty('No property yet.')}`, { back: 'assets', mode: 'back' });
 }
 
 export function socialMedia(ctx) {
@@ -311,8 +322,8 @@ export function socialMedia(ctx) {
   const accounts = G.socialAccounts(state);
   const active = G.SOCIAL_PLATFORMS.filter((p) => accounts[p.id]);
   const inactive = G.SOCIAL_PLATFORMS.filter((p) => !accounts[p.id]);
-  const activeRows = active.map((p) => row(p.name, { sub: `${accounts[p.id].followers.toLocaleString('en-US')} followers`, emoji: p.icon, action: 'go', data: { target: 'socialAccount', source: p.id } })).join('');
-  const inactiveRows = inactive.map((p) => row(p.name, { sub: p.sub, emoji: p.icon, action: 'socialSignUp', data: { source: p.id }, right: 'dots', disabled: state.player.age < G.SOCIAL_MIN_AGE, note: `Age ${G.SOCIAL_MIN_AGE}+` })).join('');
+  const activeRows = active.map((p) => row(p.name, { sub: `${accounts[p.id].followers.toLocaleString('en-US')} followers`, icon: p.icon, action: 'go', data: { target: 'socialAccount', source: p.id } })).join('');
+  const inactiveRows = inactive.map((p) => row(p.name, { sub: p.sub, icon: p.icon, action: 'socialSignUp', data: { source: p.id }, right: 'dots', disabled: state.player.age < G.SOCIAL_MIN_AGE, note: `Age ${G.SOCIAL_MIN_AGE}+` })).join('');
   return screen(state, 'Social Media', `${activeRows}${inactiveRows ? section('Inactive Channels') + inactiveRows : ''}`, { back: 'assets', mode: 'back' });
 }
 
@@ -322,7 +333,7 @@ export function socialAccount(ctx) {
   const account = platform && G.socialAccounts(state)[platform.id];
   if (!account) return socialMedia(ctx);
   return screen(state, platform.name, `
-    ${row(platform.name, { sub: `${account.followers.toLocaleString('en-US')} followers · ${account.posts} posts`, emoji: platform.icon, right: 'none' })}
+    ${row(platform.name, { sub: `${account.followers.toLocaleString('en-US')} followers · ${account.posts} posts`, icon: platform.icon, right: 'none' })}
     ${section('Activities')}
     ${row('Post', { sub: 'Share something with your followers', icon: 'phone', action: 'socialPost', data: { source: platform.id }, right: 'dots' })}
     ${row('Delete Account', { sub: `Leave ${platform.name} for good`, icon: 'trash', action: 'socialDelete', data: { source: platform.id }, right: 'dots' })}`, { back: 'socialMedia', mode: 'back' });
@@ -348,10 +359,12 @@ export function asset(ctx) {
   let actions = '';
   if (a.type === 'vehicle') {
     actions = row('Abandon', { sub: 'Leave it somewhere', icon: 'trash', action: 'assetAction', data: { asset: a.id, do: 'abandon' }, right: 'dots' })
-      + row('Drive', { sub: 'Take it out for a spin', icon: 'car', action: 'assetAction', data: { asset: a.id, do: 'drive' }, right: 'dots' })
-      + row('Maintenance', { sub: 'A service keeps it running', icon: 'tools', action: 'assetAction', data: { asset: a.id, do: 'maintenance' }, right: 'dots' })
+      + row('Drive', { sub: 'Take it out for a spin', icon: 'drive', action: 'assetAction', data: { asset: a.id, do: 'drive' }, right: 'dots' })
+      + row('Garage', { sub: 'Store it in your garage', icon: 'garage', action: 'premium', data: { feature: 'Garage' }, pack: 'GARAGE', packIcon: 'garage' })
+      + row('Gift', { sub: 'Give it to someone', icon: 'gift', action: 'go', data: { target: 'giftAsset', asset: a.id }, right: 'dots' })
+      + row('Maintenance', { sub: 'Schedule maintenance', icon: 'tools', action: 'assetAction', data: { asset: a.id, do: 'maintenance' }, right: 'dots' })
+      + row('Pay Off', { sub: 'Pay off the loan on it', icon: 'payoff', disabled: true, note: 'Nothing owed on this vehicle' })
       + row('Repair', { sub: `${money(Assets.repairCost(a))} · back to perfect condition`, icon: 'tools', action: 'repair', data: { asset: a.id }, right: 'dots', disabled: a.condition >= 100, note: 'Already in perfect condition' })
-      + row('Gift', { sub: 'Give it to someone', icon: 'gift', action: 'go', data: { target: 'giftAsset', asset: a.id } })
       + row('Sell', { sub: 'Turn it back into cash', icon: 'dollar', action: 'sellConfirm', data: { asset: a.id }, right: 'dots' })
       + row('Scrap', { sub: 'Sell it for parts', icon: 'trash', action: 'assetAction', data: { asset: a.id, do: 'scrap' }, right: 'dots' });
   } else if (a.type === 'home') {
@@ -383,7 +396,7 @@ export function shopping(ctx) {
   const categories = [...new Set(Assets.SHOPS.map((s) => s.category))].sort();
   const groups = categories.map((cat) => section(cat) + Assets.SHOPS.filter((s) => s.category === cat).map((s) => row(s.name, { sub: s.tagline, icon: shopIcon(s),
     action: 'go', data: { target: 'shop', shop: s.id }, disabled: age < s.minAge, note: `Age ${s.minAge}+` })).join('')).join('');
-  return screen(state, 'Shopping', `${infoRow('Bank Balance', money(state.player.money))}${groups}`, { back: 'assets', mode: 'back' });
+  return screen(state, 'Shopping', groups, { back: 'assets', mode: 'back' });
 }
 
 export function shop(ctx) {
@@ -395,9 +408,9 @@ export function shop(ctx) {
     const verdict = Assets.canBuy(state, s, item);
     const notes = { tooYoung: `Age ${item.minAge || s.minAge}+`, noLicence: 'Needs a driving licence', owned: 'Already owned', noMoney: 'Not enough money' };
     return row(item.name, { titleNote: item.label ? `(${item.label})` : '', sub: money(item.cost), icon: item.kind === 'car' ? 'car' : item.kind === 'bike' ? 'bike' : item.kind === 'home' ? 'home' : item.kind === 'instrument' ? 'instrument' : item.kind === 'jewelry' ? 'jewelry' : 'gadget',
-      action: 'buyConfirm', data: { shop: s.id, item: item.id }, right: 'dots', disabled: verdict !== 'ok', note: notes[verdict] });
+      action: 'buyConfirm', data: { shop: s.id, item: item.id }, right: 'dots', disabled: verdict === 'owned', note: notes[verdict] });
   }).join('');
-  return screen(state, s.name, `${infoRow('Bank Balance', money(state.player.money))}${section(s.tagline)}${rows}`, { back: 'shopping', mode: 'back' });
+  return screen(state, s.name, rows, { back: 'shopping', mode: 'back' });
 }
 
 // ---- Relationships --------------------------------------------------------------------------------------------
@@ -406,7 +419,7 @@ function personRow(r, state) {
   const label = r.role === 'pet' ? People.PET_SPECIES[r.species].label : People.ROLE_LABELS[r.role];
   if (r.role === 'pet' && !r.alive) {
     const ago = state.player.age - r.diedAt;
-    return row(r.name, { titleNote: `(${label})`, emoji: '💀', sub: ago <= 0 ? 'Died this year' : `Died ${ago} year${ago === 1 ? '' : 's'} ago`, right: 'dots' });
+    return row(r.name, { titleNote: `(${label})`, emoji: avatarFor({ ...r, diedAt: r.diedAt }), sub: ago <= 0 ? 'Died this year' : `Died ${ago} year${ago === 1 ? '' : 's'} ago`, right: 'dots' });
   }
   return row(r.name, { titleNote: `(${label})`, emoji: avatarFor(r), action: 'person', data: { person: r.id }, bar: { label: 'Relationship', value: r.closeness, tone: r.closeness < 30 ? 'warn' : '' } });
 }
@@ -415,7 +428,8 @@ export function relationships(ctx) {
   const { state } = ctx;
   const sections = People.relationshipSections(state).map(([title, people]) => section(title) + people.map((r) => personRow(r, state)).join('')).join('');
   const count = People.alive(state).length;
-  return screen(state, 'Relationships', `${sections || empty('Nobody in your life yet.')}${count ? footerBar('Spend Time With All...', 'clock', 'familyDay') : ''}`);
+  const special = section('Special') + row('Reconnect', { sub: 'Find people you lost touch with', icon: 'reconnect', action: 'premium', data: { feature: 'Reconnect' }, pack: 'PLUS', packIcon: 'lock' });
+  return screen(state, 'Relationships', `${special}${sections || empty('Nobody in your life yet.')}${count ? footerBar('Spend Time With All...', 'clock', 'familyDay') : ''}`);
 }
 
 export function person(ctx) {
@@ -427,6 +441,7 @@ export function person(ctx) {
   const detail = r.role === 'pet' ? `${r.breed || People.PET_SPECIES[r.species].label}` : [r.occupation, r.yearsTogether !== undefined ? `${r.yearsTogether} years together` : null].filter(Boolean).join(' · ');
   return screen(state, label, `
     ${row(r.name, { titleNote: `(Age ${r.age})`, emoji: avatarFor(r), right: 'none', bar: { label: 'Relationship', value: r.closeness, tone: r.closeness < 30 ? 'warn' : '' } })}
+    ${row('Edit', { sub: `Edit ${r.gender === 'female' ? 'her' : 'him'}`, icon: 'edit', action: 'premium', data: { feature: 'Life Editor' }, pack: 'EDITOR', packIcon: 'edit' })}
     ${section('Activities')}${actions}`, { back: 'relationships', mode: 'back' });
 }
 
@@ -442,8 +457,8 @@ function menuRow(state, entry) {
     const m = Activities.SUBMENUS[entry.menu];
     const open = m.items.filter((i) => !Activities.unavailableReason(state, i)).length;
     const minAge = Math.min(...m.items.map((i) => i.minAge));
-    const note = state.player.age < minAge ? `Opens at age ${minAge}` : (open === 0 ? (Activities.unavailableReason(state, m.items[0]) || 'Nothing available right now') : '');
-    return row(entry.name, { sub: entry.sub, icon: entry.icon, action: 'go', data: { target: 'activity', category: entry.menu }, disabled: open === 0, note });
+    const note = state.player.age < minAge ? `Opens at age ${minAge}` : '';
+    return row(entry.name, { sub: entry.sub, icon: entry.icon, action: 'go', data: { target: 'activity', category: entry.menu }, disabled: state.player.age < minAge, note });
   }
   if (entry.screen) return row(entry.name, { sub: entry.sub, icon: entry.icon, action: 'go', data: { target: entry.screen } });
   const reason = Activities.unavailableReason(state, entry.action);
@@ -455,8 +470,11 @@ export function activities(ctx) {
   const { state } = ctx;
   const favorites = Activities.FAVORITES.map((id) => Activities.ACTIVITY_MENU.find((e) => e.id === id)).filter(Boolean);
   const all = Activities.ACTIVITY_MENU.filter((e) => !Activities.FAVORITES.includes(e.id));
+  const premium = section('Premium Activities')
+    + row('Rewind', { sub: 'Undo the last year of your life', icon: 'rewind', action: 'premium', data: { feature: 'Rewind' }, pack: 'PLUS', packIcon: 'lock' })
+    + row('Life Editor', { sub: 'Change your stats and story', icon: 'edit', action: 'premium', data: { feature: 'Life Editor' }, pack: 'EDITOR', packIcon: 'edit' });
   return screen(state, 'Activities', `${section('Favorites')}${favorites.map((e) => menuRow(state, e)).join('')}
-    ${section('All')}${all.map((e) => menuRow(state, e)).join('')}`);
+    ${premium}${section('All')}${all.map((e) => menuRow(state, e)).join('')}`);
 }
 
 export function activity(ctx) {
@@ -530,4 +548,4 @@ export function about(ctx) {
     : `<header class="bl-header bl-header-main"><span class="bl-header-spacer"></span><div class="bl-brand"><span>BET</span><span class="bl-brand-accent">LIFE</span></div><span class="bl-header-spacer"></span></header><div class="bl-titlebar"><button class="bl-round-btn" data-action="go" data-target="start" aria-label="Back">${icon('back')}</button><h1 class="bl-screen-title">About</h1></div><div class="bl-scroll">${body}</div>`;
 }
 
-export const SCREENS = { splash, disclaimer, start, newlife, menu, main, socialMedia, socialAccount, growing, school, university, tradeSchool, occupation, education, job, jobs, partTimeJobs, careerHistory, military, dream, hr, assets, asset, finances, giftAsset, shopping, shop, relationships, person, activities, activity, identity, pets, petSource, badges, summary, about };
+export const SCREENS = { splash, disclaimer, start, newlife, menu, main, socialMedia, socialAccount, properties, growing, school, university, tradeSchool, occupation, education, job, jobs, partTimeJobs, careerHistory, military, dream, hr, assets, asset, finances, giftAsset, shopping, shop, relationships, person, activities, activity, identity, pets, petSource, badges, summary, about };
