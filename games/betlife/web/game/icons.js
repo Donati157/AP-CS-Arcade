@@ -4,9 +4,9 @@ const wrap = (body) => `<svg viewBox="0 0 24 24" width="1em" height="1em" fill="
 
 export const ICONS = {
   menu: wrap('<path d="M4 7h16M4 12h16M4 17h16"/>'),
-  back: wrap('<path d="M19 12H5M11 6l-6 6 6 6"/>'),
+  back: wrap('<path d="M15 5l-7 7 7 7"/>'),
   close: wrap('<path d="M6 6l12 12M18 6L6 18"/>'),
-  dots: wrap('<circle cx="6" cy="12" r="1.6" fill="currentColor"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/><circle cx="18" cy="12" r="1.6" fill="currentColor"/>'),
+  dots: wrap('<circle cx="4" cy="12" r="1.7" fill="currentColor"/><circle cx="12" cy="12" r="1.7" fill="currentColor"/><circle cx="20" cy="12" r="1.7" fill="currentColor"/>'),
   chevron: wrap('<path d="M9 5l7 7-7 7"/>'),
   cap: wrap('<path d="M3 10l9-4 9 4-9 4-9-4z" fill="currentColor"/><path d="M7 12v4c0 1.5 2.5 3 5 3s5-1.5 5-3v-4M21 10v6"/>'),
   house: wrap('<path d="M4 11l8-7 8 7v9H4z"/><path d="M10 20v-6h4v6"/>'),

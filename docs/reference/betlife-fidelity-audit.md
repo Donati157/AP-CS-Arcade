@@ -306,3 +306,59 @@ REFERENCE | PRODUCTION captures, not local builds.
 - Premium and pack badges are grey text labels, not the reference's illustrated badges.
 - Journal voice stays second person (original writing rule).
 - Advertising banners and the red close button of the reference's ad layer are not reproduced.
+
+## 8. Pass 2.6 — WebKit-only tooling and a measured stats/nav/title pass
+
+Every capture, flow test and smoke test in this pass ran on WebKit. See section 8.4.
+
+### 8.1 Mismatch checklist built before coding
+
+Rewatched both recordings, re-picked frames, then compared reference frames with WebKit captures of the local build at 390 x 844 (585 px wide, 1.5x). Only differences that survived pixel measurement are listed.
+
+| # | Screen | Reference | Before 2.6 | Fixed |
+|---|---|---|---|---|
+| 1 | Main, stat bars | bar 16.0 pt tall | 12.7 pt | yes |
+| 2 | Main, stat rows | pitch 20.7 pt | 20.7 pt (kept) | n/a |
+| 3 | Main, stats block | 31.3 pt of white between nav and first bar | 12.7 pt | yes |
+| 4 | Main, stat bars | green starts at 113.3 pt | 122.0 pt | yes |
+| 5 | Main, stat labels | ink 53.3 pt wide, 10.7 pt tall | 70.0 / 13.3 pt | yes |
+| 6 | Main, percentages | ink 24.7 pt wide, 8.7 pt tall | 30.0 / 10.7 pt | yes |
+| 7 | Main, rewind button | 32.7 pt across, centre 6.0 pt below the nav, 32.3 pt right of the Age centre | 30.7 pt, 27.7 pt above the nav, 42.0 pt right | yes |
+| 8 | Nav bar | 78.0 pt tall | 77.0 pt | yes |
+| 9 | Every secondary screen, title | "JOB" ink 32.0 pt wide, cap 14.7 pt | 34.7 / 16.0 pt | yes |
+| 10 | Every secondary screen, back button | circled chevron | circled arrow | yes |
+| 11 | Section bars | 20.7-21.3 pt tall | 20.0 pt | yes |
+| 12 | Rows with an age note | every row 70.0 pt | note rows 74.0 pt | yes |
+| 13 | Row right affordance | three dots spread wider | tighter cluster | yes |
+
+### 8.2 Measured after the fixes
+
+| Item | Reference | 2.6 |
+|---|---|---|
+| Nav height | 78.0 pt | 77.3 pt |
+| Stat bar height | 16.0 pt | 16.0 pt |
+| Stat row pitch | 20.7 pt | 20.7 pt |
+| Nav bottom to first bar | 31.3 pt | 32.0 pt |
+| Green bar left edge | 113.3 pt | 113.3 pt |
+| Stat label ink | 53.3 x 10.7 pt | 54.7 x 10.7 pt |
+| Percentage ink | 24.7 x 8.7 pt | 24.7 x 8.7 pt |
+| Rewind diameter | 32.7 pt | 32.7 pt |
+| Rewind centre vs nav bottom | +6.0 pt | +6.7 pt |
+| Rewind centre vs Age centre | +32.3 pt | +32.3 pt |
+| Title bar height | 47.3 pt | 46.7 pt |
+| "JOB" title ink | 32.0 pt | 32.0 pt |
+| "RELATIONSHIPS" title ink | 140.0 pt | 133.3 pt |
+| Relationship row height | 70.0-70.7 pt | 70.0 pt |
+| Row avatar | 35.3 pt, inset 12.7 pt | 36.0 pt, inset 12.0 pt |
+
+### 8.3 Still not identical after 2.6
+
+- Condensed title face. Our stack resolves to Avenir Next Condensed, whose narrow letters are tighter than the reference face. Tracking is set so short titles match exactly and "RELATIONSHIPS" lands 4.8 percent narrow. Matching both at once needs the reference's actual typeface.
+- Everything listed in section 7.2 still holds: original pictograms, original tombstone and splash art, text badges instead of illustrated ones, second-person journal voice, and no advertising layer.
+- The reference's person and relationship screens carry an ad banner between rows. We render the rows continuously instead.
+
+### 8.4 Browser compliance
+
+- Engine used: WebKit only. Captures run through a native WKWebView tool (`games/betlife/web/tests/wkshot.swift`); interaction and smoke tests run through Playwright's WebKit build.
+- Removed: `games/betlife/web/tests/screenshot.mjs`, which drove Chromium over the DevTools protocol, is deleted. `tests/screenshot-all.sh` now calls the WKWebView tool.
+- No test, capture, flow run or production check in this pass launched Chromium, Chrome, Chrome Headless, Puppeteer or `chromium.launch()`.
