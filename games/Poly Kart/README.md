@@ -52,3 +52,18 @@ The layouts, geometry, car, colours, wording, HUD and code are original to this 
 recordings supplied by the project owner were used only to study how this kind of time trial
 behaves; see `docs/reference/poly-kart-video-analysis.md`. No asset, track, model or line of code
 from any other game is reused.
+
+## Browser tests
+
+These need Playwright's WebKit build (`npm i playwright && npx playwright install webkit`) and a
+server on the address you pass. Chromium is never launched.
+
+```bash
+node games/Poly\ Kart/web/tests/browser-flow.mjs http://localhost:8080/games/poly-kart/
+node games/Poly\ Kart/web/tests/browser-stress.mjs http://localhost:8080/games/poly-kart/
+node tests/arcade-regression.mjs http://localhost:8080/
+```
+
+`browser-flow` starts a race, drives it, completes a valid run and checks the best time survives a
+reload. `browser-stress` runs a hundred start-drive-reset-restart cycles and fails if DOM nodes,
+meshes or listeners accumulate. `arcade-regression` opens all three games at four screen sizes.
