@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <title>Poly Kart</title>
+  <meta name="description" content="A low-poly time trial: learn the line, beat your own best time.">
+  <link rel="stylesheet" href="styles/poly-kart.css">
+</head>
+<body>
+  <main class="pk-stage">
+    <canvas id="pk-canvas" tabindex="0" aria-label="Poly Kart race view"></canvas>
+    <div id="pk-hud" class="pk-hud"></div>
+
+    <section id="pk-menu" class="pk-panel pk-menu" hidden>
+      <header class="pk-brand">
+        <svg class="pk-mark" viewBox="0 0 64 64" aria-hidden="true">
+          <polygon points="6,44 20,26 44,26 58,44 44,52 20,52" />
+          <polygon class="pk-mark-roof" points="22,26 28,16 40,16 44,26" />
+          <circle class="pk-mark-wheel" cx="21" cy="50" r="7" />
+          <circle class="pk-mark-wheel" cx="45" cy="50" r="7" />
+        </svg>
+        <h1>Poly Kart</h1>
+        <p>Pick a track. Beat your own time.</p>
+      </header>
+      <ul class="pk-track-list"></ul>
+      <footer class="pk-controls">
+        <h2>Controls</h2>
+        <ul>
+          <li><kbd>W</kbd><kbd>&uarr;</kbd> accelerate</li>
+          <li><kbd>S</kbd><kbd>&darr;</kbd> brake and reverse</li>
+          <li><kbd>A</kbd><kbd>D</kbd> steer</li>
+          <li><kbd>R</kbd> last checkpoint</li>
+          <li><kbd>T</kbd> start over</li>
+        </ul>
+      </footer>
+    </section>
+
+    <section id="pk-result" class="pk-panel pk-result" hidden>
+      <p class="pk-result-kicker"></p>
+      <h2 class="pk-result-track"></h2>
+      <p class="pk-result-time"></p>
+      <p class="pk-result-gap"></p>
+      <div class="pk-result-buttons">
+        <button type="button" class="pk-button pk-button-main" data-action="again">Try again</button>
+        <button type="button" class="pk-button" data-action="menu">Track list</button>
+      </div>
+    </section>
+
+    <section id="pk-fatal" class="pk-panel pk-fatal" hidden>
+      <h2>Poly Kart needs WebGL</h2>
+      <p>This browser will not give the page a 3D canvas, so the race cannot be drawn. Try a different browser or turn hardware acceleration back on.</p>
+    </section>
+  </main>
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+{
+  "id": "poly-kart",
+  "name": "Poly Kart",
+  "slot": 3,
+  "developer": "Davi",
+  "status": "playable",
+  "description": "A low-poly time trial: learn the line, take every checkpoint, beat your own best time.",
+  "web": {
+    "enabled": true,
+    "dir": "web",
+    "entry": "index.html",
+    "embed": true
+  }
+}
