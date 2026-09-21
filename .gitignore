@@ -34,3 +34,4 @@ web/games.json
 
 # Compiled WebKit capture tool (built on demand by tests/screenshot-all.sh)
 games/betlife/web/tests/wkshot
+games/Poly Kart/reference videos/

@@ -59,7 +59,7 @@ function migrateV1(old) {
     const relationships = (old.relationships || []).map((r) => ({
       id: `p${nextPersonId++}`, name: r.name, gender: r.type === 'Mother' ? 'female' : r.type === 'Father' ? 'male' : 'female',
       role: ROLES[r.type] || 'friend', age: r.age || Math.max(0, p.age), closeness: r.level ?? 50, occupation: r.job || '', alive: true,
-      interactedThisYear: false, since: 0, retired: false,
+      interactedThisYear: false, yearActions: {}, since: 0, retired: false,
     }));
     const [firstName, ...rest] = String(p.name || 'Alex Carter').split(' ');
     const state = {
@@ -71,7 +71,7 @@ function migrateV1(old) {
       relationships, assets: (old.assets || []).map((a, i) => ({ id: `a${i + 1}`, itemId: a.name, name: a.name, type: a.type === 'Vehicle' ? 'vehicle' : 'possession',
         kind: a.name.includes('Car') ? 'car' : 'bike', value: a.value || 0, condition: 70, upkeep: 0.05, boughtAt: p.age, cost: a.value || 0 })),
       timeline: (old.timeline || []).map((e) => ({ age: e.age, text: e.description || e.text || '', kind: e.kind || 'normal' })),
-      actionsRemaining: old.actionsRemaining ?? 6, yearly: { activities: {}, milestones: 0 },
+      yearly: { activities: {}, milestones: 0 },
       events: createEventMemory(), pending: [], flags: {}, statLog: [], nextPersonId, nextAssetId: (old.assets || []).length + 1,
     };
     state.rngState = state.seed;

@@ -8,7 +8,6 @@ import * as People from './people.js';
 import { ownsKind } from './assets.js';
 import { PLACES } from './life-generator.js';
 
-export const ACTIONS_PER_YEAR = 6;
 export const ACTIVITY_MIN_AGE = 3;
 
 function item(id, name, sub, minAge, effects, text, extra = {}) {
@@ -135,7 +134,6 @@ export function perform(state, activity) {
   if (activity.cost > state.player.money) return { ok: false, title: 'Not Enough Money', text: `This costs $${activity.cost} and you cannot afford it right now.` };
   const done = state.yearly.activities[activity.id] || 0;
   state.yearly.activities[activity.id] = done + 1;
-  state.actionsRemaining -= 1;
   if (activity.cost) changeMoney(state, -activity.cost, activity.name);
   const effects = {};
   for (const [stat, amount] of Object.entries(activity.effects)) effects[stat] = diminished(amount, done);

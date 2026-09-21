@@ -16,7 +16,6 @@ import { icon, pic, avatarFor, navGlyph, STAR_COUNTER, LOGO_MARK, SPLASH_MARK } 
 import { esc, money, pct, strip, section, row, infoRow, meter, footerBar, note, empty, screen } from './render.js';
 
 const isEmployed = (s) => Career.isEmployed(s.career);
-const actionsLeft = (s) => `${s.actionsRemaining} of ${G.ACTIONS_PER_YEAR} actions left this year`;
 
 // ---- Start, menu and new life ----------------------------------------------------------------------------
 
@@ -154,7 +153,7 @@ export function school(ctx) {
     ${row(Education.schoolName(e), { sub: `${Education.schoolLevel(e)} · ${Education.yearLabel(e)}`, icon: 'cap', right: 'none' })}
     ${row(`Grades: ${grade}`, { icon: 'medal', right: 'none', bar: { label: 'Performance', value: e.performance, tone: e.performance < 50 ? 'warn' : '' } })}
     ${e.major ? infoRow(Education.isUniversity(e) ? 'Major' : 'Trade', e.major) : ''}${tuition}${loan}
-    ${infoRow('Average so far', `${Education.averageGrade(e)}% (${Education.gradeLetter(Education.averageGrade(e))})`)}${infoRow('Actions', actionsLeft(state))}
+    ${infoRow('Average so far', `${Education.averageGrade(e)}% (${Education.gradeLetter(Education.averageGrade(e))})`)}
     ${section('Actions')}${actions.join('')}
     ${p.age >= 14 ? section('Work') + row('Freelance Gigs', { sub: 'Make some quick money', icon: 'coin', action: 'freelance', right: 'dots', disabled: p.age < 16, note: 'Age 16+' })
       + row('Part-Time Jobs', { sub: Career.isEmployed(state.career) ? `Working as ${p.occupation}` : 'Hourly listings for students', icon: 'history', action: 'go', data: { target: 'partTimeJobs' }, disabled: p.age < G.JOBS_MIN_AGE, note: `Age ${G.JOBS_MIN_AGE}+` }) : ''}
@@ -437,17 +436,24 @@ export function person(ctx) {
   const r = People.findPerson(state, sel.person);
   if (!r || !r.alive) return relationships(ctx);
   const label = People.roleLabel(r);
-  const actions = People.actionsFor(state, r).map(([id, title, sub]) => row(title, { sub, icon: actionIcon(id), action: 'interact', data: { person: r.id, do: id }, right: 'dots' })).join('');
+  // Grouped the way the reference groups a person's options, instead of one long flat list.
+  const actions = People.actionSections(state, r)
+    .map(([group, rows]) => section(group) + rows
+      .map(([id, title, sub]) => row(title, { sub, icon: actionIcon(id), action: 'interact', data: { person: r.id, do: id }, right: 'dots' })).join(''))
+    .join('');
   const detail = r.role === 'pet' ? `${r.breed || People.PET_SPECIES[r.species].label}` : [r.occupation, r.yearsTogether !== undefined ? `${r.yearsTogether} years together` : null].filter(Boolean).join(' · ');
   return screen(state, label, `
     ${row(r.name, { titleNote: `(Age ${r.age})`, emoji: avatarFor(r), right: 'none', bar: { label: 'Relationship', value: r.closeness, tone: r.closeness < 30 ? 'warn' : '' } })}
     ${row('Edit', { sub: `Edit ${r.gender === 'female' ? 'her' : 'him'}`, icon: 'edit', action: 'premium', data: { feature: 'Life Editor' }, pack: 'EDITOR', packIcon: 'edit' })}
-    ${section('Activities')}${actions}`, { back: 'relationships', mode: 'back' });
+    ${actions}`, { back: 'relationships', mode: 'back' });
 }
 
 function actionIcon(id) {
   return { spendTime: 'spendTime', conversation: 'conversation', compliment: 'compliment', gift: 'gift', advice: 'advice', argue: 'argue', allowance: 'allowance', homework: 'homework', playPet: 'playPet', walkPet: 'walkPet', treatPet: 'treatPet', bathePet: 'bathePet',
-    anniversary: 'anniversary', propose: 'propose', marry: 'marry', breakUp: 'breakUp', unfriend: 'unfriend', release: 'release', askOut: 'askOut', startFamily: 'startFamily', doctorVisit: 'doctorVisit', movie: 'movie', concert: 'concert', play: 'play', rehome: 'rehome' }[id] || 'star';
+    anniversary: 'anniversary', propose: 'propose', marry: 'marry', breakUp: 'breakUp', unfriend: 'unfriend', release: 'release', askOut: 'askOut', startFamily: 'startFamily', doctorVisit: 'doctorVisit', movie: 'movie', concert: 'concert', play: 'play', rehome: 'rehome',
+    deepTalk: 'conversation', walkTogether: 'walk', mealOut: 'familyDinner', helpAround: 'homework', familyStory: 'advice', teamUp: 'friends', readStory: 'book', teachSkill: 'cap',
+    studyTogether: 'book', lunch: 'familyDinner', coverShift: 'briefcase', checkIn: 'conversation', dateNight: 'anniversary', bestFriend: 'friends', apologise: 'compliment',
+    trainPet: 'playPet', vetVisit: 'doctorVisit', confront: 'argue', ignore: 'walk', makePeace: 'compliment' }[id] || 'star';
 }
 
 // ---- Activities ----------------------------------------------------------------------------------------------
@@ -541,7 +547,7 @@ export function summary(ctx) {
 
 export function about(ctx) {
   const { state, version } = ctx;
-  const body = `${section('BetLife')}${note(`BetLife ${version} is a life simulation built for the AP Computer Science Arcade. You start as a newborn. Press Age to move through the years; use your ${G.ACTIONS_PER_YEAR} actions each year on school, work, activities and the people in your life. Every choice lands in your journal and moves your stats.`)}
+  const body = `${section('BetLife')}${note(`BetLife ${version} is a life simulation built for the AP Computer Science Arcade. You start as a newborn. Press Age to move through the years; spend them on school, work, activities and the people in your life. Repeating the same thing in one year gives less back each time. Every choice lands in your journal and moves your stats.`)}
     ${section('How it works')}${note('Stats run from 0 to 100 and respond to what you do. Repeating the same activity in one year pays less each time. Life has an end, and a summary of everything that happened.')}
     ${section('Original content')}${note('Every name, place, event and picture in BetLife is original. Normal gameplay is free; admin tools such as a stat editor are classified as premium candidates and are not part of the game.')}`;
   return state ? screen(state, 'About', body, { back: 'menu', mode: 'back' })

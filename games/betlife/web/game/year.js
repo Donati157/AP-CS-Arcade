@@ -18,7 +18,7 @@ import * as Career from './career.js';
 import * as People from './people.js';
 import * as Assets from './assets.js';
 import * as Economy from './economy.js';
-import { ACTIONS_PER_YEAR, pocketMoney } from './activities.js';
+import { pocketMoney } from './activities.js';
 import { runYearlyEvents, personRequest } from './events/engine.js';
 import { checkMortality } from './mortality.js';
 import { stageId } from './player.js';
@@ -30,7 +30,6 @@ export function ageUp(state) {
 
   // 1. new year
   p.age += 1;
-  state.actionsRemaining = ACTIONS_PER_YEAR;
   state.yearly = { activities: {}, milestones: 0 };
   const journalStart = state.timeline.length;
 
@@ -212,6 +211,9 @@ export function settleStats(state) {
   else if (age > 75) looks = between(state, -3, 0);
   else looks = 0;
   looks += Math.min(1, count('selfCare', 'gym'));
+  // Near the bottom of the scale ageing stops eating into Looks and it just drifts, so the stat
+  // never pins at zero for the rest of a long life.
+  if (state.player.looks + looks <= 6) looks = between(state, -1, 1);
   changeStat(state, 'looks', looks, 'yearly settlement');
 
   // Smarts: school builds it, good grades build it faster, very late life eases it.

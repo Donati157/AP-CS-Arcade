@@ -10,6 +10,8 @@ import * as People from './people.js';
 import { MAJORS, TRADES } from './education.js';
 import { SHOPS } from './assets.js';
 
+const POLICY_ACTIONS_PER_YEAR = 6;   // loop bound for automated runs only; the game itself has no action budget
+
 export const MAX_AGE = 130; // safety cap: a life that reaches this is a bug the tests flag
 
 /**
@@ -70,7 +72,9 @@ function act(state, policyRng, options) {
   }
   const t = options.traits || {};
   // Spend the year's actions.
-  while (state.actionsRemaining > 0) {
+  // One pass per action the policy takes this year. The game no longer limits actions, so the
+  // bound lives here; every pass costs one whether or not the chosen action did anything.
+  for (let budget = POLICY_ACTIONS_PER_YEAR; budget > 0; budget -= 1) {
     const roll = policyRng();
     if (Education.isEnrolled(state.education) && roll < (t.studious ? 0.4 : 0.1)) G.studyAction(state, 'studyHarder');
     else if (Career.isEmployed(state.career) && roll < (t.driven ? 0.6 : 0.3)) G.jobAction(state, policyRng() < 0.8 ? 'workHarder' : 'askForRaise');
@@ -82,13 +86,11 @@ function act(state, policyRng, options) {
         const big = actions.find(([id]) => (id === 'propose' && who.closeness >= 60) || id === 'marry');
         if (big) G.interactWith(state, who.id, big[0]);
         else if (actions.length) G.interactWith(state, who.id, actions[Math.floor(policyRng() * actions.length)][0]);
-        else state.actionsRemaining -= 1;
-      } else state.actionsRemaining -= 1;
+      }
     } else if (p.age >= 3) {
       const ids = ['walk', 'readBook', 'playOutside', 'meditate', 'gym', 'movies', 'hangOut', 'familyDinner', 'checkup', 'volunteer', 'videoGames', 'sports'];
-      const result = G.doActivity(state, ids[Math.floor(policyRng() * ids.length)]);
-      if (!result.ok) state.actionsRemaining -= 1;
-    } else state.actionsRemaining -= 1;
+      G.doActivity(state, ids[Math.floor(policyRng() * ids.length)]);
+    }
   }
   if (options.buyCar !== false && p.age >= 25 && p.money > 12000 && !state.assets.some((a) => a.kind === 'car') && p.hasLicence) G.buyItem(state, 'usedCars', 'usedSedan');
   if (p.age >= 30 && p.money > 130000 && !state.assets.some((a) => a.type === 'home')) G.buyItem(state, 'homes', 'studio');
@@ -97,7 +99,7 @@ function act(state, policyRng, options) {
     const item = shop.items[Math.floor(policyRng() * shop.items.length)];
     if (item.cost <= p.money * 0.5) G.buyItem(state, shop.id, item.id);
   }
-  if (p.age >= 16 && !p.hasLicence && policyRng() < 0.5) { state.actionsRemaining = 1; G.doActivity(state, 'drivingTest'); }
+  if (p.age >= 16 && !p.hasLicence && policyRng() < 0.5) G.doActivity(state, 'drivingTest');
 }
 
 export function snapshot(state) {

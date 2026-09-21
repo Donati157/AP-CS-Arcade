@@ -23,7 +23,7 @@ import { SAVE_VERSION } from './save.js';
 
 export { saveGame, loadGame, clearSavedGame } from './save.js';
 export { lifeSummary } from './summary.js';
-export { ACTIONS_PER_YEAR, ACTIVITY_MIN_AGE } from './activities.js';
+export { ACTIVITY_MIN_AGE } from './activities.js';
 export const SHOPPING_MIN_AGE = 8;
 export const JOBS_MIN_AGE = 15;
 
@@ -36,7 +36,7 @@ export function createNewGame(custom = {}, seed = seedFromClock()) {
     version: SAVE_VERSION, seed: 0, rngState: 0, profile: null, player: null,
     education: Education.createEducation(), career: Career.createCareer(),
     relationships: [], assets: [], timeline: [],
-    actionsRemaining: Activities.ACTIONS_PER_YEAR, yearly: { activities: {}, milestones: 0 },
+    yearly: { activities: {}, milestones: 0 },
     events: createEventMemory(), pending: [], flags: {}, statLog: [], nextPersonId: 1, nextAssetId: 1, ended: null,
   };
   initRng(state, seed);
@@ -58,7 +58,6 @@ export function createNewGame(custom = {}, seed = seedFromClock()) {
 // ---- Reading the state --------------------------------------------------------------------------------
 
 export const isAlive = (state) => state.player.alive;
-export const hasActionsLeft = (state) => state.actionsRemaining > 0;
 export const canDoActivities = (state) => state.player.age >= Activities.ACTIVITY_MIN_AGE;
 export const canShop = (state) => state.player.age >= SHOPPING_MIN_AGE;
 export const canLookForJobs = (state) => state.player.age >= JOBS_MIN_AGE;
@@ -104,9 +103,10 @@ export function randomChoice(state, modal) {
 
 // ---- Actions (each one uses one of the year's actions) ------------------------------------------------
 
+// The only thing that blocks an action is being dead. There is no per-year action budget:
+// repeating something simply gives less back (see diminished() in stats.js and people.js).
 function guard(state) {
   if (!state.player.alive) return { ok: false, title: 'Life Complete', text: 'This life has ended. Start a new life from the menu.' };
-  if (!hasActionsLeft(state)) return { ok: false, title: 'Busy Year', text: 'You have done a lot this year. Press Age to continue.' };
   return null;
 }
 
@@ -130,7 +130,6 @@ export function interactWith(state, personId, action) {
   if (!allowed) return { ok: false, title: 'Not Yet', text: 'You cannot do that with them right now.' };
   const text = People.interact(state, person, action);
   if (text === null) return { ok: false, title: 'Not Enough Money', text: 'You cannot afford that right now.' };
-  state.actionsRemaining -= 1;
   addJournal(state, text, ['propose', 'marry', 'startFamily'].includes(action) ? 'milestone' : 'normal');
   awardBadges(state);
   return { ok: true, title: person.role === 'pet' ? person.name : People.firstName(person), text };
@@ -142,7 +141,6 @@ export function familyDay(state) {
   if (blocked) return blocked;
   const people = People.alive(state);
   if (people.length === 0) return { ok: false, title: 'Nobody Around', text: 'There is nobody in your life to spend the day with.' };
-  state.actionsRemaining -= 1;
   for (const p of people) { People.changeCloseness(p, 3); p.interactedThisYear = true; }
   changeStat(state, 'happiness', 3, 'day with everyone');
   const text = `You spent a whole day with everyone in your life (${people.length} ${people.length === 1 ? 'person' : 'people'}).`;
@@ -155,7 +153,6 @@ export function studyAction(state, action) {
   if (blocked) return blocked;
   const e = state.education;
   if (!Education.isEnrolled(e)) return { ok: false, title: 'Not Enrolled', text: 'You are not in school right now.' };
-  state.actionsRemaining -= 1;
   const done = state.yearly.activities[action] || 0;
   state.yearly.activities[action] = done + 1;
   const scale = done === 0 ? 1 : done === 1 ? 0.5 : 0.25;
@@ -185,7 +182,6 @@ export function jobAction(state, action) {
   else if (action === 'takeItEasy') text = Career.takeItEasy(state);
   else if (action === 'askForRaise') text = Career.askForRaise(state);
   else return { ok: false, title: 'Unknown', text: 'Unknown job action.' };
-  state.actionsRemaining -= 1;
   addJournal(state, text);
   return { ok: true, title: 'Work', text };
 }
@@ -194,7 +190,6 @@ export function freelanceGig(state) {
   const blocked = guard(state);
   if (blocked) return blocked;
   if (state.player.age < 16) return { ok: false, title: 'Too Young', text: 'Freelance work opens up at 16.' };
-  state.actionsRemaining -= 1;
   const done = state.yearly.activities.freelance || 0;
   state.yearly.activities.freelance = done + 1;
   const pay = Math.round((200 + state.player.smarts * 8) / (done + 1) / 10) * 10;
@@ -224,7 +219,6 @@ export function changeName(state, firstName, lastName) {
   const blocked = guard(state);
   if (blocked) return blocked;
   if (state.player.money < 120) return { ok: false, title: 'Not Enough Money', text: 'A legal name change costs $120.' };
-  state.actionsRemaining -= 1;
   changeMoney(state, -120, 'name change');
   const old = state.player.name;
   state.player.firstName = first; state.player.lastName = last; state.player.name = `${first} ${last}`;
@@ -297,7 +291,6 @@ export function humanResources(state, option) {
   const coworker = People.byRole(state, 'coworker').sort((a, b) => a.closeness - b.closeness)[0] || null;
   const text = Career.humanResources(state, option, option === 'complaint' ? coworker : null);
   if (!text) return { ok: false, title: 'Human Resources', text: 'Unknown request.' };
-  state.actionsRemaining -= 1;
   addJournal(state, text);
   return { ok: true, title: 'Human Resources', text };
 }
@@ -316,7 +309,6 @@ export function assetAction(state, assetId, action, personId = null) {
   else if (action === 'gift') { const who = People.findPerson(state, personId); if (!who) return { ok: false, title: 'Gift', text: 'Choose someone to give it to.' }; text = Assets.gift(state, asset, who); }
   else return { ok: false, title: 'Unknown', text: 'Unknown action.' };
   if (text === null) return { ok: false, title: 'Not Enough Money', text: 'You cannot afford that right now.' };
-  state.actionsRemaining -= 1;
   addJournal(state, text);
   return { ok: true, title: asset.name, text };
 }
@@ -333,7 +325,6 @@ export function adoptFromSource(state, sourceId, animalId) {
   const result = Pets.adopt(state, source, animal);
   if (!result) return { ok: false, title: 'Not Enough Money', text: `The fee is $${animal.fee}.` };
   changeMoney(state, -animal.fee, `adopted ${animal.name}`);
-  state.actionsRemaining -= 1;
   changeStat(state, 'happiness', 4, `adopted ${animal.name}`);
   state.flags.adoptedFrom = [...(state.flags.adoptedFrom || []), animal.id];
   const text = `You adopted ${animal.name}, a ${animal.age === 0 ? 'baby' : `${animal.age}-year-old`} ${animal.breed.toLowerCase()}, from ${source.name}.`;
@@ -436,7 +427,6 @@ export function socialSignUp(state, platformId) {
   if (!platform) return { ok: false, title: 'Unknown', text: 'That platform does not exist.' };
   const accounts = socialAccounts(state);
   if (accounts[platformId]) return { ok: false, title: 'Already Signed Up', text: `You already have a ${platform.name} account.` };
-  state.actionsRemaining -= 1;
   accounts[platformId] = { followers: between(state, 3, 40), since: state.player.age, posts: 0 };
   const text = `You signed up for ${platform.name}.`;
   addJournal(state, text);
@@ -448,7 +438,6 @@ export function socialPost(state, platformId) {
   const platform = SOCIAL_PLATFORMS.find((p) => p.id === platformId);
   const account = socialAccounts(state)[platformId];
   if (!platform || !account) return { ok: false, title: 'No Account', text: 'Sign up first.' };
-  state.actionsRemaining -= 1;
   account.posts += 1;
   const gain = Math.round(between(state, 1, 12) * (1 + state.player.looks / 100 + Math.max(0, account.followers) / 400));
   account.followers += gain;

@@ -103,7 +103,6 @@ test('freelance gigs, the job recruiter and name changes move money (2.1 regress
   ageTo(state, 22);
   state.education.highSchoolGraduate = true; state.education.stage = 'none';
   state.player.money = 5000;
-  state.actionsRemaining = 6;
   const before = state.player.money;
   const gig = G.freelanceGig(state);
   assert.equal(gig.ok, true);
@@ -131,7 +130,6 @@ test('2.4: friend requests can be rejected, enemies and social media work, vehic
   const enemy = People.makeEnemy(s, { age: 14 });
   assert.ok(People.relationshipSections(s).some(([t]) => t === 'Enemies'));
   assert.ok(People.actionsFor(s, enemy).some(([id]) => id === 'makePeace'));
-  s.actionsRemaining = 6;
   assert.equal(G.socialSignUp(s, 'chirper').ok, true);
   assert.equal(G.socialPost(s, 'chirper').ok, true);
   assert.ok(s.social.chirper.followers > 0);

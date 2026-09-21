@@ -1,6 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../game/game-state.js';
+import * as People from '../game/people.js';
+import * as Activities from '../game/activities.js';
 import { changeStat, changeMoney, diminished, STATS } from '../game/stats.js';
 import { runLives, average, atAge, percent } from './helpers.mjs';
 import { yearlyDeathProbability } from '../game/mortality.js';
@@ -57,16 +59,44 @@ test('actions have real effects and repeating one pays less', () => {
   G.doActivity(s, 'meditate');
   G.doActivity(s, 'meditate');
   assert.equal(s.player.happiness, before + 7, 'third time a quarter, fourth nothing');
-  assert.equal(s.actionsRemaining, 2, 'each attempt used an action');
   s.player.happiness = 50;
   const parent = s.relationships.find((r) => r.role === 'mother');
   G.interactWith(s, parent.id, 'argue');
   assert.ok(s.player.happiness < 50, 'negative actions lower happiness');
-  assert.equal(s.actionsRemaining, 1);
-  const blocked = G.doActivity(s, 'walk');
-  G.doActivity(s, 'walk');
-  assert.ok(blocked.ok);
-  assert.equal(G.doActivity(s, 'walk').ok, false, 'no actions left');
+  // There is no per-year action budget any more (the reference recordings show none), so an
+  // eighth action in the same year still succeeds; it simply stops paying out.
+  for (let i = 0; i < 8; i++) assert.equal(G.doActivity(s, 'walk').ok, true, 'activities are never blocked by a budget');
+});
+
+test('repeating one action on one person fades within the year and resets next year', () => {
+  const s = G.createNewGame({}, 4);
+  while (s.player.age < 15) { s.pending.length = 0; G.ageUp(s); }
+  const friend = s.relationships.find((r) => r.alive && r.role === 'friend') || s.relationships.find((r) => r.role === 'mother');
+  s.player.happiness = 50;
+  const gains = [];
+  for (let i = 0; i < 4; i++) {
+    const before = s.player.happiness;
+    assert.equal(G.interactWith(s, friend.id, 'spendTime').ok, true, 'never blocked');
+    gains.push(s.player.happiness - before);
+  }
+  assert.ok(gains[0] > gains[1] && gains[1] > gains[2], `gains should fade, got ${gains.join(',')}`);
+  assert.equal(gains[3], 0, 'the fourth repeat gives nothing');
+  s.pending.length = 0; G.ageUp(s);
+  s.player.happiness = 50;
+  G.interactWith(s, friend.id, 'spendTime');
+  assert.equal(s.player.happiness - 50, gains[0], 'a new year restores the full effect');
+});
+
+test('opening screens is free: navigation never changes the simulation', () => {
+  const s = G.createNewGame({}, 9);
+  while (s.player.age < 16) { s.pending.length = 0; G.ageUp(s); }
+  const snapshot = JSON.stringify({ p: s.player, r: s.relationships, t: s.timeline.length, rng: s.rngState });
+  // Everything the interface can read while the player browses menus.
+  People.relationshipSections(s);
+  People.actionsFor(s, s.relationships.find((r) => r.alive));
+  Activities.SUBMENUS && Object.keys(Activities.SUBMENUS);
+  assert.equal(JSON.stringify({ p: s.player, r: s.relationships, t: s.timeline.length, rng: s.rngState }), snapshot,
+    'reading screens must not touch stats, people, journal or the RNG');
 });
 
 test('health drives mortality with age', () => {

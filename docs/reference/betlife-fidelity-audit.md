@@ -394,3 +394,61 @@ not the gold we shipped.
 - Engine used: WebKit only. Captures run through a native WKWebView tool (`games/betlife/web/tests/wkshot.swift`); interaction and smoke tests run through Playwright's WebKit build.
 - Removed: `games/betlife/web/tests/screenshot.mjs`, which drove Chromium over the DevTools protocol, is deleted. `tests/screenshot-all.sh` now calls the WKWebView tool.
 - No test, capture, flow run or production check in this pass launched Chromium, Chrome, Chrome Headless, Puppeteer or `chromium.launch()`.
+
+## 9. Pass 2.7 — the "Busy Year" wall, and deeper relationships
+
+### 9.1 Root cause
+
+`game/game-state.js` held a single per-year budget of six actions
+(`ACTIONS_PER_YEAR`), shared by every kind of action: relationships, activities,
+school, work, assets, pets and social. A `guard()` in front of all thirteen
+action entry points answered `Busy Year - You have done a lot this year. Press
+Age to continue.` once the counter hit zero.
+
+Reproduced deterministically at seed 7, age 17: the first six interactions with a
+friend succeeded, the seventh returned `Busy Year`. Even ending a friendship or
+walking away from an argument was blocked, because the budget did not
+distinguish a stat-earning action from a decision.
+
+Navigation was already free. Opening a screen never called `guard()`, so the wall
+came purely from using actions, not from browsing.
+
+### 9.2 What the reference shows
+
+Sixty seconds of one reference recording, in a single year of one life, moves
+through Activities, Mind & Body, Pets, Salon & Spa, Doctors, Licenses, Love and
+more, acting freely. No screen carries an actions-remaining counter and nothing
+blocks further interaction. There is no equivalent visible cap, so BetLife should
+not have invented one.
+
+### 9.3 What replaced it
+
+The budget is gone from the rules. `guard()` now only refuses when the life has
+ended. Repetition is handled where it belongs:
+
+- Activities already faded with `diminished()`; that is unchanged.
+- Relationship actions now fade per person, per action, per year: full effect,
+  then a half, then a quarter, then nothing. A new year resets it, and each
+  action keeps its own count, so exploring a person's menu is never punished.
+- Money costs are unchanged and remain the natural limit on paid interactions.
+- Milestones (proposing, marrying, starting a family, ending things) never fade.
+
+The automated test policy keeps its own six-action loop bound, which is a test
+harness detail, not a game rule.
+
+### 9.4 Relationship depth
+
+Person screens are now grouped into Social, Activities, Support, Relationship and
+Conflict, instead of one flat list, and the set varies by who the person is.
+Added: Heart to Heart, Go for a Walk, Meal Out, Help Out at Home, Ask About the
+Past, Team Up, Read a Story, Teach Them Something, Study Together, Lunch Break,
+Cover Their Shift, Check In, Date Night, Make Best Friends, Apologise, Teach a
+Trick and Vet. A regression test drives every action the screen offers, across
+four seeds and forty years, and asserts none of them is refused after being
+shown.
+
+### 9.5 Stat regression found on the way
+
+With relationship gains fading, the 50-life balance report caught Looks pinned at
+exactly zero from age 63 to 87 in one life. Ageing now stops eating into Looks
+near the bottom of the scale and lets it drift instead, so no stat sits frozen.
