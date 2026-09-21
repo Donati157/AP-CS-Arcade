@@ -67,3 +67,34 @@ node tests/arcade-regression.mjs http://localhost:8080/
 `browser-flow` starts a race, drives it, completes a valid run and checks the best time survives a
 reload. `browser-stress` runs a hundred start-drive-reset-restart cycles and fails if DOM nodes,
 meshes or listeners accumulate. `arcade-regression` opens all three games at four screen sizes.
+
+## Renderers
+
+Poly Kart draws with WebGL when the browser provides it, trying WebGL 2 first and then WebGL 1,
+relaxing the context attributes at each step. The shaders are GLSL ES 1.00, which both versions
+accept, so there is only one set to maintain.
+
+When a browser refuses every kind of WebGL context, the same 3D scene is drawn by
+`src/software-renderer.js` on a 2D canvas: same track, same car, same physics, same camera, with the
+triangles projected, culled, depth-sorted and filled in JavaScript. It is the real game, drawn a
+slower way, and it runs at 60 frames per second on the two tracks here. A "software mode" badge
+appears next to the track name so the coarser look is explained.
+
+Only when neither a 3D nor a 2D canvas can be had does the game show a failure screen, and that
+screen names the stage that failed and shows the details rather than blaming your graphics settings.
+
+Add `?debug=1` to the address to see a live renderer read-out: context type, WebGL and GLSL
+versions, vendor and renderer strings, maximum texture size, antialiasing, link status and whether
+the context is software.
+
+## Cross-browser tests
+
+```bash
+node games/Poly\ Kart/web/tests/cross-browser.mjs http://localhost:8080/games/poly-kart/ chromium,webkit,firefox
+node games/Poly\ Kart/web/tests/hostile-environments.mjs http://localhost:8080/games/poly-kart/
+```
+
+`cross-browser` checks the things that actually matter at five screen sizes: a canvas exists, the
+renderer got a context, the failure panel is not **painted**, a frame was drawn, and the car moves.
+It checks computed style rather than the `hidden` attribute, because a panel marked hidden can still
+be painted if a class sets its `display`, which is the bug that shipped in the first release.

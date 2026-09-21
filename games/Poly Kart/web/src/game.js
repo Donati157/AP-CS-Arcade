@@ -4,7 +4,8 @@
 // set of listeners. `stop()` tears everything down, and `start()` is safe to call again afterwards,
 // so opening and closing Poly Kart inside the arcade never stacks up loops.
 
-import { Renderer, perspective, lookAt, multiply, composeModel, identity } from './renderer.js';
+import { Renderer, RendererError, perspective, lookAt, multiply, composeModel, identity } from './renderer.js';
+import { SoftwareRenderer } from './software-renderer.js';
 import { buildTrack, poseAtGate, queryTrack } from './track.js';
 import { addGroundPlane, emptyGeometry } from './mesh.js';
 import { buildCarBody, buildWheelPair, buildShadow, WHEEL } from './car-model.js';
@@ -21,7 +22,17 @@ export class Game {
     this.canvas = canvas;
     this.hud = hud;
     this.input = input;
-    this.renderer = new Renderer(canvas);
+    // WebGL if the browser will give it to us, and the software renderer if it will not. Either way
+    // the game itself is identical: same track, same physics, same camera, same rules.
+    try {
+      this.renderer = new Renderer(canvas);
+      this.software = false;
+    } catch (error) {
+      if (!(error instanceof RendererError) || error.stage !== 'context') throw error;
+      this.renderer = new SoftwareRenderer(canvas);
+      this.software = true;
+      this.contextFallbackReason = error;
+    }
     this.frame = 0;
     this.running = false;
     this.lastTime = 0;
@@ -31,14 +42,29 @@ export class Game {
     this.track = null;
     this.stuckFor = 0;
     this.pausedByVisibility = false;
+    this.definition = null;
+    this.contextLost = false;
+    this.framesDrawn = 0;
     this.onVisibility = () => this.handleVisibility();
     document.addEventListener('visibilitychange', this.onVisibility);
+    // A dropped GPU context is recoverable: the race keeps its state, the buffers are rebuilt.
+    this.renderer.onContextLost = () => {
+      this.contextLost = true;
+      this.meshes = null;
+      this.hud.setMessage(['The graphics context was interrupted', 'Hold on, it is coming back']);
+    };
+    this.renderer.onContextRestored = () => {
+      this.contextLost = false;
+      if (this.definition) this.uploadMeshes(this.definition);
+      this.hud.setMessage(null);
+      this.hud.flash('Graphics restored');
+    };
   }
 
-  // Builds a track and puts the car on the line. Safe to call repeatedly.
-  load(definition) {
+  // Everything that lives on the GPU, kept apart from the track and the run so it can be rebuilt
+  // after a context loss without disturbing the car, the clock or the checkpoints.
+  uploadMeshes(definition) {
     this.renderer.disposeMeshes();
-    this.track = buildTrack(definition);
     const water = emptyGeometry();
     addGroundPlane(water, definition.waterLevel ?? -18, 1600, definition.palette.water);
     this.meshes = {
@@ -50,6 +76,13 @@ export class Game {
       wheels: this.renderer.upload(buildWheelPair()),
       shadow: this.renderer.upload(buildShadow()),
     };
+  }
+
+  // Builds a track and puts the car on the line. Safe to call repeatedly.
+  load(definition) {
+    this.definition = definition;
+    this.track = buildTrack(definition);
+    this.uploadMeshes(definition);
     this.car = createCar(this.track.start);
     this.run = createRun(this.track);
     this.camera = createCamera(this.car);
@@ -115,7 +148,7 @@ export class Game {
   }
 
   update(elapsed) {
-    if (this.pausedByVisibility || document.hidden) return;
+    if (this.pausedByVisibility || document.hidden || this.contextLost) return;
     const request = this.input.takeResetRequest();
     if (request === 'start') this.respawn(RESET_MODES.START);
     else if (request === 'checkpoint' && !this.run.finished) this.respawn(RESET_MODES.CHECKPOINT);
@@ -169,12 +202,12 @@ export class Game {
   }
 
   render() {
-    if (!this.meshes) return;
+    if (!this.meshes || this.contextLost) return;
     this.renderer.resize();
     const projection = perspective(FIELD_OF_VIEW, this.renderer.aspect, 0.4, 1600);
     const view = lookAt(this.camera.position, this.camera.target, [0, 1, 0]);
     const viewProjection = multiply(projection, view);
-    this.renderer.beginFrame(viewProjection, this.track.palette.sky);
+    this.renderer.beginFrame(viewProjection, this.track.palette.sky, this.camera.position);
 
     const world = identity();
     this.renderer.draw(this.meshes.water, world);
@@ -196,6 +229,7 @@ export class Game {
 
     const bodyModel = composeModel(this.car.position, this.car.heading + this.car.spin, this.car.pitch, this.car.roll);
     this.renderer.draw(this.meshes.body, bodyModel);
+    this.framesDrawn += 1;
 
     // Wheels: the front pair steers, both pairs spin.
     for (const [z, steer] of [[WHEEL.frontZ, this.car.steering * 0.45], [WHEEL.rearZ, 0]]) {
@@ -207,6 +241,9 @@ export class Game {
       spinWheels(model, this.car.wheelSpin, this.car.heading + this.car.spin + steer);
       this.renderer.draw(this.meshes.wheels, model);
     }
+    // The software path collects triangles and sorts them before filling; the GPU path has already
+    // drawn everything by now and does not define this.
+    if (this.renderer.present) this.renderer.present();
   }
 }
 

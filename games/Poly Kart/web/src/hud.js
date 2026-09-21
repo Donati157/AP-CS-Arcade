@@ -15,6 +15,7 @@ export class Hud {
         <button type="button" class="pk-chip" data-action="exit">Exit</button>
         <button type="button" class="pk-chip" data-action="restart">Restart</button>
         <span class="pk-track-name"></span>
+        <span class="pk-software" hidden>software mode</span>
       </div>
       <p class="pk-message" hidden></p>
       <p class="pk-flash" hidden></p>
@@ -44,9 +45,16 @@ export class Hud {
       delta: root.querySelector('.pk-delta'),
       speed: root.querySelector('.pk-speed b'),
       touch: root.querySelector('.pk-touch'),
+      software: root.querySelector('.pk-software'),
     };
     this.flashTimer = 0;
     this.shown = { current: '', delta: '', speed: -1, passed: -1, message: '' };
+  }
+
+  // Shown only when the game had to fall back, so nobody wonders why it looks coarser.
+  setSoftwareNotice(on) {
+    this.elements.software.hidden = !on;
+    if (on) this.elements.software.title = 'This browser has no WebGL, so Poly Kart is drawing the same 3D scene in software.';
   }
 
   setTrack(track, best) {

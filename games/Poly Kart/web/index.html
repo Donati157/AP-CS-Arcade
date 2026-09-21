@@ -48,9 +48,13 @@
     </section>
 
     <section id="pk-fatal" class="pk-panel pk-fatal" hidden>
-      <h2>Poly Kart needs WebGL</h2>
-      <p>This browser will not give the page a 3D canvas, so the race cannot be drawn. Try a different browser or turn hardware acceleration back on.</p>
+      <h2 class="pk-fatal-title">Poly Kart failed to start</h2>
+      <p class="pk-fatal-body"></p>
+      <pre class="pk-fatal-detail"></pre>
+      <button type="button" class="pk-button" data-action="retry">Try again</button>
     </section>
+
+    <pre id="pk-debug" class="pk-debug" hidden></pre>
   </main>
   <script type="module" src="src/main.js"></script>
 </body>

@@ -1,6 +1,7 @@
 // Boot and screen flow: track list -> race -> result -> race again or back to the list.
 
 import { Game } from './game.js';
+import { RendererError } from './renderer.js';
 import { Hud } from './hud.js';
 import { createInput } from './input.js';
 import { TRACKS, trackById } from './tracks.js';
@@ -70,18 +71,67 @@ function startTrack(id) {
       game = null;
       if (hud) { hud.dispose(); hud = null; }
       if (input) { input.dispose(); input = null; }
-      show(fatal, true);
-      show(menu, false);
-      console.error('Poly Kart could not start:', error);
+      showFailure(error);
       return;
     }
     game.onFinish = showResult;
     hud.enableTouch(matchMedia('(pointer: coarse)').matches);
     wireHud();
+    if (game.software) {
+      console.info('Poly Kart: no WebGL here, so the software renderer is drawing.', game.contextFallbackReason?.detail);
+      hud.setSoftwareNotice(true);
+    }
   }
   game.load(trackById(id));
   game.start();
+  showDiagnostics();
   canvas.focus();
+}
+
+// Says what actually went wrong. Only a genuine missing context earns the "your browser" wording;
+// a shader that would not compile is our bug and is reported as our bug.
+function showFailure(error) {
+  const stage = error instanceof RendererError ? error.stage : 'unknown';
+  const wording = {
+    context: {
+      title: 'Poly Kart cannot get a 3D canvas',
+      body: 'Every way of asking this browser for a WebGL canvas was refused. That usually means 3D is switched off for this browser or blocked by the graphics driver.',
+    },
+    shader: {
+      title: 'Poly Kart failed to start',
+      body: 'The graphics code would not compile on this browser. That is a bug in the game, not a problem with your machine. The details below say exactly what was rejected.',
+    },
+    link: {
+      title: 'Poly Kart failed to start',
+      body: 'The graphics program would not link on this browser. That is a bug in the game, not a problem with your machine.',
+    },
+    unknown: {
+      title: 'Poly Kart failed to start',
+      body: 'Something went wrong while setting the race up. The details below say what.',
+    },
+  }[stage];
+  fatal.querySelector('.pk-fatal-title').textContent = wording.title;
+  fatal.querySelector('.pk-fatal-body').textContent = wording.body;
+  const detail = [
+    `stage: ${stage}`,
+    `message: ${error.message}`,
+    error.detail ? `detail: ${Array.isArray(error.detail) ? error.detail.join(' | ') : error.detail}` : null,
+    `browser: ${navigator.userAgent}`,
+  ].filter(Boolean).join('\n');
+  fatal.querySelector('.pk-fatal-detail').textContent = detail;
+  show(fatal, true);
+  show(menu, false);
+  console.error('Poly Kart could not start.', { stage, message: error.message, detail: error.detail });
+}
+
+// A development read-out, off unless the address ends in ?debug=1.
+function showDiagnostics() {
+  if (!game || !new URLSearchParams(location.search).has('debug')) return;
+  const box = document.getElementById('pk-debug');
+  const lines = Object.entries(game.renderer.diagnostics())
+    .map(([key, value]) => `${key}: ${Array.isArray(value) ? value.join(', ') : typeof value === 'object' ? JSON.stringify(value) : value}`);
+  box.textContent = [`browser: ${navigator.userAgent}`, ...lines].join('\n');
+  box.hidden = false;
 }
 
 function showResult(outcome) {
@@ -134,6 +184,13 @@ menu.addEventListener('click', (event) => {
   if (id) startTrack(id);
 });
 
+fatal.addEventListener('click', (event) => {
+  if (event.target.closest('[data-action]')?.dataset.action === 'retry') {
+    show(fatal, false);
+    startTrack(currentTrackId);
+  }
+});
+
 result.addEventListener('click', (event) => {
   const action = event.target.closest('[data-action]')?.dataset.action;
   if (action === 'again') startTrack(currentTrackId);
@@ -150,4 +207,17 @@ window.polyKart = {
   get game() { return game; },
   get input() { return input; },
   tracks: TRACKS,
+  // Reports how far start-up got, which is what the cross-browser smoke test checks.
+  status() {
+    return {
+      menuShown: !menu.hidden,
+      failureShown: !fatal.hidden,
+      rendererReady: !!game,
+      contextId: game ? game.renderer.contextId : null,
+      contextLost: game ? game.renderer.lost : null,
+      framesDrawn: game ? game.framesDrawn : 0,
+      running: game ? game.running : false,
+      diagnostics: game ? game.renderer.diagnostics() : null,
+    };
+  },
 };

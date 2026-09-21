@@ -13,6 +13,12 @@
 
 * { box-sizing: border-box; }
 
+/* The hidden attribute has to win. Every panel below sets `display: flex`, and an author rule beats
+   the browser's own `[hidden] { display: none }`, so without this a "hidden" panel stays on screen
+   and paints over the game. That is exactly what happened: the failure screen covered a running
+   race because it was hidden in the markup but still displayed by its own class. */
+[hidden] { display: none !important; }
+
 html, body {
   margin: 0;
   height: 100%;
@@ -148,9 +154,22 @@ kbd {
 .pk-button:hover { background: rgba(245, 241, 230, 0.16); }
 .pk-button-main:hover { background: #f07440; }
 
-.pk-fatal { text-align: center; max-width: 420px; margin: 0 auto; }
-.pk-fatal h2 { font-family: var(--pk-display); letter-spacing: 0.06em; text-transform: uppercase; }
-.pk-fatal p { font-size: 14px; opacity: 0.8; line-height: 1.5; }
+.pk-fatal { text-align: center; }
+.pk-fatal > * { max-width: 520px; }
+.pk-fatal h2 { font-family: var(--pk-display); letter-spacing: 0.06em; text-transform: uppercase; margin: 0; }
+.pk-fatal p { font-size: 14px; opacity: 0.85; line-height: 1.55; margin: 0; }
+.pk-fatal-detail {
+  margin: 0; padding: 10px 14px; border-radius: 6px; background: rgba(0, 0, 0, 0.45);
+  font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 11px; line-height: 1.5;
+  text-align: left; white-space: pre-wrap; word-break: break-word; opacity: 0.75; max-height: 40vh; overflow: auto;
+}
+
+.pk-debug {
+  position: absolute; top: 52px; left: 12px; margin: 0; z-index: 5; max-width: min(460px, calc(100% - 24px));
+  padding: 8px 12px; border-radius: 6px; background: rgba(8, 12, 18, 0.86); color: var(--pk-paper);
+  font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 10.5px; line-height: 1.45;
+  white-space: pre-wrap; word-break: break-word; pointer-events: none; max-height: 60vh; overflow: hidden;
+}
 
 /* ---- Phones ---------------------------------------------------------------------------------- */
 
@@ -173,4 +192,9 @@ kbd {
 @media (max-height: 460px) {
   .pk-panel { gap: 10px; padding: 12px; }
   .pk-controls { display: none; }
+}
+
+.pk-software {
+  font-family: var(--pk-display); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
+  padding: 3px 8px; border-radius: 4px; background: rgba(232, 98, 44, 0.85); color: var(--pk-paper);
 }

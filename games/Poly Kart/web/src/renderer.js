@@ -130,16 +130,86 @@ export function normalise(v) {
   return [v[0] / length, v[1] / length, v[2] / length];
 }
 
+// ---- Getting a drawing context -------------------------------------------------------------------
+
+// Failures are reported by stage so the game can say what actually went wrong instead of blaming
+// the browser for something that is our fault.
+export class RendererError extends Error {
+  constructor(stage, message, detail = null) {
+    super(message);
+    this.name = 'RendererError';
+    this.stage = stage;          // 'context' | 'shader' | 'link'
+    this.detail = detail;
+  }
+}
+
+// Tried in order, best first, then progressively less demanding. Nothing here asks for a fast GPU:
+// a slow context still runs this game, and refusing one would just lock players out.
+//
+// The shaders are GLSL ES 1.00, which a WebGL 2 context accepts unchanged, so there is no second
+// set of shaders to keep in step and no reason to insist on either version.
+const CONTEXT_ATTEMPTS = [
+  ['webgl2', { antialias: true, alpha: false, depth: true, stencil: false }],
+  ['webgl2', { antialias: false, alpha: false, depth: true, stencil: false }],
+  ['webgl', { antialias: true, alpha: false, depth: true, stencil: false }],
+  ['webgl', { antialias: false, alpha: false, depth: true, stencil: false }],
+  ['webgl', {}],
+  ['experimental-webgl', {}],
+];
+
+export function acquireContext(canvas) {
+  const tried = [];
+  for (const [id, options] of CONTEXT_ATTEMPTS) {
+    let gl = null;
+    try {
+      gl = canvas.getContext(id, options);
+    } catch (error) {
+      tried.push(`${id} ${JSON.stringify(options)} threw ${error.message}`);
+      continue;
+    }
+    if (gl) return { gl, id, options, tried };
+    tried.push(`${id} ${JSON.stringify(options)} returned null`);
+  }
+  throw new RendererError('context', 'No WebGL context of any kind could be created.', tried);
+}
+
 // ---- The renderer ------------------------------------------------------------------------------
 
 export class Renderer {
   constructor(canvas) {
-    const options = { antialias: true, alpha: false, powerPreference: 'high-performance' };
-    const gl = canvas.getContext('webgl', options) || canvas.getContext('experimental-webgl', options);
-    if (!gl) throw new Error('This browser cannot run WebGL, which Poly Kart needs.');
+    const acquired = acquireContext(canvas);
+    const gl = acquired.gl;
     this.canvas = canvas;
     this.gl = gl;
+    this.contextId = acquired.id;
+    this.contextOptions = acquired.options;
+    this.contextAttempts = acquired.tried;
+    this.lost = false;
+    this.onContextLost = null;
+    this.onContextRestored = null;
+    // A lost context is recoverable, but only if the default is prevented; without this the browser
+    // never fires the restore event and the game would stay dead until a reload.
+    canvas.addEventListener('webglcontextlost', (event) => {
+      event.preventDefault();
+      this.lost = true;
+      this.meshes = [];
+      if (this.onContextLost) this.onContextLost();
+    });
+    canvas.addEventListener('webglcontextrestored', () => {
+      this.lost = false;
+      this.program = buildProgram(this.gl, VERTEX_SHADER, FRAGMENT_SHADER);
+      this.cacheLocations();
+      this.setDefaults();
+      if (this.onContextRestored) this.onContextRestored();
+    });
     this.program = buildProgram(gl, VERTEX_SHADER, FRAGMENT_SHADER);
+    this.meshes = [];
+    this.cacheLocations();
+    this.setDefaults();
+  }
+
+  cacheLocations() {
+    const gl = this.gl;
     this.attributes = {
       position: gl.getAttribLocation(this.program, 'aPosition'),
       normal: gl.getAttribLocation(this.program, 'aNormal'),
@@ -156,10 +226,47 @@ export class Renderer {
       tint: gl.getUniformLocation(this.program, 'uTint'),
       tintColour: gl.getUniformLocation(this.program, 'uTintColor'),
     };
-    this.meshes = [];
+  }
+
+  setDefaults() {
+    const gl = this.gl;
     gl.enable(gl.DEPTH_TEST);
     gl.enable(gl.CULL_FACE);
     gl.cullFace(gl.BACK);
+  }
+
+  // Everything a bug report needs, and what the debug overlay shows.
+  diagnostics() {
+    const gl = this.gl;
+    const info = gl.getExtension('WEBGL_debug_renderer_info');
+    const safe = (fn, fallback = 'unavailable') => { try { return fn(); } catch { return fallback; } };
+    return {
+      context: this.contextId,
+      attributes: this.contextOptions,
+      attempts: this.contextAttempts,
+      version: safe(() => gl.getParameter(gl.VERSION)),
+      glsl: safe(() => gl.getParameter(gl.SHADING_LANGUAGE_VERSION)),
+      vendor: safe(() => (info ? gl.getParameter(info.UNMASKED_VENDOR_WEBGL) : gl.getParameter(gl.VENDOR))),
+      renderer: safe(() => (info ? gl.getParameter(info.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER))),
+      maxTextureSize: safe(() => gl.getParameter(gl.MAX_TEXTURE_SIZE)),
+      antialiasing: safe(() => gl.getContextAttributes().antialias),
+      contextLost: this.lost || safe(() => gl.isContextLost(), false),
+      programLinked: safe(() => gl.getProgramParameter(this.program, gl.LINK_STATUS), false),
+      drawingBuffer: [gl.drawingBufferWidth, gl.drawingBufferHeight],
+      softwareRendering: this.looksSoftware(),
+    };
+  }
+
+  // Software rasterisers run this game, just not at full resolution, so the pixel ratio is capped
+  // for them rather than refusing to draw.
+  looksSoftware() {
+    const gl = this.gl;
+    const info = gl.getExtension('WEBGL_debug_renderer_info');
+    let name = '';
+    try {
+      name = String(info ? gl.getParameter(info.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER));
+    } catch { return false; }
+    return /swiftshader|software|llvmpipe|basic render|microsoft basic/i.test(name);
   }
 
   // Uploads a mesh built by mesh.js and returns a handle to draw with.
@@ -194,7 +301,8 @@ export class Renderer {
 
   // Matches the drawing buffer to the element size. Returns true when the size changed.
   resize(pixelRatioCap = 2) {
-    const ratio = Math.min(window.devicePixelRatio || 1, pixelRatioCap);
+    const cap = this.looksSoftware() ? 1 : pixelRatioCap;
+    const ratio = Math.min(window.devicePixelRatio || 1, cap);
     const width = Math.max(1, Math.round(this.canvas.clientWidth * ratio));
     const height = Math.max(1, Math.round(this.canvas.clientHeight * ratio));
     if (this.canvas.width === width && this.canvas.height === height) return false;
@@ -207,7 +315,8 @@ export class Renderer {
     return this.canvas.width / Math.max(1, this.canvas.height);
   }
 
-  beginFrame(viewProjection, sky) {
+  beginFrame(viewProjection, sky, _cameraPosition) {
+    if (this.lost) return;
     const gl = this.gl;
     gl.viewport(0, 0, this.canvas.width, this.canvas.height);
     gl.clearColor(sky[0], sky[1], sky[2], 1);
@@ -221,6 +330,7 @@ export class Renderer {
   }
 
   draw(mesh, model, tint = 0, tintColour = [1, 1, 1]) {
+    if (this.lost || !mesh) return;
     const gl = this.gl;
     gl.uniformMatrix4fv(this.uniforms.model, false, model);
     gl.uniformMatrix3fv(this.uniforms.normalMatrix, false, normalMatrixFrom(model));
@@ -246,7 +356,7 @@ function buildProgram(gl, vertexSource, fragmentSource) {
   gl.attachShader(program, compile(gl, gl.FRAGMENT_SHADER, fragmentSource));
   gl.linkProgram(program);
   if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-    throw new Error(`Could not link the shader program: ${gl.getProgramInfoLog(program)}`);
+    throw new RendererError('link', 'The shader program would not link.', gl.getProgramInfoLog(program));
   }
   return program;
 }
@@ -256,7 +366,8 @@ function compile(gl, type, source) {
   gl.shaderSource(shader, source);
   gl.compileShader(shader);
   if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-    throw new Error(`Could not compile a shader: ${gl.getShaderInfoLog(shader)}`);
+    const kind = type === gl.VERTEX_SHADER ? 'vertex' : 'fragment';
+    throw new RendererError('shader', `The ${kind} shader would not compile.`, gl.getShaderInfoLog(shader));
   }
   return shader;
 }
