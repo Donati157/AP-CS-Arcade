@@ -28,6 +28,7 @@ const result = await f.evaluate(() => {
     const g = pk.game;
     g.stop();
     g.pausedByVisibility = false;
+    g.armed = true;                          // skip the lights; this test is about leaks, not laps
     pk.input.setTouch('throttle', true);
     for (let i = 0; i < 40; i++) g.update(1 / 60);
     g.respawn(i => i, 'checkpoint');

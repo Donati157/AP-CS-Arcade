@@ -30,11 +30,11 @@ export function snapCamera(camera, car) {
   camera.target = lookTarget(car, car.heading);
 }
 
-function desiredPosition(car, heading, speed) {
-  const pull = DISTANCE + Math.min(4, Math.abs(speed) * SPEED_PULL);
+function desiredPosition(car, heading, speed, frame = { distance: DISTANCE, height: HEIGHT }) {
+  const pull = frame.distance + Math.min(4, Math.abs(speed) * SPEED_PULL);
   return [
     car.position[0] - Math.sin(heading) * pull,
-    car.position[1] + HEIGHT,
+    car.position[1] + frame.height,
     car.position[2] - Math.cos(heading) * pull,
   ];
 }
@@ -47,14 +47,22 @@ function lookTarget(car, heading) {
   ];
 }
 
-export function updateCamera(camera, car, dt) {
+// On a tall screen the camera also comes in closer, so the kart is not a speck at the bottom.
+export function frameFor(aspect) {
+  if (aspect >= 1.4) return { distance: DISTANCE, height: HEIGHT };
+  if (aspect >= 1.0) return { distance: DISTANCE * 0.94, height: HEIGHT * 0.97 };
+  return { distance: DISTANCE * 0.82, height: HEIGHT * 0.92 };
+}
+
+export function updateCamera(camera, car, dt, aspect = 1.77) {
   // Follow the heading through the short way round, so crossing north never spins the camera.
   let difference = car.heading - camera.heading;
   while (difference > Math.PI) difference -= Math.PI * 2;
   while (difference < -Math.PI) difference += Math.PI * 2;
   camera.heading += difference * Math.min(1, HEADING_EASE * dt);
 
-  const wanted = desiredPosition(car, camera.heading, car.speed);
+  const frame = frameFor(aspect);
+  const wanted = desiredPosition(car, camera.heading, car.speed, frame);
   const ease = Math.min(1, POSITION_EASE * dt);
   camera.position[0] += (wanted[0] - camera.position[0]) * ease;
   camera.position[1] += (wanted[1] - camera.position[1]) * ease;

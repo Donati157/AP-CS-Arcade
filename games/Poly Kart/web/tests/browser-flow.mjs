@@ -30,13 +30,17 @@ await gameFrame.evaluate(() => window.polyKart.start('harbour-loop'));
 await page.waitForTimeout(1200);
 const started = await gameFrame.evaluate(() => ({
   running: window.polyKart.game.running,
-  track: document.querySelector('.pk-track-name').textContent,
-  total: document.querySelector('.pk-checkpoints i').textContent,
+  track: document.querySelector('.pk-progress-track').textContent,
+  total: document.querySelector('.pk-progress-count i').textContent,
   menuHidden: document.getElementById('pk-menu').hidden,
 }));
 console.log(`4. race started: ${JSON.stringify(started)}`);
+const lights = await gameFrame.evaluate(() => document.querySelector('.pk-countdown').textContent);
+console.log(`4b. countdown showing: ${lights}`);
 
 // Drive: hold the throttle for a few seconds and see the car actually move.
+// The lights now run before the throttle does anything, so wait them out first.
+await page.waitForTimeout(3200);
 await gameFrame.evaluate(() => window.polyKart.input.setTouch('throttle', true));
 await page.waitForTimeout(3000);
 const moving = await gameFrame.evaluate(() => {
@@ -45,8 +49,8 @@ const moving = await gameFrame.evaluate(() => {
 });
 console.log(`5. after 3s of throttle: ${JSON.stringify(moving)}`);
 
-const hudSpeed = await gameFrame.evaluate(() => document.querySelector('.pk-speed b').textContent);
-const hudTime = await gameFrame.evaluate(() => document.querySelector('.pk-current').textContent);
+const hudSpeed = await gameFrame.evaluate(() => document.querySelector('.pk-speedo-value').textContent);
+const hudTime = await gameFrame.evaluate(() => document.querySelector('.pk-clock-time').textContent);
 console.log(`6. HUD reads ${hudSpeed} km/h, clock ${hudTime}`);
 
 // Only one animation frame and one set of listeners, even after several restarts.
@@ -65,6 +69,7 @@ const finished = await gameFrame.evaluate(async () => {
   void queryTrack;
   const track = g.track;
   g.run.started = true;
+  g.run.elapsed = 42.5;            // the lights mean the clock is otherwise still at zero here
   let result = null;
   g.onFinish = (outcome) => { result = outcome; };
   // Teleport in small legal increments along the road, exactly as if driven.

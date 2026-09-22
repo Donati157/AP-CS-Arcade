@@ -22,11 +22,24 @@ const HARBOUR = {
   wallB: colourFromHex('#3f7fb8'),
   water: colourFromHex('#3f86c4'),
   startPost: colourFromHex('#f5f1e6'),
-  startBar: colourFromHex('#e8622c'),
+  startBar: colourFromHex('#e9e4d6'),
   checkpointPost: colourFromHex('#f5f1e6'),
   checkpointBar: colourFromHex('#33b07a'),
   finishPost: colourFromHex('#f5f1e6'),
-  finishBar: colourFromHex('#f2c53d'),
+  finishBar: colourFromHex('#e9e4d6'),
+  railPost: colourFromHex('#9aa6b4'),
+  railA: colourFromHex('#eef2f6'),
+  railB: colourFromHex('#e8622c'),
+  signFace: colourFromHex('#1d2a38'),
+  signMark: colourFromHex('#f2c53d'),
+  trunk: colourFromHex('#6b4a32'),
+  leaf: colourFromHex('#2f7d4f'),
+  leaf2: colourFromHex('#3f9a5e'),
+  rock: colourFromHex('#8e9aa6'),
+  beach: colourFromHex('#e6d6a8'),
+  window: colourFromHex('#7fb4e0'),
+  chequerA: colourFromHex('#f5f1e6'),
+  chequerB: colourFromHex('#1b222c'),
 };
 
 const DUNE = {
@@ -40,6 +53,19 @@ const DUNE = {
   water: colourFromHex('#d9a765'),
   kerbA: colourFromHex('#2f6f8f'),
   kerbB: colourFromHex('#f3e5cd'),
+  railPost: colourFromHex('#a8916c'),
+  railA: colourFromHex('#f3e5cd'),
+  railB: colourFromHex('#2f6f8f'),
+  signFace: colourFromHex('#3a2c1d'),
+  signMark: colourFromHex('#f0c48a'),
+  trunk: colourFromHex('#7a5a3a'),
+  leaf: colourFromHex('#6d8a45'),
+  leaf2: colourFromHex('#87a055'),
+  rock: colourFromHex('#b09070'),
+  beach: colourFromHex('#e8d3ac'),
+  window: colourFromHex('#d8a86a'),
+  chequerA: colourFromHex('#f6ecd8'),
+  chequerB: colourFromHex('#3a2c1d'),
 };
 
 // ---- Track one: Harbour Loop. Wide, forgiving, teaches the controls. -----------------------------
@@ -60,12 +86,13 @@ const HARBOUR_LOOP = {
     { x: 66, y: 2, z: 262, width: 15, bank: 16 },
     { x: 116, y: 2, z: 258, width: 15, bank: 14 },
     { x: 150, y: 1, z: 228, width: 16, bank: 6 },
-    // Climb to a crest. Carrying speed here launches the car.
-    { x: 168, y: 6, z: 176, width: 16 },
-    { x: 172, y: 13, z: 120, width: 15 },
-    { x: 168, y: 13, z: 66, width: 15 },
+    // A climb to a crest you can take flat out. It was steep enough to throw the kart clean off
+    // the far side, so the rise is gentler now and the landing is straight.
+    { x: 168, y: 5, z: 176, width: 16 },
+    { x: 172, y: 8, z: 120, width: 15 },
+    { x: 168, y: 7, z: 66, width: 15 },
     // Drop and a narrow walled section.
-    { x: 148, y: 4, z: 14, width: 12, wall: true },
+    { x: 148, y: 3, z: 14, width: 12, wall: true },
     { x: 108, y: 1, z: -18, width: 11, wall: true },
     { x: 62, y: 0, z: -24, width: 11, wall: true },
     // Left hairpin onto a return leg. It runs well clear of the opening straight: two ribbons of
@@ -78,15 +105,30 @@ const HARBOUR_LOOP = {
     { x: -52, y: 0, z: 205, width: 18 },
   ],
   scenery: [
-    { kind: 'tower', x: -70, z: 60, size: 12, height: 64, colour: colourFromHex('#dbe4ec') },
-    { kind: 'tower', x: -92, z: 130, size: 9, height: 42, colour: colourFromHex('#c3d2e0') },
-    { kind: 'slab', x: 90, z: 340, width: 60, depth: 16, height: 28, colour: colourFromHex('#cfdae6') },
-    { kind: 'tower', x: 220, z: 150, size: 14, height: 52, colour: colourFromHex('#d4dfea') },
-    { kind: 'tower', x: 210, z: 40, size: 10, height: 36, colour: colourFromHex('#bccbdc') },
-    { kind: 'peak', x: -160, z: 300, size: 46, height: 70, colour: colourFromHex('#b9cad9'), capColour: colourFromHex('#f4f8fb') },
-    { kind: 'peak', x: 300, z: 330, size: 54, height: 92, colour: colourFromHex('#aec0d2'), capColour: colourFromHex('#f4f8fb') },
-    { kind: 'peak', x: 340, z: -120, size: 40, height: 58, colour: colourFromHex('#b9cad9'), capColour: colourFromHex('#f4f8fb') },
-    { kind: 'slab', x: -120, z: -80, width: 40, depth: 12, height: 20, colour: colourFromHex('#cfdae6') },
+    // Two headlands the circuit threads between, each with a beach, a wood and a scatter of rock.
+    { kind: 'island', x: -150, z: 120, size: 78, height: 9, y: -18, colour: colourFromHex('#4e8f5a') },
+    { kind: 'grove', x: -150, z: 120, spread: 52, count: 16, scale: 1.25, y: -9 },
+    { kind: 'rocks', x: -196, z: 64, spread: 18, count: 6, scale: 2.4, y: -9 },
+    { kind: 'island', x: 268, z: 120, size: 86, height: 11, y: -18, colour: colourFromHex('#4e8f5a') },
+    { kind: 'grove', x: 268, z: 120, spread: 58, count: 18, scale: 1.3, y: -7 },
+    { kind: 'island', x: 60, z: 400, size: 120, height: 8, y: -18, colour: colourFromHex('#55975f') },
+    { kind: 'grove', x: 20, z: 396, spread: 70, count: 20, scale: 1.35, y: -10 },
+
+    // The harbour town on the far shore, which is what gives the horizon a shape to read against.
+    { kind: 'building', x: 30, z: 372, y: -10, width: 11, depth: 11, height: 34, colour: colourFromHex('#e3e9ef'), roofColour: colourFromHex('#bf5a3c') },
+    { kind: 'building', x: 62, z: 384, y: -10, width: 9, depth: 9, height: 46, colour: colourFromHex('#d3dde8'), roofColour: colourFromHex('#3f7fb8') },
+    { kind: 'building', x: 92, z: 366, y: -10, width: 13, depth: 10, height: 26, colour: colourFromHex('#eef2f6'), roofColour: colourFromHex('#bf5a3c') },
+    { kind: 'building', x: 120, z: 388, y: -10, width: 8, depth: 8, height: 38, colour: colourFromHex('#dbe4ec'), roofColour: colourFromHex('#3f7fb8') },
+    { kind: 'building', x: 248, z: 80, y: -7, width: 10, depth: 10, height: 30, colour: colourFromHex('#e3e9ef'), roofColour: colourFromHex('#bf5a3c') },
+    { kind: 'building', x: 276, z: 46, y: -7, width: 12, depth: 9, height: 22, colour: colourFromHex('#d3dde8'), roofColour: colourFromHex('#3f7fb8') },
+    { kind: 'building', x: -176, z: 176, y: -9, width: 9, depth: 12, height: 28, colour: colourFromHex('#eef2f6'), roofColour: colourFromHex('#bf5a3c') },
+
+    // Distant hills, ringing the horizon so the world closes instead of running out.
+    { kind: 'hill', x: -330, z: 330, size: 92, height: 74, y: -18, colour: colourFromHex('#7fa8b8'), capColour: colourFromHex('#f4f8fb') },
+    { kind: 'hill', x: 420, z: 300, size: 110, height: 96, y: -18, colour: colourFromHex('#6f9aac'), capColour: colourFromHex('#f4f8fb') },
+    { kind: 'hill', x: 470, z: -160, size: 84, height: 62, y: -18, colour: colourFromHex('#7fa8b8'), capColour: colourFromHex('#f4f8fb') },
+    { kind: 'hill', x: -300, z: -230, size: 96, height: 70, y: -18, colour: colourFromHex('#74a0b2'), capColour: colourFromHex('#f4f8fb') },
+    { kind: 'hill', x: 90, z: 560, size: 140, height: 110, y: -18, colour: colourFromHex('#6b95a8'), capColour: colourFromHex('#f4f8fb') },
   ],
 };
 
@@ -122,12 +164,22 @@ const DUNE_RUN = {
     { x: 40, y: 0, z: 228, width: 16 },
   ],
   scenery: [
-    { kind: 'peak', x: -260, z: 60, size: 50, height: 74, colour: colourFromHex('#c9a06a'), capColour: colourFromHex('#e8d3ac') },
-    { kind: 'peak', x: 180, z: 220, size: 44, height: 62, colour: colourFromHex('#c9a06a'), capColour: colourFromHex('#e8d3ac') },
-    { kind: 'peak', x: 160, z: -200, size: 58, height: 86, colour: colourFromHex('#bb9159'), capColour: colourFromHex('#e8d3ac') },
-    { kind: 'tower', x: -200, z: -140, size: 10, height: 44, colour: colourFromHex('#e3cda6') },
-    { kind: 'slab', x: 130, z: 120, width: 34, depth: 12, height: 22, colour: colourFromHex('#dcc49c') },
-    { kind: 'tower', x: 40, z: 230, size: 12, height: 38, colour: colourFromHex('#e3cda6') },
+    { kind: 'island', x: -250, z: 90, size: 82, height: 10, y: -22, colour: colourFromHex('#c9a06a'), beachColour: colourFromHex('#e8d3ac') },
+    { kind: 'rocks', x: -250, z: 90, spread: 48, count: 9, scale: 3.4, y: -12 },
+    { kind: 'grove', x: -232, z: 140, spread: 26, count: 7, scale: 1.05, y: -12 },
+    { kind: 'island', x: 170, z: -170, size: 96, height: 12, y: -22, colour: colourFromHex('#c9a06a'), beachColour: colourFromHex('#e8d3ac') },
+    { kind: 'rocks', x: 170, z: -170, spread: 56, count: 11, scale: 3.8, y: -10 },
+    { kind: 'island', x: 150, z: 230, size: 74, height: 9, y: -22, colour: colourFromHex('#bb9159'), beachColour: colourFromHex('#e8d3ac') },
+    { kind: 'grove', x: 150, z: 230, spread: 44, count: 10, scale: 1.1, y: -13 },
+
+    { kind: 'building', x: -214, z: -128, y: -12, width: 8, depth: 8, height: 26, colour: colourFromHex('#e3cda6'), roofColour: colourFromHex('#a8703c') },
+    { kind: 'building', x: -190, z: -150, y: -12, width: 11, depth: 9, height: 17, colour: colourFromHex('#efdcba'), roofColour: colourFromHex('#a8703c') },
+    { kind: 'building', x: 128, z: 122, y: -13, width: 12, depth: 10, height: 21, colour: colourFromHex('#e3cda6'), roofColour: colourFromHex('#8f5f34') },
+
+    { kind: 'hill', x: -360, z: -40, size: 104, height: 84, y: -22, colour: colourFromHex('#c08a4a'), capColour: colourFromHex('#e8d3ac') },
+    { kind: 'hill', x: 300, z: 300, size: 96, height: 72, y: -22, colour: colourFromHex('#b8863f'), capColour: colourFromHex('#e8d3ac') },
+    { kind: 'hill', x: 330, z: -300, size: 126, height: 104, y: -22, colour: colourFromHex('#ab7f45'), capColour: colourFromHex('#e8d3ac') },
+    { kind: 'hill', x: -120, z: 340, size: 110, height: 78, y: -22, colour: colourFromHex('#c08a4a'), capColour: colourFromHex('#e8d3ac') },
   ],
 };
 

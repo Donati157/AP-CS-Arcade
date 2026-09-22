@@ -45,7 +45,7 @@ for (const name of wanted) {
 
     // What a player does: click the first track.
     await frame.evaluate(() => { const b = document.querySelector('.pk-track'); if (b) b.click(); });
-    await page.waitForTimeout(1600);
+    await page.waitForTimeout(3400);          // the countdown has to finish first
     // Hold the throttle briefly so "gameplay started" means the car actually moved.
     await frame.evaluate(() => { if (window.polyKart.input) window.polyKart.input.setTouch('throttle', true); });
     await page.waitForTimeout(1500);

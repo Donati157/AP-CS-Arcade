@@ -26,6 +26,7 @@ export const CAR = {
   grip: 7.2,                // how hard the car resists sliding sideways
   slideGrip: 3.4,           // grip while braking hard, which lets the back step out
   gravity: 26,
+  maxLaunch: 6.2,           // metres per second upward, the most a crest can give you
   airSteer: 0.55,           // fraction of normal steering available with no wheels down
   offRoadDrag: 3.2,         // the verge is slow, but it is not a wall
   wallBounce: 0.32,
@@ -48,6 +49,7 @@ export function createCar(pose) {
     grounded: true,
     onRoad: true,
     wheelSpin: 0,
+    lastCentre: undefined,
     trackIndex: 0,
     distanceAlong: 0,
     fell: false,
@@ -69,9 +71,15 @@ export function resetCar(car, pose) {
   car.grounded = true;
   car.onRoad = true;
   car.wheelSpin = 0;
+  car.lastCentre = undefined;
   car.fell = false;
   car.hitWall = false;
-  // trackIndex is left alone on purpose: it is the search hint, and the new pose is near it.
+  // The search for "which bit of road is under the car" only looks a little way either side of the
+  // last answer. Respawning at the start after falling near the finish puts the car outside that
+  // window, and the lookup can then never find the road again: the car reads as permanently off
+  // track and falls for ever. The pose carries its own index so the hint moves with it.
+  if (pose.index !== undefined) car.trackIndex = pose.index;
+  car.distanceAlong = 0;
 }
 
 // Advances the world by one fixed slice.
@@ -133,15 +141,27 @@ export function step(car, track, input, dt = STEP) {
   const after = queryTrack(track, car.position, car.trackIndex);
   car.trackIndex = after.index;
   const surface = after.surfaceY + rideHeight;
+  // How fast the road surface itself is rising or falling under the car, measured on the centre
+  // line. Using the banked surface here would be wrong: leaning into a corner changes the height
+  // under the wheels without the road going anywhere, and the car would launch off every bank.
+  const centreNow = after.sample.position[1] + rideHeight;
+  const centreRate = car.lastCentre === undefined ? 0 : (centreNow - car.lastCentre) / Math.max(dt, 1e-4);
+  car.lastCentre = centreNow;
+
   if (car.grounded && after.onRoad) {
-    // Follow the road, but let a crest throw the car into the air instead of gluing it down.
-    const drop = car.position[1] - surface;
-    if (drop > 0.6 && car.speed > 14) {
-      car.verticalSpeed = Math.max(car.verticalSpeed, (drop / Math.max(dt, 1e-4)) * 0.06);
+    // Carry the road's own vertical motion. On a ramp that means the car is already travelling
+    // upwards when the ramp ends, so it flies; over a crest the road drops away faster than
+    // gravity can pull the car down, so it leaves the ground. Both fall out of the same rule.
+    const freeFall = car.verticalSpeed - CAR.gravity * dt;
+    if (centreRate < freeFall && car.speed > 12) {
       car.grounded = false;
+      // A crest taken flat out would otherwise throw the kart the length of a straight. Capping the
+      // launch keeps jumps to something a player can aim, which is the whole point in an arcade
+      // racer: the same crest at the same speed should land in the same place every time.
+      car.verticalSpeed = Math.min(freeFall, CAR.maxLaunch);
     } else {
       car.position[1] = surface;
-      car.verticalSpeed = 0;
+      car.verticalSpeed = Math.max(-CAR.gravity, Math.min(CAR.gravity, centreRate));
     }
   } else {
     car.verticalSpeed -= CAR.gravity * dt;
@@ -159,8 +179,18 @@ export function step(car, track, input, dt = STEP) {
   if (!wasGrounded && car.grounded) car.spin = 0;
 
   // ---- Barriers. A shallow hit scrubs speed, a square hit pushes the car back onto the road. ----
-  if (after.hasWall) {
-    const limit = after.halfWidth - 0.5;
+  //
+  // Every stretch of road has something at its edge: a wall on the walled sections, a guard rail
+  // everywhere else. Both are solid here, so the edges of the track can be trusted. Going over the
+  // top is still possible, because the barrier only exists while the wheels are down.
+  // The barrier also holds during a small hop, so bouncing over a kerb is not a way through it.
+  const nearGround = car.position[1] - (after.surfaceY + rideHeight) < 1.6;
+  if (car.grounded || nearGround) {
+    // Inside the off-road threshold on purpose. The rail has to stop the kart before the game
+    // decides it has left the road, or the kart loses drive and steering an instant before the
+    // barrier would have saved it, which is exactly how it used to slide off every fast corner.
+    // With the kart about a metre wide, a centre here puts its wheels against the drawn rail.
+    const limit = after.hasWall ? after.halfWidth - 0.5 : after.halfWidth + 0.35;
     if (Math.abs(after.lateral) > limit) {
       const side = Math.sign(after.lateral);
       const overlap = Math.abs(after.lateral) - limit;

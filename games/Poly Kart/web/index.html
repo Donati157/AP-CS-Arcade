@@ -13,27 +13,33 @@
     <div id="pk-hud" class="pk-hud"></div>
 
     <section id="pk-menu" class="pk-panel pk-menu" hidden>
-      <header class="pk-brand">
-        <svg class="pk-mark" viewBox="0 0 64 64" aria-hidden="true">
-          <polygon points="6,44 20,26 44,26 58,44 44,52 20,52" />
-          <polygon class="pk-mark-roof" points="22,26 28,16 40,16 44,26" />
-          <circle class="pk-mark-wheel" cx="21" cy="50" r="7" />
-          <circle class="pk-mark-wheel" cx="45" cy="50" r="7" />
-        </svg>
-        <h1>Poly Kart</h1>
-        <p>Pick a track. Beat your own time.</p>
-      </header>
-      <ul class="pk-track-list"></ul>
-      <footer class="pk-controls">
-        <h2>Controls</h2>
-        <ul>
-          <li><kbd>W</kbd><kbd>&uarr;</kbd> accelerate</li>
-          <li><kbd>S</kbd><kbd>&darr;</kbd> brake and reverse</li>
-          <li><kbd>A</kbd><kbd>D</kbd> steer</li>
-          <li><kbd>R</kbd> last checkpoint</li>
-          <li><kbd>T</kbd> start over</li>
-        </ul>
-      </footer>
+      <div class="pk-menu-inner">
+        <header class="pk-brand">
+          <svg class="pk-mark" viewBox="0 0 64 64" aria-hidden="true">
+            <polygon points="6,44 20,26 44,26 58,44 44,52 20,52" />
+            <polygon class="pk-mark-roof" points="22,26 28,16 40,16 44,26" />
+            <circle class="pk-mark-wheel" cx="21" cy="50" r="7" />
+            <circle class="pk-mark-wheel" cx="45" cy="50" r="7" />
+          </svg>
+          <h1>Poly Kart</h1>
+          <p>Take every checkpoint. Beat your own time.</p>
+          <div class="pk-kart-slot"></div>
+          <footer class="pk-controls">
+            <h2>Controls</h2>
+            <ul>
+              <li><kbd>W</kbd><kbd>&uarr;</kbd> accelerate</li>
+              <li><kbd>S</kbd><kbd>&darr;</kbd> brake and reverse</li>
+              <li><kbd>A</kbd><kbd>D</kbd> steer</li>
+              <li><kbd>R</kbd> last checkpoint</li>
+              <li><kbd>T</kbd> start over</li>
+            </ul>
+          </footer>
+        </header>
+        <div class="pk-menu-tracks">
+          <h2 class="pk-menu-heading">Choose a track</h2>
+          <ul class="pk-track-list"></ul>
+        </div>
+      </div>
     </section>
 
     <section id="pk-result" class="pk-panel pk-result" hidden>

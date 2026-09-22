@@ -31,29 +31,65 @@ function renderMenu() {
           <span class="pk-track-text">
             <strong>${track.name}</strong>
             <small>${track.blurb}</small>
+            <span class="pk-track-meta">${track.checkpoints.length + 1} checkpoints</span>
           </span>
           <span class="pk-track-best">
             <small>Best</small>
-            <b>${best === null ? 'No time yet' : formatTime(best)}</b>
+            <b>${best === null ? '--:--.---' : formatTime(best)}</b>
           </span>
         </button>
       </li>`;
   }).join('');
   menu.querySelector('.pk-track-list').innerHTML = rows;
+  const preview = menu.querySelector('.pk-kart-slot');
+  if (preview && !preview.childElementCount) preview.innerHTML = KART_PREVIEW;
 }
 
-// A small top-down sketch of the track, drawn from the same control points the track is built from.
+// A top-down plan of the track, drawn from the same control points the track is built from, with
+// the start marked. Big enough to tell the two circuits apart at a glance, which the old thumbnail
+// was not.
 function outlineSvg(track) {
   const xs = track.points.map((p) => p.x);
   const zs = track.points.map((p) => p.z);
   const minX = Math.min(...xs), maxX = Math.max(...xs);
   const minZ = Math.min(...zs), maxZ = Math.max(...zs);
   const span = Math.max(maxX - minX, maxZ - minZ) || 1;
-  const points = track.points
-    .map((p) => `${(((p.x - minX) / span) * 52 + 4).toFixed(1)},${(52 - ((p.z - minZ) / span) * 52 + 4).toFixed(1)}`)
-    .join(' ');
-  return `<svg viewBox="0 0 60 60" aria-hidden="true"><polyline points="${points}" /></svg>`;
+  const pad = 9;
+  const size = 100 - pad * 2;
+  const place = (p) => [
+    ((p.x - minX) / span) * size + pad + (size - ((maxX - minX) / span) * size) / 2,
+    (100 - pad) - ((p.z - minZ) / span) * size - (size - ((maxZ - minZ) / span) * size) / 2,
+  ];
+  const points = track.points.map((p) => place(p).map((n) => n.toFixed(1)).join(',')).join(' ');
+  const [sx, sy] = place(track.points[0]);
+  return `<svg viewBox="0 0 100 100" aria-hidden="true">
+    <polyline class="pk-map-road" points="${points}" />
+    <polyline class="pk-map-line" points="${points}" />
+    <circle class="pk-map-start" cx="${sx.toFixed(1)}" cy="${sy.toFixed(1)}" r="5" />
+  </svg>`;
 }
+
+// A side view of the kart, in the kart's own colours, so the menu shows what you are about to drive.
+const KART_PREVIEW = `<svg viewBox="0 0 220 104" class="pk-kart-preview" aria-hidden="true">
+  <ellipse cx="112" cy="92" rx="84" ry="7" fill="rgba(0,0,0,0.3)" />
+  <!-- rear wing on two stalks, the clearest "this end is the back" signal -->
+  <rect x="24" y="30" width="34" height="6" rx="2" fill="#f5f1e6" />
+  <rect x="33" y="34" width="4" height="20" fill="#8d97a5" />
+  <rect x="48" y="34" width="4" height="20" fill="#8d97a5" />
+  <!-- side pod and floor pan -->
+  <path d="M40 70 L44 58 L96 54 L130 52 L176 56 L200 66 L198 74 L46 76 Z" fill="#b8451a" />
+  <!-- main tub with a wedge nose -->
+  <path d="M52 58 L64 46 L104 42 L132 42 L162 50 L196 64 L200 66 L176 56 L96 54 Z" fill="#e8622c" />
+  <path d="M60 54 L70 44 L106 41 L134 41 L166 50 L196 63 L60 60 Z" fill="#e8622c" />
+  <!-- roll hoop and screen -->
+  <path d="M74 44 L78 26 L100 26 L104 42 Z" fill="#8d97a5" />
+  <path d="M104 42 L108 32 L134 34 L140 44 Z" fill="#2e3f52" />
+  <!-- the stripe down the middle -->
+  <rect x="104" y="44" width="86" height="5" rx="2" fill="#f5f1e6" transform="rotate(6 104 44)" />
+  <!-- exposed wheels -->
+  <circle cx="62" cy="74" r="20" fill="#23262c" /><circle cx="62" cy="74" r="8" fill="#d8dde4" />
+  <circle cx="166" cy="74" r="20" fill="#23262c" /><circle cx="166" cy="74" r="8" fill="#d8dde4" />
+</svg>`;
 
 function startTrack(id) {
   currentTrackId = id;

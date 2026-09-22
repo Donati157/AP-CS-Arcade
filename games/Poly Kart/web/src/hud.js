@@ -1,8 +1,9 @@
 // The in-race overlay.
 //
-// The recordings keep the racing view almost completely clear: a thin strip along the bottom with
-// the checkpoint counter, the clock against the record, and the speed, plus a small menu in the top
-// corner. Poly Kart does the same, with its own wording and artwork.
+// An arcade HUD, not a row of web cards. Three anchored clusters and nothing in the middle:
+// the clock top centre where the eye can catch it without leaving the road, the checkpoint
+// progress top left, and the speed bottom right where it belongs on a racer. The centre of the
+// screen stays clear for driving.
 
 import { formatTime, formatDelta } from './run.js';
 import { speedKmh } from './physics.js';
@@ -14,20 +15,32 @@ export class Hud {
       <div class="pk-corner">
         <button type="button" class="pk-chip" data-action="exit">Exit</button>
         <button type="button" class="pk-chip" data-action="restart">Restart</button>
-        <span class="pk-track-name"></span>
+      </div>
+
+      <div class="pk-progress">
+        <span class="pk-progress-label">Checkpoint</span>
+        <span class="pk-progress-count"><b>0</b><i>/0</i></span>
+        <span class="pk-progress-track"></span>
         <span class="pk-software" hidden>software mode</span>
       </div>
-      <p class="pk-message" hidden></p>
-      <p class="pk-flash" hidden></p>
-      <div class="pk-bar">
-        <span class="pk-checkpoints"><b>0</b>/<i>0</i></span>
-        <span class="pk-times">
-          <span><small>Best</small><b class="pk-best">--:--.---</b></span>
-          <span><small>Time</small><b class="pk-current">00:00.000</b></span>
-          <span><small>Gap</small><b class="pk-delta"></b></span>
+
+      <div class="pk-clock">
+        <span class="pk-clock-time">00:00.000</span>
+        <span class="pk-clock-row">
+          <span class="pk-clock-best">Best --:--.---</span>
+          <span class="pk-delta"></span>
         </span>
-        <span class="pk-speed"><b>0</b><small>km/h</small></span>
       </div>
+
+      <div class="pk-speedo">
+        <span class="pk-speedo-value">0</span>
+        <span class="pk-speedo-unit">km/h</span>
+      </div>
+
+      <p class="pk-countdown" hidden></p>
+      <p class="pk-flash" hidden></p>
+      <p class="pk-message" hidden></p>
+
       <div class="pk-touch" hidden>
         <button type="button" class="pk-pad pk-pad-left" data-touch="left" aria-label="Steer left"></button>
         <button type="button" class="pk-pad pk-pad-right" data-touch="right" aria-label="Steer right"></button>
@@ -35,23 +48,23 @@ export class Hud {
         <button type="button" class="pk-pad pk-pad-throttle" data-touch="throttle" aria-label="Accelerate">A</button>
       </div>`;
     this.elements = {
-      trackName: root.querySelector('.pk-track-name'),
+      trackName: root.querySelector('.pk-progress-track'),
       message: root.querySelector('.pk-message'),
       flash: root.querySelector('.pk-flash'),
-      passed: root.querySelector('.pk-checkpoints b'),
-      total: root.querySelector('.pk-checkpoints i'),
-      best: root.querySelector('.pk-best'),
-      current: root.querySelector('.pk-current'),
+      countdown: root.querySelector('.pk-countdown'),
+      passed: root.querySelector('.pk-progress-count b'),
+      total: root.querySelector('.pk-progress-count i'),
+      best: root.querySelector('.pk-clock-best'),
+      current: root.querySelector('.pk-clock-time'),
       delta: root.querySelector('.pk-delta'),
-      speed: root.querySelector('.pk-speed b'),
+      speed: root.querySelector('.pk-speedo-value'),
       touch: root.querySelector('.pk-touch'),
       software: root.querySelector('.pk-software'),
     };
     this.flashTimer = 0;
-    this.shown = { current: '', delta: '', speed: -1, passed: -1, message: '' };
+    this.shown = { current: '', delta: '', speed: -1, passed: -1, message: '', countdown: '' };
   }
 
-  // Shown only when the game had to fall back, so nobody wonders why it looks coarser.
   setSoftwareNotice(on) {
     this.elements.software.hidden = !on;
     if (on) this.elements.software.title = 'This browser has no WebGL, so Poly Kart is drawing the same 3D scene in software.';
@@ -59,13 +72,26 @@ export class Hud {
 
   setTrack(track, best) {
     this.elements.trackName.textContent = track.name;
-    this.elements.total.textContent = String(track.checkpointCount);
-    this.elements.best.textContent = best === null ? '--:--.---' : formatTime(best);
+    this.elements.total.textContent = `/${track.checkpointCount}`;
+    this.elements.best.textContent = `Best ${best === null ? '--:--.---' : formatTime(best)}`;
   }
 
-  // Touch controls only appear on a device that actually has a touch screen.
   enableTouch(enabled) {
     this.elements.touch.hidden = !enabled;
+  }
+
+  // "3", "2", "1", then "GO". Passing null clears it.
+  setCountdown(text) {
+    if (text === this.shown.countdown) return;
+    this.shown.countdown = text;
+    this.elements.countdown.hidden = text === null;
+    if (text === null) return;
+    this.elements.countdown.textContent = text;
+    this.elements.countdown.className = `pk-countdown ${text === 'GO' ? 'is-go' : ''}`;
+    // Restarting the animation needs the element to be reflowed between runs.
+    this.elements.countdown.style.animation = 'none';
+    void this.elements.countdown.offsetWidth;
+    this.elements.countdown.style.animation = '';
   }
 
   setMessage(lines) {
@@ -76,8 +102,9 @@ export class Hud {
     this.elements.message.textContent = text;
   }
 
-  flash(text) {
+  flash(text, tone = '') {
     this.elements.flash.textContent = text;
+    this.elements.flash.className = `pk-flash ${tone}`;
     this.elements.flash.hidden = false;
     clearTimeout(this.flashTimer);
     this.flashTimer = setTimeout(() => { this.elements.flash.hidden = true; }, 1400);

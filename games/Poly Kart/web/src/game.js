@@ -14,8 +14,18 @@ import { createCamera, updateCamera, snapCamera } from './camera.js';
 import { createRun, tickRun, checkGates, applyReset, RESET_MODES } from './run.js';
 import { bestTime, recordTime } from './storage.js';
 
-const FIELD_OF_VIEW = 70 * Math.PI / 180;   // wide, like the recordings
+// A fixed vertical field is wrong on a phone: a tall viewport then shows the same width of road
+// with a huge band of sky above it. The angle narrows as the screen gets taller so the kart stays
+// large and the horizon sits where a racing game puts it.
+function fieldOfView(aspect, speedFraction) {
+  const base = aspect >= 1.5 ? 70 : aspect >= 1.15 ? 66 : aspect >= 0.85 ? 60 : 54;
+  // A few degrees of extra width at speed, which is the oldest trick there is for making fast feel
+  // fast without touching the physics.
+  return (base + 7 * speedFraction) * Math.PI / 180;
+}
 const STUCK_SECONDS = 1.6;                  // how long stationary before the reset hint appears
+const COUNTDOWN_STEPS = ['3', '2', '1', 'GO'];
+const COUNTDOWN_STEP_SECONDS = 0.7;         // per number, so the whole thing takes under three seconds
 
 export class Game {
   constructor(canvas, hud, input) {
@@ -85,12 +95,20 @@ export class Game {
     this.uploadMeshes(definition);
     this.car = createCar(this.track.start);
     this.run = createRun(this.track);
+    // The lights. Until they go out the throttle does nothing, so nobody rolls away early and no
+    // run begins by accident.
+    this.countdown = 0;
+    this.countdownStep = -1;
+    this.armed = false;
+    this.wasOnRoad = true;
+    this.wasHittingWall = false;
     this.camera = createCamera(this.car);
     snapCamera(this.camera, this.car);
     this.best = bestTime(this.track.id);
     this.stuckFor = 0;
     this.hud.setTrack(this.track, this.best);
     this.hud.setMessage(null);
+    this.hud.setCountdown(COUNTDOWN_STEPS[0]);
     this.hud.update(this.run, this.car, this.best);
     return this.track;
   }
@@ -144,7 +162,34 @@ export class Game {
     snapCamera(this.camera, this.car);
     this.stuckFor = 0;
     this.hud.setMessage(null);
-    this.hud.flash(mode === RESET_MODES.START ? 'Back to the start line' : 'Back to the last checkpoint');
+    if (mode === RESET_MODES.START) {
+      // Starting over means the lights again, so a restart always begins the same way.
+      this.countdown = 0;
+      this.countdownStep = -1;
+      this.armed = false;
+      this.hud.setCountdown(COUNTDOWN_STEPS[0]);
+      this.hud.flash('Back to the start line');
+    } else {
+      this.hud.flash('Back to the last checkpoint');
+    }
+  }
+
+  // Runs the lights. Returns the input the car is allowed to act on this frame.
+  tickCountdown(elapsed) {
+    if (this.armed) return this.input.state;
+    this.countdown += elapsed;
+    const step = Math.min(COUNTDOWN_STEPS.length - 1, Math.floor(this.countdown / COUNTDOWN_STEP_SECONDS));
+    if (step !== this.countdownStep) {
+      this.countdownStep = step;
+      this.hud.setCountdown(COUNTDOWN_STEPS[step]);
+    }
+    if (this.countdown >= COUNTDOWN_STEPS.length * COUNTDOWN_STEP_SECONDS) {
+      this.armed = true;
+      this.hud.setCountdown(null);
+      return this.input.state;
+    }
+    // Steering is allowed while waiting, which feels better than a frozen kart, but nothing moves.
+    return { throttle: 0, brake: 0, steer: this.input.state.steer };
   }
 
   update(elapsed) {
@@ -153,9 +198,11 @@ export class Game {
     if (request === 'start') this.respawn(RESET_MODES.START);
     else if (request === 'checkpoint' && !this.run.finished) this.respawn(RESET_MODES.CHECKPOINT);
 
+    const allowed = this.tickCountdown(elapsed);
+
     advance(this.clock, elapsed, (dt) => {
       if (!this.run.finished) {
-        step(this.car, this.track, this.input.state, dt);
+        step(this.car, this.track, allowed, dt);
         tickRun(this.run, dt, this.car);
         const event = checkGates(this.run, this.track, this.car);
         if (event) this.handleGate(event);
@@ -166,7 +213,15 @@ export class Game {
       if (this.car.fell) this.respawn(RESET_MODES.CHECKPOINT);
     });
 
-    updateCamera(this.camera, this.car, Math.min(elapsed, 0.1));
+    updateCamera(this.camera, this.car, Math.min(elapsed, 0.1), this.renderer.aspect);
+
+    // Leaving the road used to be silent. Now it says so, once, the moment it happens.
+    if (this.car.onRoad !== this.wasOnRoad) {
+      this.wasOnRoad = this.car.onRoad;
+      if (!this.car.onRoad && this.run.started && !this.run.finished) this.hud.flash('Off track');
+    }
+    if (this.car.hitWall && !this.wasHittingWall) this.hud.flash('Barrier');
+    this.wasHittingWall = this.car.hitWall;
 
     // The stuck hint, exactly the two-level reset the recordings show.
     const stopped = Math.abs(this.car.speed) < 1.2 && this.run.started && !this.run.finished;
@@ -181,7 +236,8 @@ export class Game {
 
   handleGate(event) {
     if (event.kind === 'checkpoint') {
-      this.hud.flash(`Checkpoint ${event.index} of ${event.of}`);
+      const last = event.index === event.of - 1;
+      this.hud.flash(last ? 'Final checkpoint' : `Checkpoint ${event.index} of ${event.of}`, 'is-good');
       return;
     }
     // Finish. Store the time only when it is actually quicker.
@@ -204,7 +260,8 @@ export class Game {
   render() {
     if (!this.meshes || this.contextLost) return;
     this.renderer.resize();
-    const projection = perspective(FIELD_OF_VIEW, this.renderer.aspect, 0.4, 1600);
+    const speedFraction = Math.min(1, Math.abs(this.car.speed) / 108);
+    const projection = perspective(fieldOfView(this.renderer.aspect, speedFraction), this.renderer.aspect, 0.4, 1600);
     const view = lookAt(this.camera.position, this.camera.target, [0, 1, 0]);
     const viewProjection = multiply(projection, view);
     this.renderer.beginFrame(viewProjection, this.track.palette.sky, this.camera.position);

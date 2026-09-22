@@ -41,40 +41,76 @@ html, body {
 
 .pk-corner { position: absolute; top: 12px; left: 12px; display: flex; align-items: center; gap: 8px; }
 .pk-chip {
-  border: 0; border-radius: 6px; padding: 6px 12px; background: var(--pk-panel); color: var(--pk-paper);
-  font-family: var(--pk-display); font-size: 14px; letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer;
+  border: 0; border-radius: 5px; padding: 6px 12px; background: rgba(12, 17, 25, 0.82); color: var(--pk-paper);
+  font-family: var(--pk-display); font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer;
 }
-.pk-chip:hover { background: rgba(232, 98, 44, 0.9); }
-.pk-track-name { font-family: var(--pk-display); font-size: 14px; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.85; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6); }
+.pk-chip:hover { background: var(--pk-accent); }
 
-.pk-message {
-  position: absolute; top: 22%; left: 50%; transform: translateX(-50%); margin: 0;
-  background: var(--pk-panel); border-radius: 8px; padding: 12px 20px; text-align: center;
-  font-size: 15px; line-height: 1.5; white-space: pre-line; max-width: min(420px, calc(100% - 32px));
+/* Checkpoint progress, top left under the buttons. */
+.pk-progress {
+  position: absolute; top: 52px; left: 12px; display: flex; flex-direction: column; align-items: flex-start; gap: 1px;
+  padding: 8px 14px 9px; border-radius: 6px; border-left: 3px solid var(--pk-accent);
+  background: rgba(12, 17, 25, 0.72); text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
 }
-.pk-flash {
-  position: absolute; top: 12%; left: 50%; transform: translateX(-50%); margin: 0;
-  font-family: var(--pk-display); font-size: 26px; letter-spacing: 0.08em; text-transform: uppercase;
-  color: var(--pk-paper); text-shadow: 0 2px 10px rgba(0, 0, 0, 0.7);
-}
+.pk-progress-label { font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase; opacity: 0.62; }
+.pk-progress-count { font-family: var(--pk-display); font-variant-numeric: tabular-nums; line-height: 1; }
+.pk-progress-count b { font-size: 30px; color: var(--pk-accent); }
+.pk-progress-count i { font-style: normal; font-size: 19px; opacity: 0.7; }
+.pk-progress-track { font-family: var(--pk-display); font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; opacity: 0.72; }
 
-.pk-bar {
-  position: absolute; left: 0; right: 0; bottom: 0; height: 58px;
-  display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px;
-  padding: 0 14px; background: linear-gradient(to top, rgba(10, 15, 22, 0.94), rgba(10, 15, 22, 0.72));
+/* The clock, top centre: the one number a time trial is about. */
+.pk-clock {
+  position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 7px 24px 9px; border-radius: 8px; background: rgba(12, 17, 25, 0.72);
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.55);
 }
-.pk-checkpoints { font-family: var(--pk-display); font-size: 22px; letter-spacing: 0.05em; }
-.pk-checkpoints b { color: var(--pk-accent); }
-.pk-checkpoints i { font-style: normal; opacity: 0.75; }
-.pk-times { display: flex; gap: 22px; justify-content: center; }
-.pk-times > span { display: flex; flex-direction: column; align-items: center; min-width: 96px; }
-.pk-times small { font-size: 9.5px; letter-spacing: 0.14em; text-transform: uppercase; opacity: 0.6; }
-.pk-times b { font-family: var(--pk-display); font-size: 21px; font-variant-numeric: tabular-nums; letter-spacing: 0.02em; }
+.pk-clock-time { font-family: var(--pk-display); font-size: 38px; line-height: 1; font-variant-numeric: tabular-nums; letter-spacing: 0.01em; }
+.pk-clock-row { display: flex; gap: 14px; align-items: baseline; }
+.pk-clock-best { font-size: 11px; letter-spacing: 0.07em; opacity: 0.66; font-variant-numeric: tabular-nums; }
+.pk-delta { font-family: var(--pk-display); font-size: 14px; font-variant-numeric: tabular-nums; }
 .pk-delta.is-ahead { color: var(--pk-green); }
 .pk-delta.is-behind { color: var(--pk-red); }
-.pk-speed { justify-self: end; display: flex; align-items: baseline; gap: 4px; }
-.pk-speed b { font-family: var(--pk-display); font-size: 30px; font-variant-numeric: tabular-nums; }
-.pk-speed small { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.65; }
+
+/* Speed, bottom right, big enough to read from the corner of your eye. */
+.pk-speedo {
+  position: absolute; right: 18px; bottom: 14px; display: flex; align-items: baseline; gap: 5px;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.65);
+}
+.pk-speedo-value { font-family: var(--pk-display); font-size: 62px; line-height: 0.9; font-variant-numeric: tabular-nums; }
+.pk-speedo-unit { font-family: var(--pk-display); font-size: 15px; letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.72; }
+
+.pk-software {
+  font-family: var(--pk-display); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
+  margin-top: 4px; padding: 2px 7px; border-radius: 3px; background: var(--pk-accent); color: var(--pk-paper);
+}
+
+/* Countdown: the whole screen's attention, briefly. */
+.pk-countdown {
+  position: absolute; top: 34%; left: 50%; margin: 0; transform: translate(-50%, -50%);
+  font-family: var(--pk-display); font-size: 148px; line-height: 1; letter-spacing: 0.02em;
+  color: var(--pk-paper);
+  /* A dark ring as well as a drop shadow: the numbers sit against bright sky on most tracks. */
+  text-shadow: 0 0 3px rgba(10, 14, 20, 0.9), 0 0 12px rgba(10, 14, 20, 0.7), 0 7px 26px rgba(0, 0, 0, 0.65);
+  animation: pk-pop 0.45s ease-out;
+}
+.pk-countdown.is-go { color: var(--pk-green); font-size: 124px; letter-spacing: 0.06em; }
+@keyframes pk-pop { from { transform: translate(-50%, -50%) scale(1.5); opacity: 0; } to { transform: translate(-50%, -50%) scale(1); opacity: 1; } }
+
+.pk-flash {
+  position: absolute; top: 20%; left: 50%; transform: translateX(-50%); margin: 0;
+  font-family: var(--pk-display); font-size: 30px; letter-spacing: 0.07em; text-transform: uppercase;
+  color: var(--pk-paper); text-shadow: 0 3px 14px rgba(0, 0, 0, 0.75); animation: pk-rise 0.3s ease-out;
+}
+.pk-flash.is-good { color: var(--pk-green); }
+@keyframes pk-rise { from { transform: translate(-50%, 10px); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }
+
+.pk-message {
+  position: absolute; bottom: 88px; left: 50%; transform: translateX(-50%); margin: 0;
+  background: rgba(12, 17, 25, 0.84); border-radius: 7px; padding: 10px 18px; text-align: center;
+  font-size: 14px; line-height: 1.5; white-space: pre-line; max-width: min(430px, calc(100% - 32px));
+  border-left: 3px solid var(--pk-accent);
+}
 
 /* ---- Touch pads ------------------------------------------------------------------------------ */
 
@@ -104,37 +140,59 @@ html, body {
   overflow-y: auto;
 }
 
-.pk-brand { text-align: center; }
-.pk-mark { width: 74px; height: 74px; fill: var(--pk-accent); }
+/* Two columns on a wide screen: who you are and what you drive on the left, where you drive on the
+   right. The old single narrow column left most of the screen empty. */
+.pk-menu-inner {
+  width: min(1020px, 100%); display: grid; grid-template-columns: minmax(280px, 380px) 1fr;
+  gap: 40px; align-items: center;
+}
+.pk-brand { text-align: left; }
+.pk-mark { width: 62px; height: 62px; fill: var(--pk-accent); }
 .pk-mark-roof { fill: var(--pk-paper); }
 .pk-mark-wheel { fill: #10151d; stroke: var(--pk-paper); stroke-width: 3; }
-.pk-brand h1 { margin: 4px 0 2px; font-family: var(--pk-display); font-size: 42px; letter-spacing: 0.1em; text-transform: uppercase; }
-.pk-brand p { margin: 0; font-size: 14px; opacity: 0.7; }
+.pk-brand h1 { margin: 6px 0 2px; font-family: var(--pk-display); font-size: 52px; line-height: 1; letter-spacing: 0.08em; text-transform: uppercase; }
+.pk-brand p { margin: 0; font-size: 14px; opacity: 0.72; }
+.pk-kart-slot { margin: 16px 0 18px; }
+.pk-kart-preview { width: 100%; max-width: 280px; height: auto; }
 
-.pk-track-list { list-style: none; margin: 0; padding: 0; width: min(520px, 100%); display: grid; gap: 10px; }
-.pk-track {
-  width: 100%; display: grid; grid-template-columns: 60px 1fr auto; align-items: center; gap: 14px;
-  padding: 12px 16px; border: 0; border-left: 4px solid var(--pk-accent); border-radius: 8px;
-  background: rgba(245, 241, 230, 0.07); color: var(--pk-paper); text-align: left; cursor: pointer;
-  font-family: inherit;
+.pk-menu-heading {
+  margin: 0 0 10px; font-family: var(--pk-display); font-size: 14px; letter-spacing: 0.16em;
+  text-transform: uppercase; opacity: 0.58;
 }
-.pk-track:hover { background: rgba(245, 241, 230, 0.14); }
-.pk-track-outline svg { width: 60px; height: 60px; }
-.pk-track-outline polyline { fill: none; stroke: var(--pk-accent); stroke-width: 3.5; stroke-linejoin: round; stroke-linecap: round; }
-.pk-track-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
-.pk-track-text strong { font-family: var(--pk-display); font-size: 21px; letter-spacing: 0.05em; text-transform: uppercase; }
-.pk-track-text small { font-size: 12.5px; opacity: 0.72; line-height: 1.35; }
-.pk-track-best { text-align: right; display: flex; flex-direction: column; }
-.pk-track-best small { font-size: 9.5px; letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.6; }
-.pk-track-best b { font-family: var(--pk-display); font-size: 18px; font-variant-numeric: tabular-nums; }
+.pk-track-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.pk-track {
+  width: 100%; display: grid; grid-template-columns: 84px 1fr auto; align-items: center; gap: 18px;
+  padding: 16px 20px; border: 0; border-left: 4px solid var(--pk-accent); border-radius: 10px;
+  background: rgba(245, 241, 230, 0.07); color: var(--pk-paper); text-align: left; cursor: pointer;
+  font-family: inherit; transition: background 0.15s ease, transform 0.15s ease;
+}
+.pk-track:hover { background: rgba(245, 241, 230, 0.15); transform: translateX(3px); }
+.pk-track-outline svg { width: 84px; height: 84px; display: block; }
+.pk-map-road { fill: none; stroke: rgba(245, 241, 230, 0.16); stroke-width: 11; stroke-linejoin: round; stroke-linecap: round; }
+.pk-map-line { fill: none; stroke: var(--pk-accent); stroke-width: 3.5; stroke-linejoin: round; stroke-linecap: round; }
+.pk-map-start { fill: var(--pk-paper); }
+.pk-track-text { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.pk-track-text strong { font-family: var(--pk-display); font-size: 25px; letter-spacing: 0.05em; text-transform: uppercase; line-height: 1; }
+.pk-track-text small { font-size: 13px; opacity: 0.72; line-height: 1.4; }
+.pk-track-meta { font-family: var(--pk-display); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.5; }
+.pk-track-best { text-align: right; display: flex; flex-direction: column; gap: 2px; }
+.pk-track-best small { font-size: 9.5px; letter-spacing: 0.14em; text-transform: uppercase; opacity: 0.55; }
+.pk-track-best b { font-family: var(--pk-display); font-size: 21px; font-variant-numeric: tabular-nums; }
 
-.pk-controls { width: min(520px, 100%); }
-.pk-controls h2 { margin: 0 0 6px; font-family: var(--pk-display); font-size: 14px; letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.6; }
-.pk-controls ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12.5px; opacity: 0.8; }
+.pk-controls { margin: 0; }
+.pk-controls h2 { margin: 0 0 7px; font-family: var(--pk-display); font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; opacity: 0.5; }
+.pk-controls ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 7px 14px; font-size: 12px; opacity: 0.78; }
 .pk-controls li { display: flex; align-items: center; gap: 5px; }
 kbd {
   display: inline-block; min-width: 20px; padding: 2px 5px; border-radius: 4px; text-align: center;
   background: rgba(245, 241, 230, 0.14); font-family: var(--pk-display); font-size: 12px;
+}
+
+@media (max-width: 860px) {
+  .pk-menu-inner { grid-template-columns: 1fr; gap: 18px; }
+  .pk-brand { text-align: center; }
+  .pk-kart-slot { margin: 10px auto 12px; max-width: 240px; }
+  .pk-controls ul { justify-content: center; }
 }
 
 .pk-result-kicker { margin: 0; font-family: var(--pk-display); font-size: 16px; letter-spacing: 0.18em; text-transform: uppercase; opacity: 0.7; }
@@ -174,19 +232,25 @@ kbd {
 /* ---- Phones ---------------------------------------------------------------------------------- */
 
 @media (max-width: 560px) {
-  .pk-bar { height: 52px; grid-template-columns: auto 1fr auto; gap: 6px; padding: 0 10px; }
-  .pk-times { gap: 10px; }
-  .pk-times > span { min-width: 74px; }
-  .pk-times b { font-size: 16px; }
-  .pk-checkpoints { font-size: 17px; }
-  .pk-speed b { font-size: 22px; }
+  /* The clock drops below the buttons rather than squeezing past them. */
+  .pk-clock { top: 46px; padding: 5px 14px 7px; }
+  .pk-clock-time { font-size: 27px; }
+  .pk-clock-best { font-size: 10px; }
+  .pk-progress { top: 48px; padding: 6px 10px 7px; }
+  .pk-progress-count b { font-size: 22px; }
+  .pk-progress-count i { font-size: 15px; }
+  .pk-speedo-value { font-size: 40px; }
+  .pk-speedo { right: 12px; bottom: 96px; }
+  .pk-countdown { font-size: 98px; }
+  .pk-countdown.is-go { font-size: 78px; }
+  .pk-flash { font-size: 21px; }
+  .pk-message { bottom: 166px; font-size: 13px; }
   .pk-brand h1 { font-size: 32px; }
   .pk-mark { width: 58px; height: 58px; }
-  .pk-track { grid-template-columns: 44px 1fr auto; gap: 10px; padding: 10px 12px; }
-  .pk-track-outline svg { width: 44px; height: 44px; }
+  .pk-track { grid-template-columns: 54px 1fr auto; gap: 10px; padding: 10px 12px; }
+  .pk-track-outline svg { width: 54px; height: 54px; }
   .pk-track-text strong { font-size: 18px; }
   .pk-result-time { font-size: 44px; }
-  .pk-flash { font-size: 20px; }
 }
 
 @media (max-height: 460px) {
