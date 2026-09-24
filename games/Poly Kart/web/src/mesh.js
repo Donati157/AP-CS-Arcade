@@ -212,3 +212,30 @@ export function addSign(geometry, position, right, up, forward, width, height, p
     geometry.colours.push(board.colours[i], board.colours[i + 1], board.colours[i + 2]);
   }
 }
+
+// A cloud: a cluster of flat slabs, all normals forced to point at the sky.
+//
+// Two things matter here. The slabs are flat, because a tall shape seen from below shows its
+// sloped sides and reads as a shard rather than a cloud. And the normals are rewritten, because
+// the underside is the only part anyone ever sees and lighting it as a downward face makes it
+// dark grey.
+export function addCloud(geometry, x, y, z, size, colour) {
+  const lumps = emptyGeometry();
+  const thickness = size * 0.1;
+  const parts = [
+    [0, 0, 0, 1.0, 0.72],
+    [-1.15, 0.02, 0.22, 0.66, 0.5],
+    [1.2, -0.02, -0.18, 0.58, 0.44],
+    [-0.45, 0.06, -0.5, 0.52, 0.38],
+    [0.6, 0.05, 0.55, 0.48, 0.36],
+  ];
+  for (const [ox, oy, oz, wide, deep] of parts) {
+    addBox(lumps, [x + ox * size, y + oy * size, z + oz * size],
+      [wide * size, thickness, deep * size], colour, false);
+  }
+  for (let i = 0; i < lumps.positions.length; i += 3) {
+    geometry.positions.push(lumps.positions[i], lumps.positions[i + 1], lumps.positions[i + 2]);
+    geometry.normals.push(0, 1, 0);
+    geometry.colours.push(lumps.colours[i], lumps.colours[i + 1], lumps.colours[i + 2]);
+  }
+}

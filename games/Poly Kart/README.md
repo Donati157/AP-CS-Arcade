@@ -1,7 +1,7 @@
 # Poly Kart
 
-An original low-poly time-trial racer for the AP CS Arcade. Drive a track, take every checkpoint in
-order, cross the line and try to beat your own best time.
+An original low-poly kart racer for the AP CS Arcade. Three laps, five karts, four rivals that
+actually race. Take every checkpoint on each lap or the lap does not count.
 
 ## Playing
 
@@ -10,8 +10,8 @@ order, cross the line and try to beat your own best time.
 | `W` / `Up` | Accelerate |
 | `S` / `Down` | Brake, then reverse |
 | `A` `D` / `Left` `Right` | Steer |
-| `R` / `Enter` | Back to the last checkpoint, clock keeps running |
-| `T` / `Backspace` | Start the run over |
+| `R` / `Enter` | Back to the last checkpoint, the race keeps running |
+| `T` / `Backspace` | Restart the race from the grid |
 
 On a touch screen, four pads appear along the bottom instead.
 
@@ -28,7 +28,8 @@ install; the arcade build just copies `web/` to the public site.
 | `src/tracks.js` | The track layouts themselves |
 | `src/physics.js` | The driving model and the fixed timestep |
 | `src/camera.js` | The chase camera |
-| `src/run.js` | Clock, checkpoint order, time formatting |
+| `src/run.js` | Clock, laps, checkpoint order, race position, time formatting |
+| `src/racers.js` | The grid, the rivals' driving policy and kart-to-kart contact |
 | `src/storage.js` | Best times in `localStorage` |
 | `src/car-model.js` | The kart, built from boxes and cylinders |
 | `src/input.js` | Keyboard and touch |
@@ -42,9 +43,20 @@ install; the arcade build just copies `web/` to the public site.
 node --test 'games/Poly Kart/web/tests/*.test.mjs'
 ```
 
-These cover the parts that do not need a browser: time formatting, best-time comparison, checkpoint
-ordering, invalid finishes, reset state and the fixed timestep. Driving and rendering are checked in
-a real browser.
+These cover the parts that do not need a browser: time formatting, lap and checkpoint ordering,
+race position, reset state, circuit geometry, the fixed timestep, and a set of deliberate attempts
+to cheat the lap rules (`tests/exploits.test.mjs`). Driving and rendering are checked in a browser.
+
+## The race
+
+Three laps of a closed circuit. Four rivals share the player's physics exactly; only the input
+differs. Each rival aims at a point up the road on its own line and picks a speed from the tightest
+bend within braking distance and the grip the tyres actually have, so they lift before a corner
+rather than arriving flat out. Position comes from distance covered round the circuit, not from
+who is nearest the line.
+
+The player starts at the back of the grid, because starting on pole with nobody ahead is a
+procession.
 
 ## Originality
 

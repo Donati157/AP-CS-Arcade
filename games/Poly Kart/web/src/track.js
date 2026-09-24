@@ -7,7 +7,7 @@
 
 import {
   addQuad, addBox, addCylinder, emptyGeometry, shade,
-  addFrustum, addTree, addRoundTree, addRock, addBuilding, addSign, addRotatedBox,
+  addFrustum, addTree, addRoundTree, addRock, addBuilding, addSign, addRotatedBox, addCloud,
 } from './mesh.js';
 
 const SAMPLE_SPACING = 2.2;      // metres between centre-line samples
@@ -30,19 +30,22 @@ function interpolateNumber(a, b, c, d, t) {
   return 0.5 * ((2 * b) + (-a + c) * t + (2 * a - 5 * b + 4 * c - d) * t2 + (-a + 3 * b - 3 * c + d) * t3);
 }
 
+// Control points wrap: a circuit has no first or last point, so the spline that joins the end back
+// to the start is built exactly like every other segment and the join is invisible.
 function controlAt(points, index) {
-  return points[Math.max(0, Math.min(points.length - 1, index))];
+  const n = points.length;
+  return points[((index % n) + n) % n];
 }
 
-// Walks the control points and produces one sample every SAMPLE_SPACING metres or so.
+// Walks the control points and produces one sample every SAMPLE_SPACING metres or so, all the way
+// round. The last segment closes the loop back onto the first point.
 function buildSamples(points) {
   const raw = [];
-  for (let i = 0; i < points.length - 1; i++) {
-    const p0 = controlAt(points, i - 1), p1 = points[i], p2 = points[i + 1], p3 = controlAt(points, i + 2);
+  for (let i = 0; i < points.length; i++) {
+    const p0 = controlAt(points, i - 1), p1 = controlAt(points, i), p2 = controlAt(points, i + 1), p3 = controlAt(points, i + 2);
     const roughLength = Math.hypot(p2.x - p1.x, p2.y - p1.y, p2.z - p1.z);
     const steps = Math.max(2, Math.round(roughLength / SAMPLE_SPACING));
-    const lastSegment = i === points.length - 2;
-    for (let step = 0; step < steps + (lastSegment ? 1 : 0); step++) {
+    for (let step = 0; step < steps; step++) {
       const t = step / steps;
       raw.push({
         x: catmullRom(p0, p1, p2, p3, t, 'x'),
@@ -61,10 +64,11 @@ function buildSamples(points) {
 function orient(raw) {
   const samples = [];
   let distance = 0;
+  const at = (index) => raw[((index % raw.length) + raw.length) % raw.length];
   for (let i = 0; i < raw.length; i++) {
     const here = raw[i];
-    const ahead = raw[Math.min(raw.length - 1, i + 1)];
-    const behind = raw[Math.max(0, i - 1)];
+    const ahead = at(i + 1);
+    const behind = at(i - 1);
     let fx = ahead.x - behind.x, fy = ahead.y - behind.y, fz = ahead.z - behind.z;
     const flen = Math.hypot(fx, fy, fz) || 1;
     fx /= flen; fy /= flen; fz /= flen;
@@ -265,7 +269,14 @@ function buildTracksideFurniture(samples, palette) {
 
 export function buildTrack(definition) {
   const samples = orient(buildSamples(definition.points));
-  const length = samples[samples.length - 1].distance;
+  const last = samples[samples.length - 1];
+  const first = samples[0];
+  // The lap is the way round plus the closing step from the last sample back to the first.
+  const length = last.distance + Math.hypot(
+    first.position[0] - last.position[0],
+    first.position[1] - last.position[1],
+    first.position[2] - last.position[2],
+  );
   const palette = definition.palette;
 
   // Checkpoints are given as fractions of the track length; the finish is always the end.
@@ -291,9 +302,12 @@ export function buildTrack(definition) {
     } else if (piece.kind === 'hill') {
       addFrustum(scenery, [piece.x, ground, piece.z], piece.size, piece.size * (piece.taper ?? 0.25), piece.height,
         piece.colour, piece.capColour || null);
+    } else if (piece.kind === 'cloud') {
+      addCloud(scenery, piece.x, piece.y ?? 90, piece.z, piece.size ?? 26, piece.colour || palette.cloud);
     } else if (piece.kind === 'island') {
-      // A landmass with a beach ring, so the track has something to sit beside instead of open water.
-      addFrustum(scenery, [piece.x, piece.y ?? -6, piece.z], piece.size * 1.16, piece.size, (piece.height ?? 7), piece.beachColour || palette.beach);
+      // A landmass with a broad beach, so the shore slopes into the water instead of standing up
+      // as a flat cliff right beside the road.
+      addFrustum(scenery, [piece.x, piece.y ?? -6, piece.z], piece.size * 1.75, piece.size, (piece.height ?? 7), piece.beachColour || palette.beach);
       addFrustum(scenery, [piece.x, (piece.y ?? -6) + (piece.height ?? 7), piece.z], piece.size, piece.size * 0.92, 0.7, piece.colour);
     } else if (piece.kind === 'tree') {
       addTree(scenery, piece.x, piece.z, ground, piece.scale ?? 1, palette.trunk, piece.colour || palette.leaf);
@@ -360,11 +374,13 @@ function nearestByDistance(samples, target) {
 // costs less and stops the answer jumping across a switchback that happens to pass nearby.
 export function queryTrack(track, position, hintIndex = 0) {
   const samples = track.samples;
-  const from = Math.max(0, hintIndex - SEARCH_WINDOW);
-  const to = Math.min(samples.length - 1, hintIndex + SEARCH_WINDOW);
-  let bestIndex = from;
+  const count = samples.length;
+  // The window wraps, so a kart sitting on the start line can still find the samples just behind
+  // it at the end of the lap.
+  let bestIndex = hintIndex;
   let bestDistance = Infinity;
-  for (let i = from; i <= to; i++) {
+  for (let offset = -SEARCH_WINDOW; offset <= SEARCH_WINDOW; offset++) {
+    const i = ((hintIndex + offset) % count + count) % count;
     const p = samples[i].position;
     const d = (p[0] - position[0]) ** 2 + (p[1] - position[1]) ** 2 + (p[2] - position[2]) ** 2;
     if (d < bestDistance) { bestDistance = d; bestIndex = i; }
@@ -392,8 +408,21 @@ export function queryTrack(track, position, hintIndex = 0) {
     right: sample.right,
     onRoad: Math.abs(lateral) <= halfWidth + 0.6,
     hasWall: sample.wall === 1,
-    distanceAlong: sample.distance + along,
+    distanceAlong: wrapDistance(sample.distance + along, track.length),
   };
+}
+
+// Keeps a distance inside one lap.
+export function wrapDistance(distance, length) {
+  const wrapped = distance % length;
+  return wrapped < 0 ? wrapped + length : wrapped;
+}
+
+// The signed gap from a to b going forwards round the loop, in the range [-length/2, length/2).
+export function loopDelta(from, to, length) {
+  let delta = (to - from) % length;
+  if (delta < 0) delta += length;
+  return delta > length / 2 ? delta - length : delta;
 }
 
 // Where to put the car when it respawns at a checkpoint (or at the start).

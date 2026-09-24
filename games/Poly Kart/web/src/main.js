@@ -5,7 +5,7 @@ import { RendererError } from './renderer.js';
 import { Hud } from './hud.js';
 import { createInput } from './input.js';
 import { TRACKS, trackById } from './tracks.js';
-import { formatTime } from './run.js';
+import { formatTime, ordinal } from './run.js';
 import { bestTime } from './storage.js';
 
 const canvas = document.getElementById('pk-canvas');
@@ -31,7 +31,7 @@ function renderMenu() {
           <span class="pk-track-text">
             <strong>${track.name}</strong>
             <small>${track.blurb}</small>
-            <span class="pk-track-meta">${track.checkpoints.length + 1} checkpoints</span>
+            <span class="pk-track-meta">3 laps &middot; ${track.checkpoints.length} checkpoints &middot; 5 karts</span>
           </span>
           <span class="pk-track-best">
             <small>Best</small>
@@ -171,22 +171,29 @@ function showDiagnostics() {
 }
 
 function showResult(outcome) {
-  const improved = outcome.improved;
-  result.querySelector('.pk-result-kicker').textContent = improved ? 'New personal best' : 'Run complete';
-  result.querySelector('.pk-result-kicker').className = `pk-result-kicker ${improved ? 'is-best' : ''}`;
+  const won = outcome.place === 1;
+  const kicker = result.querySelector('.pk-result-kicker');
+  kicker.textContent = won ? 'Race won' : `Finished ${ordinal(outcome.place)}`;
+  kicker.className = `pk-result-kicker ${won ? 'is-best' : ''}`;
   result.querySelector('.pk-result-track').textContent = trackById(currentTrackId).name;
   result.querySelector('.pk-result-time').textContent = formatTime(outcome.time);
+
+  const notes = [];
+  notes.push(`Best lap ${formatTime(outcome.bestLap)}`);
+  if (outcome.improved && outcome.improvement !== null) notes.push(`${formatTime(outcome.improvement)} faster than your best race`);
+  else if (outcome.improved) notes.push('Your first race here');
+  else if (outcome.best !== null) notes.push(`Your best race is still ${formatTime(outcome.best)}`);
   const gap = result.querySelector('.pk-result-gap');
-  if (improved && outcome.improvement !== null) {
-    gap.textContent = `${formatTime(outcome.improvement)} faster than before`;
-    gap.className = 'pk-result-gap is-ahead';
-  } else if (!improved && outcome.best !== null) {
-    gap.textContent = `Your best is still ${formatTime(outcome.best)}`;
-    gap.className = 'pk-result-gap is-behind';
-  } else {
-    gap.textContent = 'Your first time on this track';
-    gap.className = 'pk-result-gap';
-  }
+  gap.textContent = notes.join(' · ');
+  gap.className = `pk-result-gap ${outcome.improved ? 'is-ahead' : ''}`;
+
+  // The full finishing order, which is the part that makes it feel like a race result.
+  result.querySelector('.pk-result-order').innerHTML = outcome.order.map((racer, index) => `
+    <li class="${racer.isPlayer ? 'is-you' : ''}">
+      <span class="pk-result-place">${index + 1}</span>
+      <span class="pk-result-name">${racer.name}</span>
+      <span class="pk-result-gap-time">${racer.finished ? formatTime(racer.time) : `lap ${racer.lap}`}</span>
+    </li>`).join('');
   show(result, true);
 }
 
@@ -252,6 +259,8 @@ window.polyKart = {
       contextId: game ? game.renderer.contextId : null,
       contextLost: game ? game.renderer.lost : null,
       framesDrawn: game ? game.framesDrawn : 0,
+      field: game ? game.racers.length : 0,
+      lap: game ? game.player.progress.lap : 0,
       running: game ? game.running : false,
       diagnostics: game ? game.renderer.diagnostics() : null,
     };

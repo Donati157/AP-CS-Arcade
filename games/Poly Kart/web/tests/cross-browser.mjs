@@ -64,7 +64,7 @@ for (const name of wanted) {
         topmostAtCentre: centre ? (centre.id || String(centre.className) || centre.tagName) : 'none',
         canvasPresent: !!canvas,
         canvasBuffer: canvas ? [canvas.width, canvas.height] : null,
-        speed: window.polyKart.game ? Math.round(window.polyKart.game.car.speed * 3.6) : 0,
+        speed: window.polyKart.game ? Math.round(window.polyKart.game.player.car.speed * 3.6) : 0,
         failureText: document.querySelector('.pk-fatal-title')?.textContent || '',
       };
     });
@@ -77,7 +77,7 @@ for (const name of wanted) {
       'canvas is what you see': status.topmostAtCentre === 'pk-canvas',
       'a frame was drawn': status.framesDrawn > 0,
       'loop running': status.running,
-      'car moves': status.speed > 20,
+      'kart moves': status.speed > 20,
       'context not lost': status.contextLost === false,
       'no page errors': errors.length === 0,
     };

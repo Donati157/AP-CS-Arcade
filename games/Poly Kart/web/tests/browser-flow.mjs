@@ -31,7 +31,8 @@ await page.waitForTimeout(1200);
 const started = await gameFrame.evaluate(() => ({
   running: window.polyKart.game.running,
   track: document.querySelector('.pk-progress-track').textContent,
-  total: document.querySelector('.pk-progress-count i').textContent,
+    field: document.querySelectorAll('.pk-order li').length,
+  lapOf: document.querySelector('.pk-lap i').textContent,
   menuHidden: document.getElementById('pk-menu').hidden,
 }));
 console.log(`4. race started: ${JSON.stringify(started)}`);
@@ -45,7 +46,7 @@ await gameFrame.evaluate(() => window.polyKart.input.setTouch('throttle', true))
 await page.waitForTimeout(3000);
 const moving = await gameFrame.evaluate(() => {
   const g = window.polyKart.game;
-  return { speed: Math.round(g.car.speed * 3.6), distance: Math.round(g.car.distanceAlong), grounded: g.car.grounded, onRoad: g.car.onRoad };
+  return { speed: Math.round(g.player.car.speed * 3.6), distance: Math.round(g.player.car.distanceAlong), onRoad: g.player.car.onRoad };
 });
 console.log(`5. after 3s of throttle: ${JSON.stringify(moving)}`);
 
@@ -62,30 +63,23 @@ const loops = await gameFrame.evaluate(() => {
 });
 console.log(`7. after 5 restarts: ${JSON.stringify(loops)}`);
 
-// Complete a valid run by walking the car along the centre line, then check the best time is stored.
+// Complete a valid race by handing the player's kart to the same policy the rivals use.
 const finished = await gameFrame.evaluate(async () => {
   const g = window.polyKart.game;
-  const { queryTrack } = await import('./src/track.js');
-  void queryTrack;
-  const track = g.track;
-  g.run.started = true;
-  g.run.elapsed = 42.5;            // the lights mean the clock is otherwise still at zero here
-  let result = null;
-  g.onFinish = (outcome) => { result = outcome; };
-  // Teleport in small legal increments along the road, exactly as if driven.
-  for (let i = 0; i < track.samples.length; i++) {
-    const s = track.samples[i];
-    g.car.position = [s.position[0], s.position[1] + 1.2, s.position[2]];
-    g.car.trackIndex = i;
-    g.car.distanceAlong = s.distance;
-    g.car.onRoad = true;
-    const { checkGates } = await import('./src/run.js');
-    const event = checkGates(g.run, track, g.car);
-    if (event && event.kind === 'finish') { g.handleGate(event); break; }
-  }
-  return { finished: g.run.finished, passed: g.run.passed, of: g.run.checkpointCount, result };
+  const { driveRival } = await import('./src/racers.js');
+  const policy = { car: g.player.car, line: 0, pace: 0.99, patience: 0.96 };
+  Object.defineProperty(g.input, 'state', { get: () => driveRival(policy, g.track), configurable: true });
+  const started = performance.now();
+  while (!g.player.progress.finished && performance.now() - started < 200000) await new Promise((r) => setTimeout(r, 100));
+  return {
+    finished: g.player.progress.finished,
+    lap: g.player.progress.lap,
+    place: g.race.order.indexOf(g.player) + 1,
+    bestLap: Math.round(g.player.progress.bestLap * 1000) / 1000,
+    fieldFinished: g.racers.filter((r) => r.progress.finished).length,
+  };
 });
-console.log(`8. valid run: ${JSON.stringify(finished)}`);
+console.log(`8. complete race: ${JSON.stringify(finished)}`);
 
 const stored = await gameFrame.evaluate(() => JSON.parse(localStorage.getItem('poly-kart.best-times.v1') || '{}'));
 console.log(`9. stored best times: ${JSON.stringify(stored)}`);
@@ -99,6 +93,6 @@ console.log(`10. best time after reload: ${persisted}`);
 
 console.log(`11. page errors: ${errors.length ? errors.slice(0, 3).join(' | ') : 'none'}`);
 await browser.close();
-const ok = webgl && !fatalShown && tracks === 2 && moving.speed > 40 && finished.finished && errors.length === 0;
+const ok = webgl && !fatalShown && tracks === 2 && moving.speed > 20 && finished.finished && errors.length === 0;
 console.log(ok ? '\nPOLY KART: PASS' : '\nPOLY KART: FAIL');
 process.exit(ok ? 0 : 1);

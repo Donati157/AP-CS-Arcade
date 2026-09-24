@@ -14,26 +14,29 @@ export const STEP = 1 / 120;          // the simulation always advances in fixed
 const MAX_STEPS_PER_FRAME = 8;        // if the tab stalls, catch up a little then give up
 
 export const CAR = {
-  enginePower: 78,          // metres per second per second at full throttle from a standstill
-  topSpeed: 108,            // about 390 km/h
-  reverseTopSpeed: 9.5,        // about 34 km/h: enough to get unstuck, not a way round the track
-  brakePower: 62,             // hard, but it still takes a moment: about 55 m from full speed
-  coastDrag: 0.62,          // how quickly speed bleeds off with no throttle
-  rollingResistance: 0.16,     // per second, not per step
-  steerRate: 2.9,           // radians per second at low speed
-  steerAtSpeed: 0.34,       // how much of that is left at top speed
-  steerReturn: 7.0,         // how fast the wheels straighten when you let go
-  grip: 7.2,                // how hard the car resists sliding sideways
-  slideGrip: 3.4,           // grip while braking hard, which lets the back step out
+  // Kart speeds, not car speeds. These circuits are under a kilometre round with corners of about
+  // forty metres radius; at the 300 km/h this used to do, no line held and every corner ended in a
+  // barrier. A kart that tops out near 130 km/h can actually be placed on the road.
+  enginePower: 27,          // metres per second per second at full throttle from a standstill
+  topSpeed: 36,             // about 130 km/h
+  reverseTopSpeed: 7,
+  brakePower: 34,
+  coastDrag: 0.55,
+  rollingResistance: 0.14,  // per second
+  steerRate: 2.6,           // radians per second at low speed
+  steerAtSpeed: 0.42,       // how much of that is left at top speed
+  steerReturn: 8.0,
+  grip: 8.0,                // how hard the kart resists sliding sideways
+  slideGrip: 3.6,           // grip while braking hard, which lets the back step out
+  lateralGrip: 11.5,        // metres per second squared the tyres can hold in a corner
   gravity: 26,
-  maxLaunch: 6.2,           // metres per second upward, the most a crest can give you
-  airSteer: 0.55,           // fraction of normal steering available with no wheels down
-  offRoadDrag: 3.2,         // the verge is slow, but it is not a wall
-  wallBounce: 0.32,
-  wallScrub: 0.55,
-  respawnBelow: 26,         // metres under the road before the car counts as fallen
+  airSteer: 0.5,
+  offRoadDrag: 3.2,
+  wallBounce: 0.3,
+  wallScrub: 0.62,
+  maxLaunch: 4.2,
+  respawnBelow: 26,
 };
-
 export function createCar(pose) {
   return {
     position: [...pose.position],
@@ -49,6 +52,8 @@ export function createCar(pose) {
     grounded: true,
     onRoad: true,
     wheelSpin: 0,
+    lateral: 0,
+    halfWidth: 8,
     lastCentre: undefined,
     trackIndex: 0,
     distanceAlong: 0,
@@ -101,7 +106,9 @@ export function step(car, track, input, dt = STEP) {
   const target = input.steer * (car.grounded ? 1 : CAR.airSteer);
   car.steering += (target - car.steering) * Math.min(1, CAR.steerReturn * dt);
   const direction = car.speed < -0.5 ? -1 : 1;
-  car.heading += car.steering * steerAuthority * dt * direction * Math.min(1, Math.abs(car.speed) / 6 + 0.12);
+  // A kart that is not moving does not turn. Leaving a little authority at a standstill let the
+  // AI spin itself round on the grid before the lights went out.
+  car.heading += car.steering * steerAuthority * dt * direction * Math.min(1, Math.abs(car.speed) / 7);
 
   // ---- Engine, brakes and reverse. -------------------------------------------------------------
   if (car.grounded) {
@@ -217,6 +224,10 @@ export function step(car, track, input, dt = STEP) {
     car.roll += (car.slide * 0.01 - car.roll) * Math.min(1, 2 * dt);
   }
 
+  // Remembered for the lap logic: how far off the centre line the kart is, and how much road
+  // there is. Clipping a kerb at the moment you cross a gate should not cost you the lap.
+  car.lateral = after.lateral;
+  car.halfWidth = after.halfWidth;
   car.wheelSpin += car.speed * dt * 1.6;
   // Fallen clean off the world: the run manager turns this into a respawn.
   if (car.position[1] < after.surfaceY - CAR.respawnBelow) car.fell = true;

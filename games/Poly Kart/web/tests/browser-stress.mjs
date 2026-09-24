@@ -31,11 +31,11 @@ const result = await f.evaluate(() => {
     g.armed = true;                          // skip the lights; this test is about leaks, not laps
     pk.input.setTouch('throttle', true);
     for (let i = 0; i < 40; i++) g.update(1 / 60);
-    g.respawn(i => i, 'checkpoint');
+    g.respawn('checkpoint');
     pk.input.setTouch('throttle', false);
     pk.menu();
   }
-  return { laps: 100, car: pk.game.car.position.map((n) => Math.round(n)), speed: Math.round(pk.game.car.speed) };
+  return { laps: 100, kart: pk.game.player.car.position.map((n) => Math.round(n)), speed: Math.round(pk.game.player.car.speed) };
 });
 console.log('100 cycles done:', JSON.stringify(result));
 await page.waitForTimeout(600);
@@ -45,12 +45,12 @@ console.log('after 100 cycles: ', JSON.stringify(after));
 // One more real race to prove it still works.
 await f.evaluate(() => window.polyKart.start('harbour-loop'));
 await page.waitForTimeout(1500);
-const alive = await f.evaluate(() => ({ running: window.polyKart.game.running, speed: Math.round(window.polyKart.game.car.speed * 3.6) }));
+const alive = await f.evaluate(() => ({ running: window.polyKart.game.running, karts: window.polyKart.game.racers.length }));
 console.log('still playable:', JSON.stringify(alive));
 console.log('errors:', errors.length ? errors.slice(0, 3).join(' | ') : 'none');
 await browser.close();
 const grew = after.nodes - before.nodes;
-const ok = errors.length === 0 && alive.running && after.meshes === before.meshes && grew <= 4;
+const ok = errors.length === 0 && alive.running && alive.karts === 5 && after.meshes === before.meshes && grew <= 4;
 console.log(`node growth over 100 cycles: ${grew}`);
 console.log(ok ? '\nSTRESS: PASS' : '\nSTRESS: FAIL');
 process.exit(ok ? 0 : 1);

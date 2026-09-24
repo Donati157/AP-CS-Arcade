@@ -1,99 +1,145 @@
-// A run: the clock, the checkpoints and the rules that decide whether a time counts.
+// The race: laps, checkpoints and the rules that decide whether a lap counts.
 //
-// The reference recordings show the clock starting when the car starts moving, running without
-// pause even while the car is stuck or being reset to a checkpoint, and stopping the instant the
-// finish gate is crossed. A time only stands if every checkpoint was taken in order.
+// Every kart on the grid, player or not, carries one of these. It records how far round the lap it
+// is, which checkpoints it has taken, and how many laps it has completed. Position is worked out
+// from the same numbers, so a kart is ahead because it has actually driven further, not because it
+// happens to be nearer the finish line in a straight line.
+
+import { loopDelta } from './track.js';
 
 export const RESET_MODES = { CHECKPOINT: 'checkpoint', START: 'start' };
 
-// The furthest the car can legitimately travel along the centre line between two gate checks. At
-// full speed a fixed step covers about a metre, so anything past this is not driving: it is the
-// distance measurement jumping, which happens when the nearest point on the road relocates across a
-// switchback. Crediting a gate on one of those jumps is exactly how a player would skip a section.
+// The furthest a kart can legitimately travel along the centre line between two checks. At full
+// speed a fixed step covers about a metre, so anything past this is not driving: it is the distance
+// measurement jumping, which is how a kart cutting across the scenery would look.
 const MAX_GATE_STEP = 30;
 
-export function createRun(track) {
+export function createProgress(track, totalLaps) {
   return {
-    trackId: track.id,
-    checkpointCount: track.checkpointCount,
-    nextGate: 0,               // index into track.gates; equal to gates.length means "finish next"
-    passed: 0,
-    elapsed: 0,
+    totalLaps,
+    lap: 1,                 // the lap being driven, counting from one
+    nextGate: 0,            // index into track.gates
+    passed: 0,              // checkpoints taken on this lap
+    checkpointCount: track.gates.length,
+    lastDistance: 0,
+    covered: 0,             // metres driven round the circuit, across every lap
     started: false,
     finished: false,
-    finalTime: null,
-    lastDistance: 0,
-    valid: true,
+    finishTime: null,
+    bestLap: null,
+    lapStarted: 0,
     resets: 0,
   };
 }
 
-// Called once per fixed step, before the checkpoint test, so the clock and the car agree.
-export function tickRun(run, dt, car) {
-  if (run.finished) return;
-  if (!run.started) {
-    if (Math.abs(car.speed) > 0.4) run.started = true;
-    else return;
-  }
-  run.elapsed += dt;
+// Called once per fixed step, before the gate test, so the clock and the kart agree.
+export function tickRace(race, dt) {
+  if (race.over) return;
+  if (!race.started) return;
+  race.elapsed += dt;
 }
 
-// Checks whether the car has just crossed the gate it is allowed to cross next.
+export function createRace(track, totalLaps) {
+  return { track, totalLaps, elapsed: 0, started: false, over: false, order: [] };
+}
+
+// Advances one kart's progress and reports anything worth showing.
 //
 // Gates are compared by distance along the centre line, and only the next one in the sequence can
-// ever trigger. That is what stops a player cutting across the scenery to the finish: the finish
-// only counts once every checkpoint before it has been passed.
-export function checkGates(run, track, car) {
-  if (run.finished || !run.started) { run.lastDistance = car.distanceAlong; return null; }
-  const from = run.lastDistance;
-  const to = car.distanceAlong;
-  run.lastDistance = to;
-  if (to <= from) return null;                      // going backwards never scores
-  if (to - from > MAX_GATE_STEP) return null;       // an implausible jump resyncs without scoring
-  if (!car.onRoad) return null;                     // you have to be on the road to trip a gate
+// ever trigger. The finish line is dead until every checkpoint on the lap is behind you, which is
+// what stops a kart cutting the course or sitting on the line collecting laps.
+export function updateProgress(progress, track, racer, elapsed) {
+  if (progress.finished || !progress.started) {
+    progress.lastDistance = racer.car.distanceAlong;
+    return null;
+  }
+  const from = progress.lastDistance;
+  const to = racer.car.distanceAlong;
+  const delta = loopDelta(from, to, track.length);
+  progress.lastDistance = to;
+  if (delta <= 0) return null;                    // going backwards never scores
+  if (delta > MAX_GATE_STEP) return null;         // an implausible jump resyncs without scoring
+  // You have to be near the road to trip a gate, but not perfectly on it. Requiring strict
+  // on-road cost karts a whole lap for clipping a kerb at the wrong instant, which looks exactly
+  // like a bug to whoever it happens to.
+  if (Math.abs(racer.car.lateral) > racer.car.halfWidth + 4) return null;
+  progress.covered += delta;
 
-  if (run.nextGate < track.gates.length) {
-    const gate = track.gates[run.nextGate];
-    if (from < gate.distance && to >= gate.distance) {
-      run.nextGate += 1;
-      run.passed += 1;
-      return { kind: 'checkpoint', index: run.passed, of: run.checkpointCount, split: run.elapsed };
+  // Did the arc we just drove contain the gate we are allowed to take next?
+  const crossed = (gateDistance) => {
+    const reach = loopDelta(from, gateDistance, track.length);
+    return reach >= 0 && reach <= delta;
+  };
+
+  if (progress.nextGate < track.gates.length) {
+    if (crossed(track.gates[progress.nextGate].distance)) {
+      progress.nextGate += 1;
+      progress.passed += 1;
+      return { kind: 'checkpoint', index: progress.passed, of: progress.checkpointCount };
     }
     return null;
   }
 
-  // Every checkpoint is behind us, so the finish line is live.
-  if (from < track.finish.distance && to >= track.finish.distance) {
-    run.finished = true;
-    run.passed += 1;
-    run.finalTime = run.elapsed;
-    return { kind: 'finish', time: run.elapsed, of: run.checkpointCount };
+  // Every checkpoint is behind us, so the line is live.
+  if (crossed(0)) {
+    const lapTime = elapsed - progress.lapStarted;
+    progress.lapStarted = elapsed;
+    if (progress.bestLap === null || lapTime < progress.bestLap) progress.bestLap = lapTime;
+    progress.nextGate = 0;
+    progress.passed = 0;
+    if (progress.lap >= progress.totalLaps) {
+      progress.finished = true;
+      progress.finishTime = elapsed;
+      return { kind: 'finish', time: elapsed, lapTime };
+    }
+    progress.lap += 1;
+    return { kind: 'lap', lap: progress.lap, of: progress.totalLaps, lapTime, final: progress.lap === progress.totalLaps };
   }
   return null;
 }
 
-// Where a reset should put the car. Returning to a checkpoint keeps the clock running, exactly as
-// the reference does; starting over puts everything back to zero.
-export function applyReset(run, mode) {
-  run.resets += 1;
+// How far round the whole race a kart has driven. Position is a sort on this.
+export function raceProgress(progress, track, racer) {
+  const lapPart = (progress.lap - 1) * track.length;
+  return lapPart + racer.car.distanceAlong + progress.passed * 0.001;
+}
+
+// Sorts the field: anyone who has finished is placed by when they finished, everyone else by how
+// far round they are.
+export function standings(racers, track) {
+  return [...racers].sort((a, b) => {
+    if (a.progress.finished && b.progress.finished) return a.progress.finishTime - b.progress.finishTime;
+    if (a.progress.finished) return -1;
+    if (b.progress.finished) return 1;
+    return raceProgress(b.progress, track, b) - raceProgress(a.progress, track, a);
+  });
+}
+
+export function positionOf(racers, track, racer) {
+  return standings(racers, track).indexOf(racer) + 1;
+}
+
+// Where a reset should put the kart. Returning to a checkpoint keeps the race running; starting
+// over is only offered before the flag and puts this kart back on the grid.
+export function applyReset(progress, mode) {
+  progress.resets += 1;
   if (mode === RESET_MODES.START) {
-    run.nextGate = 0;
-    run.passed = 0;
-    run.elapsed = 0;
-    run.started = false;
-    run.finished = false;
-    run.finalTime = null;
-    run.lastDistance = 0;
+    progress.lap = 1;
+    progress.nextGate = 0;
+    progress.passed = 0;
+    progress.covered = 0;
+    progress.started = false;
+    progress.finished = false;
+    progress.finishTime = null;
+    progress.lastDistance = 0;
     return { gate: -1 };
   }
-  // Back to the last gate that was actually taken. -1 means the start line.
-  run.lastDistance = 0;
-  return { gate: run.nextGate - 1 };
+  return { gate: progress.nextGate - 1 };
 }
 
 // ---- Time formatting ---------------------------------------------------------------------------
 
-// Formats seconds as M:SS.mmm, the precision the reference HUD uses.
+// Formats seconds as MM:SS.mmm.
 export function formatTime(seconds) {
   if (seconds === null || seconds === undefined || !Number.isFinite(seconds)) return '--:--.---';
   const clamped = Math.max(0, seconds);
@@ -106,17 +152,19 @@ export function formatTime(seconds) {
   return `${String(minutes).padStart(2, '0')}:${String(whole).padStart(2, '0')}.${String(milliseconds).padStart(3, '0')}`;
 }
 
-// The signed gap against the record, written the way a split is written: +0.412 or -1.009.
 export function formatDelta(seconds) {
   if (seconds === null || seconds === undefined || !Number.isFinite(seconds)) return '';
-  const sign = seconds < 0 ? '-' : '+';
-  return sign + formatTime(Math.abs(seconds));
+  return (seconds < 0 ? '-' : '+') + formatTime(Math.abs(seconds));
 }
 
-// ---- Best times --------------------------------------------------------------------------------
+// Places are written the way a race writes them.
+export function ordinal(place) {
+  const suffix = place % 100 >= 11 && place % 100 <= 13 ? 'th'
+    : place % 10 === 1 ? 'st' : place % 10 === 2 ? 'nd' : place % 10 === 3 ? 'rd' : 'th';
+  return `${place}${suffix}`;
+}
 
-// A new time only replaces the stored one when it is genuinely quicker, so a slow run can never
-// overwrite a good one.
+// A new time only replaces the stored one when it is genuinely quicker.
 export function isImprovement(newTime, bestTime) {
   if (!Number.isFinite(newTime) || newTime <= 0) return false;
   if (bestTime === null || bestTime === undefined || !Number.isFinite(bestTime)) return true;

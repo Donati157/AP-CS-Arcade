@@ -5,7 +5,7 @@
 // progress top left, and the speed bottom right where it belongs on a racer. The centre of the
 // screen stays clear for driving.
 
-import { formatTime, formatDelta } from './run.js';
+import { formatTime, ordinal, standings } from './run.js';
 import { speedKmh } from './physics.js';
 
 export class Hud {
@@ -17,20 +17,24 @@ export class Hud {
         <button type="button" class="pk-chip" data-action="restart">Restart</button>
       </div>
 
-      <div class="pk-progress">
-        <span class="pk-progress-label">Checkpoint</span>
-        <span class="pk-progress-count"><b>0</b><i>/0</i></span>
-        <span class="pk-progress-track"></span>
-        <span class="pk-software" hidden>software mode</span>
+      <div class="pk-standing">
+        <span class="pk-place"><b>1</b><i>st</i></span>
+        <span class="pk-standing-meta">
+          <span class="pk-place-of">of 5</span>
+          <span class="pk-lap">Lap <b>1</b><i>/3</i></span>
+          <span class="pk-progress-track"></span>
+          <span class="pk-software" hidden>software mode</span>
+        </span>
       </div>
 
       <div class="pk-clock">
         <span class="pk-clock-time">00:00.000</span>
         <span class="pk-clock-row">
-          <span class="pk-clock-best">Best --:--.---</span>
-          <span class="pk-delta"></span>
+          <span class="pk-clock-best">Best lap --:--.---</span>
         </span>
       </div>
+
+      <ol class="pk-order"></ol>
 
       <div class="pk-speedo">
         <span class="pk-speedo-value">0</span>
@@ -52,17 +56,20 @@ export class Hud {
       message: root.querySelector('.pk-message'),
       flash: root.querySelector('.pk-flash'),
       countdown: root.querySelector('.pk-countdown'),
-      passed: root.querySelector('.pk-progress-count b'),
-      total: root.querySelector('.pk-progress-count i'),
+      place: root.querySelector('.pk-place b'),
+      placeSuffix: root.querySelector('.pk-place i'),
+      placeOf: root.querySelector('.pk-place-of'),
+      lap: root.querySelector('.pk-lap b'),
+      lapOf: root.querySelector('.pk-lap i'),
       best: root.querySelector('.pk-clock-best'),
       current: root.querySelector('.pk-clock-time'),
-      delta: root.querySelector('.pk-delta'),
+      order: root.querySelector('.pk-order'),
       speed: root.querySelector('.pk-speedo-value'),
       touch: root.querySelector('.pk-touch'),
       software: root.querySelector('.pk-software'),
     };
     this.flashTimer = 0;
-    this.shown = { current: '', delta: '', speed: -1, passed: -1, message: '', countdown: '' };
+    this.shown = { current: '', speed: -1, place: -1, lap: -1, message: '', countdown: '', order: '' };
   }
 
   setSoftwareNotice(on) {
@@ -70,10 +77,10 @@ export class Hud {
     if (on) this.elements.software.title = 'This browser has no WebGL, so Poly Kart is drawing the same 3D scene in software.';
   }
 
-  setTrack(track, best) {
+  setTrack(track, best, totalLaps) {
     this.elements.trackName.textContent = track.name;
-    this.elements.total.textContent = `/${track.checkpointCount}`;
-    this.elements.best.textContent = `Best ${best === null ? '--:--.---' : formatTime(best)}`;
+    this.elements.lapOf.textContent = `/${totalLaps}`;
+    this.elements.best.textContent = `Best lap ${best === null ? '--:--.---' : formatTime(best)}`;
   }
 
   enableTouch(enabled) {
@@ -111,22 +118,37 @@ export class Hud {
   }
 
   // Called every frame. Each field is compared before writing, so a steady screen does no DOM work.
-  update(run, car, best) {
-    const current = formatTime(run.elapsed);
+  update(race, player, racers, track, best) {
+    const current = formatTime(race.elapsed);
     if (current !== this.shown.current) { this.elements.current.textContent = current; this.shown.current = current; }
 
-    const speed = speedKmh(car);
+    const speed = speedKmh(player.car);
     if (speed !== this.shown.speed) { this.elements.speed.textContent = String(speed); this.shown.speed = speed; }
 
-    if (run.passed !== this.shown.passed) { this.elements.passed.textContent = String(run.passed); this.shown.passed = run.passed; }
-
-    // With no record there is nothing to compare against, which is how the reference shows it too.
-    const delta = best === null || !run.started ? '' : formatDelta(run.elapsed - best);
-    if (delta !== this.shown.delta) {
-      this.elements.delta.textContent = delta;
-      this.elements.delta.className = `pk-delta ${delta.startsWith('-') ? 'is-ahead' : delta ? 'is-behind' : ''}`;
-      this.shown.delta = delta;
+    const order = standings(racers, track);
+    const place = order.indexOf(player) + 1;
+    if (place !== this.shown.place) {
+      this.elements.place.textContent = String(place);
+      this.elements.placeSuffix.textContent = ordinal(place).replace(String(place), '');
+      this.elements.placeOf.textContent = `of ${racers.length}`;
+      this.shown.place = place;
     }
+
+    if (player.progress.lap !== this.shown.lap) {
+      this.elements.lap.textContent = String(player.progress.lap);
+      this.shown.lap = player.progress.lap;
+    }
+
+    const bestLap = player.progress.bestLap ?? best;
+    const bestText = `Best lap ${bestLap === null || bestLap === undefined ? '--:--.---' : formatTime(bestLap)}`;
+    if (bestText !== this.shown.bestText) { this.elements.best.textContent = bestText; this.shown.bestText = bestText; }
+
+    // The running order down the side, so you can see who you are actually racing.
+    const rows = order.map((racer, index) => {
+      const gap = racer.progress.finished ? formatTime(racer.progress.finishTime) : `L${racer.progress.lap}`;
+      return `<li class="${racer.isPlayer ? 'is-you' : ''}"><span class="pk-order-place">${index + 1}</span><span class="pk-order-dot" style="background:${racer.colour.body}"></span><span class="pk-order-name">${racer.name}</span><span class="pk-order-gap">${gap}</span></li>`;
+    }).join('');
+    if (rows !== this.shown.order) { this.elements.order.innerHTML = rows; this.shown.order = rows; }
   }
 
   dispose() {

@@ -4,7 +4,7 @@
 // body, a front wheel pair and a rear wheel pair. Read from the chase camera the shape has to say
 // at a glance which end is the front, so the nose is wedge-shaped and the rear carries a wing.
 
-import { addBox, addQuad, addCylinder, emptyGeometry, colourFromHex, shade } from './mesh.js';
+import { addBox, addQuad, addTriangle, addCylinder, emptyGeometry, colourFromHex, shade } from './mesh.js';
 
 export const CAR_COLOURS = {
   shell: colourFromHex('#e8622c'),      // Poly Kart orange, nothing like the reference car
@@ -18,9 +18,12 @@ export const CAR_COLOURS = {
 
 export const WHEEL = { radius: 0.62, width: 0.42, frontZ: 1.32, rearZ: -1.28, offsetX: 0.95 };
 
-export function buildCarBody() {
+// The livery is passed in so every kart on the grid can be a different colour while sharing one
+// shape. Everything that is not bodywork stays the same, which keeps the field reading as one set
+// of karts rather than a box of unrelated toys.
+export function buildCarBody(shell = CAR_COLOURS.shell, trim = CAR_COLOURS.trim) {
   const g = emptyGeometry();
-  const c = CAR_COLOURS;
+  const c = { ...CAR_COLOURS, shell, trim, shellDark: shade(shell, 0.72) };
   // Floor pan, wider than it is tall, keeps the car looking planted.
   addBox(g, [0, 0.32, -0.05], [0.85, 0.16, 1.55], c.shellDark);
   // Main tub.
@@ -63,6 +66,16 @@ export function buildWheelPair() {
 export function buildShadow() {
   const g = emptyGeometry();
   const grey = [0.10, 0.13, 0.20];
-  addQuad(g, [-1.5, 0, 2.1], [1.5, 0, 2.1], [1.5, 0, -2.1], [-1.5, 0, -2.1], grey);
+  // An eight-sided blob rather than a rectangle: a hard-edged oblong under every kart reads as a
+  // bug, a rounded one reads as a shadow.
+  const rx = 1.35, rz = 1.95;
+  const points = [];
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2 + Math.PI / 8;
+    points.push([Math.cos(a) * rx, 0, Math.sin(a) * rz]);
+  }
+  for (let i = 0; i < 8; i++) {
+    addTriangle(g, [0, 0, 0], points[i], points[(i + 1) % 8], grey);
+  }
   return g;
 }
