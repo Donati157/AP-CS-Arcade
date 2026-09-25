@@ -138,3 +138,42 @@ the road.
 |---|---|---|---|---|---|
 | Harbour Loop | 21.9 s | 307 km/h | 0.0 s | 0 | 52 |
 | Dune Run | 23.5 s | 295 km/h | 0.0 s | 0 | 55 |
+
+---
+
+## 9. The race pass, 2026-09-24
+
+The brief asked a third time for laps, race position and CPU racers. They are built. Poly Kart is a
+three-lap race for five karts, not a time trial. Screenshots of the deployed build are in `race/`.
+
+### What was wrong before
+
+| Problem | Why |
+|---|---|
+| No laps, no rivals, no position | It was built as a time trial from the recordings |
+| The circuits could not be lapped | Both were authored point-to-point; closing them drew a straight line back across the map |
+| The kart could not be placed on the road | 300 km/h on an 800 m circuit with 40 m corners. No line holds that |
+| Karts that touched crawled | Contact scrubbed speed every physics step, compounding 120 times a second |
+| Clipping a kerb cost a whole lap | Gates demanded the kart be perfectly on the road at the instant it crossed |
+| The AI span itself round on the grid | A stationary kart could still turn |
+
+### What the race is now
+
+- Three laps of a closed circuit, four rivals, five karts.
+- Rivals run the player's physics exactly; only the input differs.
+- Position comes from distance covered, not from proximity to the line.
+- A lap counts only after every checkpoint on it, in order.
+- The player starts at the back, so the whole race is spent racing.
+
+### Measured
+
+| Track | Lap | Best lap | Race | Field spread at the flag |
+|---|---|---|---|---|
+| Harbour Loop | 881 m | 27.5 s | about 1:25 | 2.8 s |
+| Dune Run | 917 m | 32.3 s | about 1:40 | 4.7 s |
+
+### Exploits attempted, all rejected
+
+Sitting on the line and crossing it 100 times; driving two full laps backwards; jumping across the
+infield to the line; taking checkpoint two before checkpoint one; driving a whole lap out in the
+scenery; crossing the line again after the flag. Covered by `tests/exploits.test.mjs`.
