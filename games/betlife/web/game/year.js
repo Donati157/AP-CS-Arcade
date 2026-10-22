@@ -44,10 +44,16 @@ export function ageUp(state) {
   const upkeep = Assets.processAssetsYear(state);
   Economy.processFinances(state, upkeep);
   pocketMoney(state);
-  if (p.age === 18 && p.livesWithParents && !Education.isEnrolled(state.education) && !Career.isEmployed(state.career)) {
-    // Adults without school or work eventually move out at 22 (handled below); until then they stay home.
-  }
-  if (p.age >= 22 && p.livesWithParents && !Education.isEnrolled(state.education)) {
+  // Sair de casa exige ter com que pagar. A regra anterior mandava todo mundo embora aos 22 por
+  // não estar estudando, inclusive quem não tinha emprego nenhum: $9.000 de aluguel por ano contra
+  // renda zero, com 5% de juros compostos em cima, sem piso e sem saída. Medido antes da correção:
+  // a dívida de uma vida passiva chegava a −$878 mil aos 60 anos, um número que nada no jogo
+  // justifica e do qual o jogador não tem como voltar.
+  //
+  // Agora: sai quem trabalha, ou quem tem reserva para um ano de aluguel. Quem não tem nenhum dos
+  // dois continua na casa dos pais — que é o que acontece, e deixa a dívida de ser inevitável.
+  const podeSeSustentar = Career.isEmployed(state.career) || p.money >= Economy.RENT;
+  if (p.age >= 22 && p.livesWithParents && !Education.isEnrolled(state.education) && podeSeSustentar) {
     p.livesWithParents = false;
     addJournal(state, 'You moved out of your parents’ home and started paying your own way.', 'milestone');
   }

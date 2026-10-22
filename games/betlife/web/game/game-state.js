@@ -92,6 +92,7 @@ export function answerModal(state, choiceIndex = null) {
   else if (modal.eventId === 'retirePrompt') { if (choiceIndex === 0) followUp = 'retire'; else addJournal(state, 'You decided to keep working for now.'); }
   else followUp = resolveEventDecision(state, modal, choiceIndex);
   if (followUp === 'retire') { Career.retire(state, true); followUp = null; }
+  if (followUp === 'jobOffer') { hireFromOffer(state); followUp = null; }
   updateOccupation(state);
   return followUp;
 }
@@ -236,6 +237,32 @@ export function retryProfile(state) {
 
 // ---- Choices that do not cost an action -----------------------------------------------------------------
 
+// A melhor vaga de entrada que o personagem REALMENTE qualifica agora — ou null.
+//
+// Serve à oferta de emprego que chega por indicação. A referência entrega emprego assim: um evento
+// oferece a vaga e você aceita. Antes disto, nenhum caminho do jogo contratava ninguém sozinho:
+// toda contratação exigia abrir o quadro de vagas e se candidatar, e um jogador que só aperta
+// +Idade terminava a vida inteira sem nunca trabalhar (medido: 0 de 40 vidas empregadas, dívida
+// mediana de −$2,09 milhões).
+export function offeredJob(state) {
+  if (!state.player.alive || Career.isEmployed(state.career) || state.career.retired) return null;
+  if (Education.isEnrolled(state.education)) return null;
+  const elegiveis = Careers.CAREERS
+    .filter((c) => !c.partTime && Career.isEligible(state, c))
+    .sort((a, b) => a.ladder[0].salary - b.ladder[0].salary);
+  if (!elegiveis.length) return null;
+  // A indicação é o pé na porta, não o emprego dos sonhos: entra pela metade de baixo da lista.
+  return elegiveis[Math.min(elegiveis.length - 1, Math.floor(elegiveis.length / 3))];
+}
+
+function hireFromOffer(state) {
+  const vaga = offeredJob(state);
+  if (!vaga) { addJournal(state, 'The opening was filled before you could call back.'); return null; }
+  const r = applyForCareer(state, vaga.id);
+  if (r.ok) state.pending.push({ kind: 'info', band: 'Work', tone: 'green', icon: 'briefcase', title: r.title, text: r.text, facts: r.facts });
+  return r;
+}
+
 export function applyForCareer(state, careerId) {
   if (!state.player.alive) return { ok: false, title: 'Life Complete', text: 'This life has ended.' };
   const career = Careers.findCareer(careerId);
@@ -265,13 +292,27 @@ export function retireNow(state) {
   return true;
 }
 
-export function enrollUniversity(state, major) {
+// Por que a matrícula no ensino superior não é possível agora — ou null quando é.
+// Existe para que a recusa possa ser DITA. Antes estas funções devolviam só `false`, e a tela
+// chamadora não mostrava nada: o jogador clicava num curso e o jogo ficava em silêncio.
+export function higherEducationBlock(state, kind) {
   const e = state.education;
-  if (!Education.canEnrollHigher(e) || e.degree) return false;
+  if (!state.player.alive) return 'This life has ended.';
+  if (!e.highSchoolGraduate) return 'You need to finish high school first.';
+  if (Education.isEnrolled(e)) return `You are already enrolled at ${Education.schoolName(e) || 'school'}. Finish or drop out first.`;
+  if (kind === 'university' && e.degree) return 'You already have a degree.';
+  if (kind === 'trade' && e.trade) return 'You already have a trade certificate.';
+  return null;
+}
+
+export function enrollUniversity(state, major) {
+  const blocked = higherEducationBlock(state, 'university');
+  if (blocked) return { ok: false, title: 'Not Now', text: blocked };
+  const e = state.education;
   Education.enrollInUniversity(e, major);
   updateOccupation(state);
   addJournal(state, `You enrolled at ${Education.UNIVERSITY_NAME} to study ${major}.`, 'milestone');
-  return true;
+  return { ok: true, title: 'Enrolled', text: `You are now studying ${major} at ${Education.UNIVERSITY_NAME}.` };
 }
 
 export function enrollProgram(state, programId) {
@@ -367,12 +408,12 @@ export function continueAsChild(state, childId) {
 }
 
 export function enrollTradeSchool(state, trade) {
-  const e = state.education;
-  if (!Education.canEnrollHigher(e) || e.trade) return false;
-  Education.enrollInTradeSchool(e, trade);
+  const blocked = higherEducationBlock(state, 'trade');
+  if (blocked) return { ok: false, title: 'Not Now', text: blocked };
+  Education.enrollInTradeSchool(state.education, trade);
   updateOccupation(state);
   addJournal(state, `You enrolled at ${Education.TRADE_SCHOOL_NAME} to train in ${trade}.`, 'milestone');
-  return true;
+  return { ok: true, title: 'Enrolled', text: `You are training in ${trade} at ${Education.TRADE_SCHOOL_NAME}.` };
 }
 
 export function dropOut(state) {

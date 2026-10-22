@@ -39,7 +39,7 @@ test('school progression and graduation at 18', () => {
 test('university: enroll, tuition as a loan, degree at 22', () => {
   const s = G.createNewGame({}, 3);
   ageTo(s, 18);
-  assert.ok(G.enrollUniversity(s, 'Biology'));
+  assert.ok(G.enrollUniversity(s, 'Biology').ok);
   assert.equal(s.player.occupation, 'University Student');
   ageTo(s, 22);
   assert.equal(s.education.degree, 'Biology');

@@ -133,11 +133,50 @@ for (const game of games) {
   } else {
     // The game already includes the arcade bar and Back link itself (BetLife).
     cpSync(source, target, { recursive: true, filter });
+    // It has no shell to carry the session guard, so the guard is injected into the copy. The
+    // student's own file is never touched; only what is published gets the extra lines.
+    installSessionGuard(join(target, m.web.entry || 'index.html'), m);
   }
   console.log(`  published ${m.name} -> web/games/${m.id}/`);
 }
 writeFileSync(REGISTRY_FILE, JSON.stringify(registry, null, 2) + '\n');
 console.log(`✔ Wrote web/games.json with ${registry.filter((g) => g.playable).length} playable game(s).`);
+
+
+// Puts the "entering a game starts a new session" guard into a page that has no arcade shell.
+// It goes at the top of <head> so it runs before the game's own scripts read storage.
+function installSessionGuard(pagePath, m) {
+  const keys = m.web.sessionKeys || [];
+  if (!keys.length || !existsSync(pagePath)) return;
+  const html = readFileSync(pagePath, 'utf8');
+  if (html.includes('arcade.session.')) return;
+  writeFileSync(pagePath, html.replace('<head>', `<head>\n  ${sessionGuard(m)}`));
+}
+
+// The guard itself. A marker in sessionStorage survives a reload and dies with the tab; the arcade
+// home page clears every marker when it loads, so any route back to the hub ends the session.
+//
+// A limpeza toca SÓ o sessionStorage. O progresso vive ali (e por isso some sozinho ao fechar a
+// aba); a guarda cuida apenas do caso "voltou ao hub e entrou de novo".
+//
+// Ela NÃO mexe no localStorage de propósito. Uma versão anterior desta guarda varria as duas áreas
+// para limpar vidas antigas do disco — e com isso apagava, antes de o jogo subir, exatamente a vida
+// que o jogador precisa poder baixar. Quem cuida da vida antiga é o próprio BetLife, que avisa,
+// oferece exportar e só então remove.
+function sessionGuard(m) {
+  return `<script>
+    (function () {
+      const KEYS = ${JSON.stringify(m.web.sessionKeys || [])};
+      const marker = 'arcade.session.${m.id}';
+      try {
+        if (!sessionStorage.getItem(marker)) {
+          for (const key of KEYS) sessionStorage.removeItem(key);
+          sessionStorage.setItem(marker, String(Date.now()));
+        }
+      } catch (error) { /* private mode: nothing persisted, nothing to clear */ }
+    })();
+  </script>`;
+}
 
 // ---- helpers ----------------------------------------------------------------------------------
 function rel(path) {
@@ -152,6 +191,9 @@ function escapeHtml(text) {
 function shellPage(m) {
   const name = escapeHtml(m.name);
   const entry = escapeHtml(m.web.entry || 'index.html');
+  // Keys a game uses to hold a session in progress, as opposed to records and preferences. The
+  // arcade wipes these when a game is entered afresh, so leaving really does end the session.
+  const sessionKeys = JSON.stringify(m.web.sessionKeys || []);
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -176,6 +218,7 @@ function shellPage(m) {
   <main class="embed-stage">
     <iframe id="game-frame" src="game/${entry}" title="${name}" allow="autoplay; fullscreen" scrolling="no"></iframe>
   </main>
+  ${sessionGuard(m)}
   <script>
     // Keyboard input belongs to the game: keep the frame focused so Space/arrows reach it.
     const frame = document.getElementById('game-frame');

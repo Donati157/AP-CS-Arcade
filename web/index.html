@@ -19,5 +19,15 @@
     <footer class="home-footer">An AP Computer Science class project · <a href="https://github.com/Donati157/AP-CS-Arcade">Source on GitHub</a></footer>
   </main>
   <script type="module" src="scripts/arcade.js"></script>
+  <script>
+    // Arriving at the arcade ends every game's session. Each game shell sets a marker when it is
+    // entered; clearing them here means the next entry starts that game from its first screen.
+    try {
+      for (let i = sessionStorage.length - 1; i >= 0; i--) {
+        const key = sessionStorage.key(i);
+        if (key && key.startsWith('arcade.session.')) sessionStorage.removeItem(key);
+      }
+    } catch (error) { /* private mode */ }
+  </script>
 </body>
 </html>

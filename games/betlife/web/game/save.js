@@ -1,4 +1,17 @@
 // Saving, loading and migrating older saves. The save is the whole game state as JSON.
+//
+// O PROGRESSO VIVE NA ABA, NÃO NO DISCO.
+//
+// A vida em andamento fica em `sessionStorage`, que o navegador apaga sozinho quando a aba fecha.
+// Antes ela ficava em `localStorage` e dependia de uma guarda no carregamento seguinte para ser
+// removida: funcionava, mas deixava a vida inteira gravada no disco no intervalo entre fechar a aba
+// e abrir o site de novo — e qualquer falha da guarda (HTML em cache sem ela, link direto para o
+// arquivo do jogo, erro de script antes dela) ressuscitava a vida antiga.
+//
+// Com `sessionStorage` não existe cópia persistente em momento nenhum, e continuar jogando ao
+// navegar entre telas segue funcionando, porque `sessionStorage` sobrevive a recarregar a página.
+// As PREFERÊNCIAS (idioma, primeira execução) continuam em `localStorage`: são configuração, não
+// progresso, e o pedido é explícito em não apagar configuração.
 import { createEventMemory } from './events/engine.js';
 import { createCareer } from './career.js';
 import { createEducation } from './education.js';
@@ -7,9 +20,57 @@ import { seedFromClock } from './rng.js';
 export const STORAGE_KEY = 'betlife.web.save';
 export const SAVE_VERSION = 2;
 
+// ---- A vida que ficou no disco pela versão anterior -------------------------------------------
+//
+// A versão publicada gravava a vida em `localStorage` e nunca a apagava. Quem jogou lá tem uma vida
+// guardada no disco agora. Ela NÃO é apagada em silêncio: o jogo encontra, avisa, e oferece baixar
+// antes de seguir. Quem decide é o jogador.
+
+/** O que ficou no disco, cru, ou null. Não remove nada. */
+export function legacyDiskSave() {
+  try { return localStorage.getItem(STORAGE_KEY) || null; } catch (error) { return null; }
+}
+
+/** Um resumo legível da vida antiga, para o cartão poder dizer de quem é. */
+export function legacyDiskSummary() {
+  const raw = legacyDiskSave();
+  if (!raw) return null;
+  try {
+    const s = JSON.parse(raw);
+    const p = s && s.player;
+    if (!p || !p.name) return { nome: 'Uma vida salva', idade: null, bytes: raw.length };
+    return { nome: p.name, idade: p.age ?? null, viva: p.alive !== false, bytes: raw.length };
+  } catch (error) {
+    return { nome: 'Uma vida salva (ilegível)', idade: null, bytes: raw.length };
+  }
+}
+
+/** Baixa a vida antiga como um arquivo. Devolve false se o navegador não deixar. */
+export function exportLegacyDiskSave() {
+  const raw = legacyDiskSave();
+  if (!raw) return false;
+  try {
+    const resumo = legacyDiskSummary();
+    const nome = `betlife-${String(resumo && resumo.nome || 'vida').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}.json`;
+    const url = URL.createObjectURL(new Blob([raw], { type: 'application/json' }));
+    const a = document.createElement('a');
+    a.href = url; a.download = nome; a.style.display = 'none';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
+/** Remove a vida antiga do disco. Só é chamado DEPOIS de o jogador decidir. */
+export function discardLegacyDiskSave() {
+  try { localStorage.removeItem(STORAGE_KEY); return true; } catch (error) { return false; }
+}
+
 export function saveGame(state) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     return true;
   } catch (error) {
     return false; // storage unavailable (private mode): the game stays in memory
@@ -18,7 +79,7 @@ export function saveGame(state) {
 
 export function loadGame() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = sessionStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
     return restoreState(JSON.parse(raw));
   } catch (error) {
@@ -27,7 +88,7 @@ export function loadGame() {
 }
 
 export function clearSavedGame() {
-  try { localStorage.removeItem(STORAGE_KEY); } catch (error) { /* nothing to clear */ }
+  try { sessionStorage.removeItem(STORAGE_KEY); } catch (error) { /* nothing to clear */ }
 }
 
 // Turns parsed JSON into a usable state, migrating older shapes. Returns null when it cannot.

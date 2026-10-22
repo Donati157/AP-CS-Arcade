@@ -47,7 +47,10 @@ function ribbon(state, career, kids) {
   if (worth >= 1000000) return { label: 'Wealthy', icon: 'money' };
   if (p.age >= 95) return { label: 'Ancient', icon: 'clock' };
   if (kids.length >= 3) return { label: 'Family', icon: 'people' };
-  if (career.yearsWorked >= 40) return { label: 'Hard Worker', icon: 'tools' };
+  // `careerSummary()` devolve null para quem nunca trabalhou — e é por isso que as duas linhas
+  // acima, no mesmo arquivo, já testam `career` antes de usar. Aqui faltava, e qualquer vida que
+  // terminasse sem emprego quebrava a tela de resumo com TypeError.
+  if (career && career.yearsWorked >= 40) return { label: 'Hard Worker', icon: 'tools' };
   if (state.education.degree) return { label: 'Scholar', icon: 'cap' };
   if (p.age >= 80) return { label: 'Long Life', icon: 'leaf' };
   return { label: 'Ordinary', icon: 'leaf' };

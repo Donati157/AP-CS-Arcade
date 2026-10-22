@@ -162,20 +162,28 @@ export function school(ctx) {
 
 export function university(ctx) {
   const { state } = ctx;
+  // Lista curso só quando a matrícula é possível. Oferecer oito cursos que o jogo vai recusar em
+  // silêncio era o defeito; dizer o motivo é a correção.
+  const blocked = G.higherEducationBlock(state, 'university');
   return screen(state, 'University', `
     ${section(Education.UNIVERSITY_NAME)}
     ${infoRow('Length', `${Education.UNIVERSITY_YEARS} years`)}${infoRow('Tuition', `${money(Education.UNIVERSITY_TUITION)} / year (student loan if needed)`)}
-    ${section('Choose a major')}
-    ${Education.MAJORS.map((m) => row(m.id, { sub: m.note, icon: 'cap', action: 'enrollUniversity', data: { major: m.id }, right: 'dots' })).join('')}`, { back: 'occupation', mode: 'back' });
+    ${blocked
+      ? `${section('Not available right now')}${note(blocked)}`
+      : `${section('Choose a major')}${Education.MAJORS.map((m) => row(m.id, { sub: m.note, icon: 'cap', action: 'enrollUniversity', data: { major: m.id }, right: 'dots' })).join('')}`}`,
+    { back: 'occupation', mode: 'back' });
 }
 
 export function tradeSchool(ctx) {
   const { state } = ctx;
+  const blocked = G.higherEducationBlock(state, 'trade');
   return screen(state, 'Trade School', `
     ${section(Education.TRADE_SCHOOL_NAME)}
     ${infoRow('Length', `${Education.TRADE_SCHOOL_YEARS} years`)}${infoRow('Tuition', `${money(Education.TRADE_TUITION)} / year`)}
-    ${section('Choose a trade')}
-    ${Education.TRADES.map((t) => row(t.id, { sub: t.note, icon: 'tools', action: 'enrollTrade', data: { trade: t.id }, right: 'dots' })).join('')}`, { back: 'occupation', mode: 'back' });
+    ${blocked
+      ? `${section('Not available right now')}${note(blocked)}`
+      : `${section('Choose a trade')}${Education.TRADES.map((t) => row(t.id, { sub: t.note, icon: 'tools', action: 'enrollTrade', data: { trade: t.id }, right: 'dots' })).join('')}`}`,
+    { back: 'occupation', mode: 'back' });
 }
 
 // ---- Occupation, jobs and career ----------------------------------------------------------------------------

@@ -35,3 +35,7 @@ web/games.json
 # Compiled WebKit capture tool (built on demand by tests/screenshot-all.sh)
 games/betlife/web/tests/wkshot
 games/Poly Kart/reference videos/
+
+# Node tooling instalado só para os testes de navegador (Playwright + WebKit).
+# Não faz parte do jogo: `npm i --no-save playwright && npx playwright install webkit`.
+node_modules/

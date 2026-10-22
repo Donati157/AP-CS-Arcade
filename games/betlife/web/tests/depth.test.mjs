@@ -12,7 +12,7 @@ test('professional school unlocks a professional career', () => {
   const s = G.createNewGame({}, 8080);
   ageTo(s, 18);
   s.education.highSchoolGraduate = true; s.education.stage = 'none';
-  assert.ok(G.enrollUniversity(s, 'Biology'));
+  assert.ok(G.enrollUniversity(s, 'Biology').ok);
   ageTo(s, 22);
   assert.equal(s.education.degree, 'Biology');
   assert.equal(G.applyForCareer(s, 'medicine').ok, false, 'no medical credential yet');

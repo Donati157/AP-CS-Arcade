@@ -1,5 +1,6 @@
 // Decisions at work. Original BetLife writing.
 import { ev } from '../events/define.js';
+import { offeredJob } from '../game-state.js';
 
 export const CAREER_DECISIONS = [
   ev({ id: 'overtimeRequest', category: 'career', needs: ['fullTime'], cooldown: 4, band: 'Work', title: 'Extra Hours',
@@ -55,5 +56,13 @@ export const CAREER_DECISIONS = [
     text: (c) => `${c.whoName} knows someone who is hiring and can put in a good word, but the job starts at the bottom.`, choices: [
       { label: 'Ask for the referral', text: (c) => `${c.whoName} put in a good word. Check the job board: your name is on the shortlist.`, effects: { closeness: 4, happiness: 2, smarts: 1 }, followUp: 'jobs' },
       { label: 'Keep looking on your own', text: 'You thanked your friend and kept looking on your own terms.', effects: { happiness: 1 } },
+    ] }),
+  // Uma indicação que vira emprego de verdade. `when` exige que exista vaga elegível AGORA, então a
+  // oferta nunca aparece para quem não poderia aceitá-la.
+  ev({ id: 'friendJobOffer', category: 'career', needs: ['unemployedAdult'], minAge: 19, person: 'friend', cooldown: 5,
+    when: (c) => !!offeredJob(c.state), band: 'Work', title: 'An Opening',
+    text: (c) => `${c.whoName} says there is an opening where they work and the manager wants to meet you this week.`, choices: [
+      { label: 'Take the interview', text: (c) => `${c.whoName} walked you in and vouched for you.`, effects: { closeness: 5, happiness: 3 }, followUp: 'jobOffer' },
+      { label: 'Not this one', text: 'You thanked them and said you were holding out for something else.', effects: { happiness: 1 } },
     ] }),
 ];

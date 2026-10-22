@@ -9,6 +9,9 @@
     "enabled": true,
     "dir": "web",
     "entry": "index.html",
-    "embed": false
+    "embed": false,
+    "sessionKeys": [
+      "betlife.web.save"
+    ]
   }
 }

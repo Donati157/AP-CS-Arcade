@@ -11,6 +11,7 @@ import { withArticle } from './game/life-generator.js';
 import { SCREENS } from './ui/screens.js';
 import * as Modals from './ui/modals.js';
 import { money, esc } from './ui/render.js';
+import { legacyDiskSummary, exportLegacyDiskSave, discardLegacyDiskSave } from './game/save.js';
 
 export const VERSION = '2.7.0-web';
 
@@ -55,22 +56,50 @@ function render() {
   renderModal();
 }
 
+// What is on screen right now, so a card only plays its arrival when it is genuinely a new card.
+// The overlay is rewritten on every render, and without this the card would pop again every time
+// anything at all changed behind it.
+let mountedModal = null;
+let mountTimer = 0;
+
+// The screen is genuinely empty between one card and the next. In the recording the card you
+// answered is gone for about two tenths of a second before the next one pops in, and that gap is
+// most of what gives the game its rhythm; replacing one card with another in the same frame reads
+// as a form re-rendering.
+const CARD_GAP = 200;
+
+function mountModal(html, token) {
+  // Same card, just re-rendered behind something that changed: swap the content and leave it alone.
+  if (token === mountedModal) { modalRoot.innerHTML = html; return; }
+  const replacing = mountedModal !== null;
+  mountedModal = token;
+  clearTimeout(mountTimer);
+  const place = () => {
+    modalRoot.innerHTML = html;
+    if (modalRoot.firstElementChild) modalRoot.firstElementChild.classList.add('is-entering');
+    focusModal();
+  };
+  if (!replacing) { place(); return; }
+  modalRoot.innerHTML = '';
+  mountTimer = setTimeout(() => { if (mountedModal === token) place(); }, CARD_GAP);
+}
+
 function renderModal() {
-  if (uiModal && uiModal.kind === 'language') { modalRoot.innerHTML = Modals.languageCard(uiModal.current); return; }
-  if (uiModal) { modalRoot.innerHTML = Modals.confirm(uiModal); focusModal(); return; }
-  if (postLifeOpen && state) { modalRoot.innerHTML = Modals.postLife(state.player.name, !!state.profile, People.children(state)); focusModal(); return; }
+  if (uiModal && uiModal.kind === 'language') { mountModal(Modals.languageCard(uiModal.current), uiModal); return; }
+  if (uiModal) { mountModal(Modals.confirm(uiModal), uiModal); focusModal(); return; }
+  if (postLifeOpen && state) { mountModal(Modals.postLife(state.player.name, !!state.profile, People.children(state)), 'postlife'); focusModal(); return; }
   const modal = state ? G.currentModal(state) : null;
-  if (!modal) { modalRoot.innerHTML = ''; return; }
+  if (!modal) { clearTimeout(mountTimer); mountedModal = null; modalRoot.innerHTML = ''; return; }
   if (modal.kind === 'badge') {
-    modalRoot.innerHTML = Modals.badgeBanner(modal);
+    mountModal(Modals.badgeBanner(modal), modal);
     clearTimeout(bannerTimer);
     bannerTimer = setTimeout(() => { if (G.currentModal(state) === modal) answer('ok'); }, 3000);
     return;
   }
-  if (modal.kind === 'minigame') { modalRoot.innerHTML = Modals.minigame(modal, state); startEyeTimer(modal); focusModal(); return; }
-  if (modal.kind === 'decision') modalRoot.innerHTML = Modals.decision(modal, state);
-  else if (modal.kind === 'death') modalRoot.innerHTML = Modals.death(G.lifeSummary(state));
-  else modalRoot.innerHTML = Modals.info(modal, state);
+  if (modal.kind === 'minigame') { mountModal(Modals.minigame(modal, state), modal); startEyeTimer(modal); focusModal(); return; }
+  if (modal.kind === 'decision') mountModal(Modals.decision(modal, state), modal);
+  else if (modal.kind === 'death') mountModal(Modals.death(G.lifeSummary(state)), 'death');
+  else mountModal(Modals.info(modal, state), modal);
   focusModal();
 }
 
@@ -248,7 +277,9 @@ async function handle(action, data) {
     case 'assetAction': {
       if (data.do === 'scrap') { const c = await ask({ title: 'Scrap it?', band: 'Belongings', icon: 'exit', text: 'Scrapping pays only a tenth of the value.', choices: ['Scrap', 'Keep'], danger: true }); if (c !== 0) break; }
       const result = G.assetAction(state, data.asset, data.do, data.person || null);
-      if (result.ok && ['scrap', 'gift'].includes(data.do)) screen = 'assets';
+      // Scrapping and gifting used to drop you back on the belongings list. They both write a line in
+      // the life log, so `afterAction` now takes you to the log to read it, and sending you to the
+      // list first would only be a screen you see for an instant on the way.
       report(result); break;
     }
     case 'adoptConfirm': {
@@ -290,11 +321,15 @@ async function handle(action, data) {
       break;
     }
     case 'enrollUniversity': {
-      if (G.enrollUniversity(state, data.major)) { go('main'); toast('Enrolled', `You are now studying ${data.major} at Harborview University.`, 'green'); }
+      const r = G.enrollUniversity(state, data.major);
+      if (r.ok) go('main');
+      report(r);                       // recusa também fala: antes o clique não produzia nada
       break;
     }
     case 'enrollTrade': {
-      if (G.enrollTradeSchool(state, data.trade)) { go('main'); toast('Enrolled', `You are training in ${data.trade}.`, 'green'); }
+      const r = G.enrollTradeSchool(state, data.trade);
+      if (r.ok) go('main');
+      report(r);
       break;
     }
     case 'dropOut': {
@@ -329,15 +364,60 @@ async function handle(action, data) {
   }
 }
 
+// Where an action leaves you: back on the life, reading the line you just earned.
+//
+// Doing something in BetLife writes a sentence in the life log, and the life log is the main screen.
+// Before this, the sentence was written on a screen you were not looking at: giving a gift left you
+// staring at the belongings list, spending the day with everyone left you on Relationships, and
+// studying harder left you in School. You had to find your way back to read what had happened.
+//
+// The test is the log itself rather than a list of action names. An action that writes a line is one
+// whose result you are meant to read, so it takes you to where the lines are; anything that writes
+// nothing - browsing a shop, selling, repairing, opening a person - leaves you where you were, which
+// is what you want while you are working through a list of things.
+function afterAction(hadState, journalBefore) {
+  if (!hadState || !state || screen === 'main') return;
+  // A card is still open: the player is in the middle of answering it, and moving the screen under it
+  // would be pulling the floor out.
+  if (uiModal || postLifeOpen) return;
+  if (state.timeline.length === journalBefore) return;
+  go('main');
+}
+
 root.addEventListener('click', (event) => {
   const el = event.target.closest('[data-action]');
   if (!el) return;
   if (modalRoot.firstChild && !modalRoot.querySelector('.bl-banner')) return;   // badge banners do not block navigation
-  handle(el.dataset.action, el.dataset);
+  const hadState = !!state;
+  const journalBefore = state ? state.timeline.length : 0;
+  // `handle` is async - it awaits confirmation cards - so this waits for the whole interaction to
+  // finish before deciding, not just for the click.
+  Promise.resolve(handle(el.dataset.action, el.dataset)).then(() => afterAction(hadState, journalBefore));
 });
+// Choosing an option, timed off the recordings rather than answered on the spot.
+//
+// Frame by frame the reference does this: the chosen button darkens and stays darkened for about
+// a tenth of a second, returns to its normal colour, the card sits there for another couple of
+// frames, and then it is gone in one frame with no fade and no scale. The options you did not pick
+// do nothing at all. Answering immediately skipped the whole beat, which is what made the old
+// version feel like a web form rather than the reference.
+const PRESS_HOLD = 100;      // the chosen button stays dark this long
+const CARD_LINGER = 70;      // then the card sits a moment before it goes
+let answering = false;
+
 modalRoot.addEventListener('click', (event) => {
   const el = event.target.closest('[data-choice]');
-  if (el) answer(el.dataset.choice);
+  if (!el || answering) return;
+  const choice = el.dataset.choice;
+  answering = true;
+  el.classList.add('is-chosen');
+  setTimeout(() => {
+    el.classList.remove('is-chosen');
+    setTimeout(() => {
+      answering = false;
+      answer(choice);
+    }, CARD_LINGER);
+  }, PRESS_HOLD);
 });
 
 // Screenshot fixtures (development only): ?seed=7&age=27 builds a deterministic life, and
@@ -387,6 +467,38 @@ const hashScreen = location.hash.slice(1);
 if (SCREENS[hashScreen] && (state || ['start', 'newlife', 'about'].includes(hashScreen))) screen = hashScreen;
 if (!SCREENS[screen]) screen = state ? 'main' : 'start';
 render();
+
+// ---- A vida que a versão anterior deixou no disco ---------------------------------------------
+//
+// A versão publicada gravava a vida em `localStorage` e nunca a apagava, então quem jogou lá tem
+// uma vida guardada. O progresso agora vive na aba, e essa vida antiga não vai voltar a ser jogada
+// — mas ela NÃO é apagada em silêncio. O jogo avisa de quem é, oferece baixar como arquivo, e só
+// remove depois que o jogador escolhe. Nas fixtures de captura o aviso não aparece.
+async function ofereceVidaAntiga() {
+  if (params.has('seed') || params.has('fixture')) return;
+  const antiga = legacyDiskSummary();
+  if (!antiga) return;
+  const quem = antiga.idade === null ? antiga.nome : `${antiga.nome}, ${antiga.idade} ${antiga.idade === 1 ? 'ano' : 'anos'}`;
+  const escolha = await ask({
+    title: 'A life from the old version',
+    band: 'Saved Life', icon: 'info', tone: 'blue',
+    text: 'BetLife now keeps your progress in this tab only, so this saved life will not be loaded again. '
+        + 'You can download it first — it is a plain JSON file you can keep.',
+    facts: [['Character', quem], ['Size', `${(antiga.bytes / 1024).toFixed(1)} KB`]],
+    choices: ['Download it', 'Discard it'],
+  });
+  if (escolha === 0) {
+    const baixou = exportLegacyDiskSave();
+    if (!baixou) {
+      await ask({ title: 'Could not download', band: 'Saved Life', icon: 'info', tone: 'red',
+        text: 'This browser would not let the file through. The life is still on disk — try again, or discard it.',
+        choices: ['OK'] });
+      return;                       // não remove: a cópia não saiu
+    }
+  }
+  discardLegacyDiskSave();
+}
+ofereceVidaAntiga();
 
 // Exposed for automated testing and debugging only.
 window.betlife = {
