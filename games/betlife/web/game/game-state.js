@@ -1,5 +1,6 @@
 // The public face of the simulation: create a life, take actions, answer dialogs, age up, save.
 // The interface only talks to this module (and reads state); it never edits state directly.
+import { t, tg, dinheiro, numero } from './i18n/index.js';
 import { initRng, seedFromClock, pick } from './rng.js';
 import { createPlayer, stageLabel } from './player.js';
 import { generateProfile, withArticle, PLACES } from './life-generator.js';
@@ -31,6 +32,17 @@ export const JOBS_MIN_AGE = 15;
  * Starts a brand-new life at birth. `custom` may fix the name, gender and birthplace; everything
  * else comes from the seeded RNG. Tests pass a seed for a repeatable life.
  */
+// 'November 16' -> '16 de novembro'. O mês nasce em inglês em `life-generator.js` e vai gravado no
+// save assim; traduzi-lo na origem quebraria toda vida já salva, então a conversão mora aqui, na
+// exibição, e passa o mês pelo catálogo como qualquer outro rótulo de dado.
+const MESES_EN = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August',
+  'September', 'October', 'November', 'December'];
+function traduzData(data) {
+  const partes = String(data || '').split(' ');
+  if (partes.length !== 2 || !MESES_EN.includes(partes[0])) return data;
+  return t('{day} de {month}', { day: partes[1], month: t(partes[0].toLowerCase()) });
+}
+
 export function createNewGame(custom = {}, seed = seedFromClock()) {
   const state = {
     version: SAVE_VERSION, seed: 0, rngState: 0, profile: null, player: null,
@@ -45,13 +57,13 @@ export function createNewGame(custom = {}, seed = seedFromClock()) {
   state.player = createPlayer(state, profile);
   People.createStartingFamily(state, profile);
   const child = profile.gender === 'female' ? 'girl' : 'boy';
-  addJournal(state, `You were born a ${child} in ${profile.city}, ${profile.country}.`, 'milestone');
-  addJournal(state, `Your birthday is ${profile.birthday}.`);
-  addJournal(state, `Your name is ${profile.firstName} ${profile.lastName}.`);
-  addJournal(state, `Your mother is ${profile.mother.name}, ${withArticle(profile.mother.job)} (age ${profile.mother.age}).`);
-  addJournal(state, `Your father is ${profile.father.name}, ${withArticle(profile.father.job)} (age ${profile.father.age}).`);
+  addJournal(state, t('You were born a {child} in {city}, {country}.', { child: t(child), city: profile.city, country: t(profile.country) }), 'milestone');
+  addJournal(state, t('Your birthday is {birthday}.', { birthday: traduzData(profile.birthday) }));
+  addJournal(state, t('Your name is {first} {last}.', { first: profile.firstName, last: profile.lastName }));
+  addJournal(state, t('Your mother is {name}, {job} (age {age}).', { name: profile.mother.name, job: tg(withArticle(profile.mother.job), 'female'), age: profile.mother.age }));
+  addJournal(state, t('Your father is {name}, {job} (age {age}).', { name: profile.father.name, job: tg(withArticle(profile.father.job), 'male'), age: profile.father.age }));
   const sibling = People.siblings(state)[0];
-  if (sibling) addJournal(state, `You have an older ${sibling.role} named ${People.firstName(sibling)} (age ${sibling.age}).`);
+  if (sibling) addJournal(state, t('You have an older {role} named {name} (age {age}).', { _g: sibling.gender, role: tg(sibling.role, sibling.gender), name: People.firstName(sibling), age: sibling.age }));
   return state;
 }
 
@@ -102,6 +114,7 @@ export function randomChoice(state, modal) {
   return pick(state, modal.choices).index;
 }
 
+
 // ---- Actions (each one uses one of the year's actions) ------------------------------------------------
 
 // The only thing that blocks an action is being dead. There is no per-year action budget:
@@ -111,13 +124,13 @@ function guard(state) {
   return null;
 }
 
-export function doActivity(state, activityId) {
+export function doActivity(state, activityId, opts = null) {
   const blocked = guard(state);
   if (blocked) return blocked;
   const activity = Activities.findActivity(activityId);
   if (!activity) return { ok: false, title: 'Unknown', text: 'That activity does not exist.' };
-  if (!canDoActivities(state)) return { ok: false, title: 'Too Young', text: `You are still too little for that. Activities open up at age ${Activities.ACTIVITY_MIN_AGE}.` };
-  const result = Activities.perform(state, activity);
+  if (!canDoActivities(state)) return { ok: false, title: 'Too Young', text: t('You are still too little for that. Activities open up at age {age}.', { age: Activities.ACTIVITY_MIN_AGE }) };
+  const result = Activities.perform(state, activity, opts);
   awardBadges(state);
   return result;
 }
@@ -144,7 +157,7 @@ export function familyDay(state) {
   if (people.length === 0) return { ok: false, title: 'Nobody Around', text: 'There is nobody in your life to spend the day with.' };
   for (const p of people) { People.changeCloseness(p, 3); p.interactedThisYear = true; }
   changeStat(state, 'happiness', 3, 'day with everyone');
-  const text = `You spent a whole day with everyone in your life (${people.length} ${people.length === 1 ? 'person' : 'people'}).`;
+  const text = t(people.length === 1 ? 'You spent a whole day with everyone in your life ({n} person).' : 'You spent a whole day with everyone in your life ({n} people).', { n: people.length });
   addJournal(state, text);
   return { ok: true, title: 'A Day Together', text };
 }
@@ -165,7 +178,7 @@ export function studyAction(state, action) {
     case 'joinClub': {
       const friend = People.addFriend(state);
       changeStat(state, 'happiness', 2, 'joined club');
-      text = friend ? `You joined a school club and became friends with ${friend.name}.` : 'You joined a school club, but your circle of friends is already full.';
+      text = friend ? t('You joined a school club and became friends with {name}.', { name: friend.name, _g: state.player.gender }) : 'You joined a school club, but your circle of friends is already full.';
       break;
     }
     default: return { ok: false, title: 'Unknown', text: 'Unknown school action.' };
@@ -196,7 +209,7 @@ export function freelanceGig(state) {
   const pay = Math.round((200 + state.player.smarts * 8) / (done + 1) / 10) * 10;
   changeMoney(state, pay, 'freelance gig');
   changeStat(state, 'smarts', done === 0 ? 1 : 0, 'freelance gig');
-  const text = `You took a freelance gig and earned $${pay.toLocaleString('en-US')}.`;
+  const text = t('You took a freelance gig and earned {amount}.', { amount: dinheiro(pay) });
   addJournal(state, text);
   return { ok: true, title: 'Freelance Gig', text };
 }
@@ -205,7 +218,7 @@ export function freelanceGig(state) {
 export function jobRecruiter(state) {
   if (!state.player.alive) return { ok: false, title: 'Life Complete', text: 'This life has ended.' };
   const fee = 1000;
-  if (state.player.money < fee) return { ok: false, title: 'Not Enough Money', text: `The recruiter charges $${fee.toLocaleString('en-US')}.` };
+  if (state.player.money < fee) return { ok: false, title: 'Not Enough Money', text: t('The recruiter charges {amount}.', { amount: dinheiro(fee) }) };
   const options = Careers.CAREERS.filter((c) => !c.partTime && Career.isEligible(state, c) && c.id !== state.career.careerId)
     .sort((a, b) => b.ladder[0].salary - a.ladder[0].salary);
   if (options.length === 0) return { ok: false, title: 'No Matches', text: 'The recruiter could not find anything you qualify for right now.' };
@@ -223,7 +236,7 @@ export function changeName(state, firstName, lastName) {
   changeMoney(state, -120, 'name change');
   const old = state.player.name;
   state.player.firstName = first; state.player.lastName = last; state.player.name = `${first} ${last}`;
-  const text = `You legally changed your name from ${old} to ${state.player.name}.`;
+  const text = t('You legally changed your name from {old} to {novo}.', { old, novo: state.player.name });
   addJournal(state, text, 'milestone');
   return { ok: true, title: 'Name Change', text };
 }
@@ -267,15 +280,15 @@ export function applyForCareer(state, careerId) {
   if (!state.player.alive) return { ok: false, title: 'Life Complete', text: 'This life has ended.' };
   const career = Careers.findCareer(careerId);
   if (!career) return { ok: false, title: 'Unknown', text: 'That job does not exist.' };
-  if (!Career.isEligible(state, career)) return { ok: false, title: 'Not Qualified', text: `This position requires: ${Careers.requirementText(career)}.` };
+  if (!Career.isEligible(state, career)) return { ok: false, title: 'Not Qualified', text: t('This position requires: {req}.', { req: Careers.requirementText(career) }) };
   if (Career.isEmployed(state.career) && state.career.careerId === careerId) return { ok: false, title: 'Already Hired', text: 'You already work there.' };
   Career.hire(state, career);
   Career.resetUnemployment(state.career);
   updateOccupation(state);
   awardBadges(state);
   const title = career.ladder[0].title;
-  return { ok: true, title: "You're Hired!", text: `You start as ${withArticle(title)} at ${career.employer}, earning $${career.ladder[0].salary.toLocaleString('en-US')} a year.`,
-    facts: [['Title', title], ['Career', career.name], ['Employer', career.employer], ['Salary', `$${career.ladder[0].salary.toLocaleString('en-US')} / year`]] };
+  return { ok: true, title: "You're Hired!", text: t('You start as {title} at {employer}, earning {salary} a year.', { title: tg(withArticle(title), state.player.gender), employer: career.employer, salary: dinheiro(career.ladder[0].salary) }),
+    facts: [['Title', tg(title, state.player.gender)], ['Career', t(career.name)], ['Employer', career.employer], ['Salary', t('{amount} / year', { amount: dinheiro(career.ladder[0].salary) })]] };
 }
 
 export function quitJob(state) {
@@ -299,7 +312,7 @@ export function higherEducationBlock(state, kind) {
   const e = state.education;
   if (!state.player.alive) return 'This life has ended.';
   if (!e.highSchoolGraduate) return 'You need to finish high school first.';
-  if (Education.isEnrolled(e)) return `You are already enrolled at ${Education.schoolName(e) || 'school'}. Finish or drop out first.`;
+  if (Education.isEnrolled(e)) return t('You are already enrolled at {school}. Finish or drop out first.', { _g: state.player.gender, school: Education.schoolName(e) || t('school') });
   if (kind === 'university' && e.degree) return 'You already have a degree.';
   if (kind === 'trade' && e.trade) return 'You already have a trade certificate.';
   return null;
@@ -311,8 +324,8 @@ export function enrollUniversity(state, major) {
   const e = state.education;
   Education.enrollInUniversity(e, major);
   updateOccupation(state);
-  addJournal(state, `You enrolled at ${Education.UNIVERSITY_NAME} to study ${major}.`, 'milestone');
-  return { ok: true, title: 'Enrolled', text: `You are now studying ${major} at ${Education.UNIVERSITY_NAME}.` };
+  addJournal(state, t('You enrolled at {school} to study {major}.', { school: Education.UNIVERSITY_NAME, major: t(major) }), 'milestone');
+  return { ok: true, title: 'Enrolled', text: t('You are now studying {major} at {school}.', { major: t(major), school: Education.UNIVERSITY_NAME }) };
 }
 
 export function enrollProgram(state, programId) {
@@ -320,7 +333,7 @@ export function enrollProgram(state, programId) {
   if (!program || !Education.canEnrollProgram(state.education, program)) return false;
   Education.enrollInProgram(state.education, programId);
   updateOccupation(state);
-  addJournal(state, `You enrolled at ${program.school}.`, 'milestone');
+  addJournal(state, t('You enrolled at {school}.', { school: program.school }), 'milestone');
   return true;
 }
 
@@ -354,21 +367,27 @@ export function assetAction(state, assetId, action, personId = null) {
   return { ok: true, title: asset.name, text };
 }
 
-export function adoptFromSource(state, sourceId, animalId) {
+export function adoptFromSource(state, sourceId, animalId, name = null) {
   const blocked = guard(state);
   if (blocked) return blocked;
   const source = Pets.SOURCES.find((s) => s.id === sourceId);
   if (!source) return { ok: false, title: 'Unknown', text: 'That place does not exist.' };
-  if (state.player.age < source.minAge) return { ok: false, title: 'Too Young', text: `You can visit from age ${source.minAge}.` };
+  if (state.player.age < source.minAge) return { ok: false, title: 'Too Young', text: t('You can visit from age {age}.', { age: source.minAge }) };
   if (People.pets(state).length >= 3) return { ok: false, title: 'Full House', text: 'Three pets is plenty for now.' };
   const animal = Pets.inventory(state, source).find((a) => a.id === animalId);
   if (!animal) return { ok: false, title: 'Gone', text: 'That animal already found a home.' };
-  const result = Pets.adopt(state, source, animal);
-  if (!result) return { ok: false, title: 'Not Enough Money', text: `The fee is $${animal.fee}.` };
-  changeMoney(state, -animal.fee, `adopted ${animal.name}`);
-  changeStat(state, 'happiness', 4, `adopted ${animal.name}`);
+  // Dois cliques na mesma adoção: o animal continua na lista do ano, e sem esta linha o segundo
+  // clique cobraria a taxa outra vez e criaria um irmão gêmeo. A lista o mostra desabilitado, mas
+  // a trava tem de ser aqui — a interface pode mandar um clique atrasado, o jogo não pode aceitar.
+  if ((state.flags.adoptedFrom || []).includes(animalId)) return { ok: false, title: 'Gone', text: 'That animal already found a home.' };
+  const result = Pets.adopt(state, source, animal, name);
+  if (!result) return { ok: false, title: 'Not Enough Money', text: t('The fee is {amount}.', { amount: dinheiro(animal.fee) }) };
+  changeMoney(state, -animal.fee, `adopted ${result.pet.name}`);
+  changeStat(state, 'happiness', 4, `adopted ${result.pet.name}`);
   state.flags.adoptedFrom = [...(state.flags.adoptedFrom || []), animal.id];
-  const text = `You adopted ${animal.name}, a ${animal.age === 0 ? 'baby' : `${animal.age}-year-old`} ${animal.breed.toLowerCase()}, from ${source.name}.`;
+  // O diário conta o nome que o JOGADOR deu, não o do anúncio: é esse que vai aparecer em todo o
+  // resto da vida do animal.
+  const text = t('You adopted {name}, a {age} {breed}, from {source}.', { _g: result.pet.gender, name: result.pet.name, age: animal.age === 0 ? t('baby') : t('{n}-year-old', { n: animal.age }), breed: tg(animal.breed.toLowerCase(), animal.gender), source: t(source.name) });
   addJournal(state, text, 'positive');
   return { ok: true, title: 'New Pet', text };
 }
@@ -401,7 +420,7 @@ export function continueAsChild(state, childId) {
   for (const pet of People.pets(state)) next.relationships.push({ ...pet, id: `p${next.nextPersonId++}`, closeness: 60, since: 0, interactedThisYear: false });
   if (child.age >= 18) { next.education.highSchoolGraduate = true; }
   else if (child.age >= 5) { Education.startSchool(next.education); next.education.year = child.age - 5; }
-  addJournal(next, `Your ${state.player.gender === 'female' ? 'mother' : 'father'}, ${state.player.name}, passed away at ${state.player.age}. You inherited $${p.money.toLocaleString('en-US')} and carry the story on.`, 'milestone');
+  addJournal(next, t('Your {role}, {name}, passed away at {age}. You inherited {amount} and carry the story on.', { _g: state.player.gender, role: t(state.player.gender === 'female' ? 'mother' : 'father'), name: state.player.name, age: state.player.age, amount: dinheiro(p.money) }), 'milestone');
   updateOccupation(next);
   awardBadges(next);
   return next;
@@ -412,8 +431,8 @@ export function enrollTradeSchool(state, trade) {
   if (blocked) return { ok: false, title: 'Not Now', text: blocked };
   Education.enrollInTradeSchool(state.education, trade);
   updateOccupation(state);
-  addJournal(state, `You enrolled at ${Education.TRADE_SCHOOL_NAME} to train in ${trade}.`, 'milestone');
-  return { ok: true, title: 'Enrolled', text: `You are training in ${trade} at ${Education.TRADE_SCHOOL_NAME}.` };
+  addJournal(state, t('You enrolled at {school} to train in {trade}.', { school: Education.TRADE_SCHOOL_NAME, trade: t(trade) }), 'milestone');
+  return { ok: true, title: 'Enrolled', text: t('You are training in {trade} at {school}.', { trade: t(trade), school: Education.TRADE_SCHOOL_NAME }) };
 }
 
 export function dropOut(state) {
@@ -463,13 +482,13 @@ export function socialAccounts(state) { return state.social || (state.social = {
 export function socialSignUp(state, platformId) {
   const blocked = guard(state);
   if (blocked) return blocked;
-  if (state.player.age < SOCIAL_MIN_AGE) return { ok: false, title: 'Too Young', text: `You can sign up at ${SOCIAL_MIN_AGE}.` };
+  if (state.player.age < SOCIAL_MIN_AGE) return { ok: false, title: 'Too Young', text: t('You can sign up at {age}.', { age: SOCIAL_MIN_AGE }) };
   const platform = SOCIAL_PLATFORMS.find((p) => p.id === platformId);
   if (!platform) return { ok: false, title: 'Unknown', text: 'That platform does not exist.' };
   const accounts = socialAccounts(state);
-  if (accounts[platformId]) return { ok: false, title: 'Already Signed Up', text: `You already have a ${platform.name} account.` };
+  if (accounts[platformId]) return { ok: false, title: 'Already Signed Up', text: t('You already have a {platform} account.', { platform: platform.name }) };
   accounts[platformId] = { followers: between(state, 3, 40), since: state.player.age, posts: 0 };
-  const text = `You signed up for ${platform.name}.`;
+  const text = t('You signed up for {platform}.', { platform: platform.name });
   addJournal(state, text);
   return { ok: true, title: platform.name, text };
 }
@@ -483,7 +502,7 @@ export function socialPost(state, platformId) {
   const gain = Math.round(between(state, 1, 12) * (1 + state.player.looks / 100 + Math.max(0, account.followers) / 400));
   account.followers += gain;
   changeStat(state, 'happiness', 1, `posted on ${platform.name}`);
-  const text = `You posted on ${platform.name} and picked up ${gain.toLocaleString('en-US')} new followers.`;
+  const text = t('You posted on {platform} and picked up {n} new followers.', { platform: platform.name, n: numero(gain) });
   addJournal(state, text);
   return { ok: true, title: platform.name, text };
 }
@@ -492,6 +511,6 @@ export function socialDelete(state, platformId) {
   const platform = SOCIAL_PLATFORMS.find((p) => p.id === platformId);
   if (!accounts[platformId] || !platform) return { ok: false, title: 'No Account', text: 'Nothing to delete.' };
   delete accounts[platformId];
-  addJournal(state, `You deleted your ${platform.name} account.`);
+  addJournal(state, t('You deleted your {platform} account.', { platform: platform.name }));
   return { ok: true, title: platform.name, text: 'Account deleted.' };
 }

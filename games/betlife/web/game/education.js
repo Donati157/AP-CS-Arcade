@@ -1,6 +1,7 @@
 // School and university: where the player is, how they are doing, and what they have completed.
 // Kindergarten starts at 5, grade 12 ends at 17, graduation happens on the 18th birthday.
 // University (4 years) or trade school (2 years) can follow.
+import { t } from './i18n/index.js';
 import { clampStat } from './stats.js';
 
 export const SCHOOL_START_AGE = 5;
@@ -103,10 +104,10 @@ function ordinal(n) {
 }
 
 export function yearLabel(education) {
-  if (education.stage === 'school') return education.year === 0 ? 'Kindergarten' : `${ordinal(education.year)} Grade`;
-  if (education.stage === 'university') return `Year ${education.year} of ${UNIVERSITY_YEARS}`;
-  if (education.stage === 'trade') return `Year ${education.year} of ${TRADE_SCHOOL_YEARS}`;
-  if (education.stage === 'program') return `Year ${education.year} of ${currentProgram(education).years}`;
+  if (education.stage === 'school') return education.year === 0 ? 'Kindergarten' : t('{n} Grade', { n: ordinal(education.year) });
+  if (education.stage === 'university') return t('Year {year2} of {UNIVERSITYYE}', { year2: education.year, UNIVERSITYYE: UNIVERSITY_YEARS });
+  if (education.stage === 'trade') return t('Year {year2} of {TRADESCHOOLY}', { year2: education.year, TRADESCHOOLY: TRADE_SCHOOL_YEARS });
+  if (education.stage === 'program') return t('Year {year2} of {years2}', { year2: education.year, years2: currentProgram(education).years });
   return '';
 }
 
@@ -198,12 +199,12 @@ export function advanceYear(education) {
 
 export function educationSummary(education) {
   const parts = [];
-  for (const c of education.credentials || []) parts.push(c === "Master's" ? "Master's degree" : c === 'MBA' ? 'MBA' : `${c} school`);
-  if (education.degree) parts.push(`${education.degree} degree`);
-  if (education.trade) parts.push(`${education.trade} certificate`);
+  for (const c of education.credentials || []) parts.push(c === "Master's" ? "Master's degree" : c === 'MBA' ? 'MBA' : t('{c} school', { c }));
+  if (education.degree) parts.push(t('{degree} degree', { degree: t(education.degree) }));
+  if (education.trade) parts.push(t('{trade} certificate', { trade: t(education.trade) }));
   if (parts.length) return parts.join(', ');
   if (education.highSchoolGraduate) return 'High school diploma';
-  if (education.stage === 'school') return `${yearLabel(education)} student`;
+  if (education.stage === 'school') return t('{yearLabel} student', { yearLabel: yearLabel(education) });
   if (education.droppedOut) return 'Left school';
   return 'Not in school yet';
 }

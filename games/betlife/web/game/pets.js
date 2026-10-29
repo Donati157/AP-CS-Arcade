@@ -33,9 +33,43 @@ export function inventory(state, source) {
   return list;
 }
 
-export function adopt(state, source, animal) {
+// O nome vem do jogador. `name` vazio cai no nome sugerido do anúncio, porque a adoção não pode
+// depender de o campo ter sido preenchido — e porque é esse o nome que ele viu na lista.
+export function adopt(state, source, animal, name = null) {
   if (state.player.money < animal.fee) return null;
-  return { pet: People.adoptPet(state, animal.species, animal.name, animal.breed, animal.age), fee: animal.fee };
+  const escolhido = cleanName(name) || animal.name;
+  return { pet: People.adoptPet(state, animal.species, escolhido, animal.breed, animal.age), fee: animal.fee };
+}
+
+export const MAX_PET_NAME = 24;
+
+// Um nome digitado por gente: aceita espaços e acentos, recusa só o que não é nome. Os caracteres
+// de controle saem (um \n colado quebraria a linha do diário), os espaços repetidos viram um, e as
+// pontas são cortadas — " Mochi " e "Mochi" são o mesmo bicho.
+export function cleanName(raw) {
+  return String(raw ?? '').replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+/** `null` quando o nome serve; 'empty' ou 'long' quando não. Medido em pontos de código, para que
+ *  um nome com acentos valha o mesmo que um sem. */
+export function nameProblem(raw) {
+  const nome = cleanName(raw);
+  if (!nome) return 'empty';
+  if ([...nome].length > MAX_PET_NAME) return 'long';
+  return null;
+}
+
+/** Um nome sugerido para a caixa de adoção, sem nome repetido na casa.
+ *  Deriva da semente e da idade, NÃO do RNG do jogo: a sugestão é interface, e puxar do RNG aqui
+ *  deslocaria toda a sequência da vida só por abrir o cartão. */
+export function suggestName(state, species) {
+  const usados = new Set(state.relationships.filter((p) => p.role === 'pet' && p.alive !== false).map((p) => p.name));
+  const local = { rngState: (state.seed ^ (state.player.age * 2654435761) ^ hash(String(species))) >>> 0 };
+  for (let i = 0; i < PET_NAMES.length * 3; i++) {
+    const nome = PET_NAMES[Math.floor(rnd(local) * PET_NAMES.length)];
+    if (!usados.has(nome)) return nome;
+  }
+  return PET_NAMES[0];
 }
 
 function hash(text) { let h = 0; for (const ch of text) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return h; }

@@ -2,6 +2,7 @@
 // People have state of their own (age, closeness, occupation, alive) and it changes every year.
 import { between, chance, pick } from './rng.js';
 import { changeStat, changeMoney, diminished } from './stats.js';
+import { t, tg, dinheiro } from './i18n/index.js';
 import { addJournal, info } from './journal.js';
 import { uniqueName, randomGender, PARENT_JOBS, PET_NAMES, withArticle } from './life-generator.js';
 import { relativeDies } from './mortality.js';
@@ -171,14 +172,14 @@ export function ageRelationships(state) {
   for (const f of friends(state)) {
     if (f.closeness <= 8 && f.role !== 'bestFriend') {
       f.alive = false;
-      addJournal(state, `You and ${firstName(f)} lost touch.`);
+      addJournal(state, t('You and {name} lost touch.', { name: firstName(f) }));
     }
   }
   // A partner who feels ignored may leave.
   const love = partner(state);
   if (love && love.closeness <= 10 && chance(state, 0.5)) {
     love.alive = false;
-    addJournal(state, `${firstName(love)} ended the relationship. You had grown apart.`, 'negative');
+    addJournal(state, t('{name} ended the relationship. You had grown apart.', { name: firstName(love) }), 'negative');
     changeStat(state, 'happiness', -14, `${firstName(love)} left`);
   }
 }
@@ -189,18 +190,18 @@ function otherPeopleMoveOn(state, p) {
   if (['mother', 'father', 'stepmother', 'stepfather'].includes(p.role)) {
     if (!p.retired && p.age >= 65 && chance(state, 0.45)) {
       p.retired = true;
-      addJournal(state, `Your ${p.role} retired after many years as ${withArticle(p.occupation)}.`);
+      addJournal(state, t('Your {role} retired after many years as {job}.', { _g: p.gender, role: tg(p.role, p.gender), job: tg(withArticle(p.occupation), p.gender) }));
       p.occupation = 'retired';
     }
   } else if (['sister', 'brother', 'son', 'daughter'].includes(p.role)) {
-    if (p.age === 5) { p.occupation = 'student'; addJournal(state, `${name} started school.`); }
-    if (p.age === 18) { addJournal(state, `${name} graduated from high school.`, 'positive'); }
-    if (p.age === 22) { p.occupation = pick(state, PARENT_JOBS); addJournal(state, `${name} found work as ${withArticle(p.occupation)}.`); }
-    if (p.age === 24 && CHILD_ROLES.includes(p.role)) addJournal(state, `${name} moved into a place of ${p.gender === 'female' ? 'her' : 'his'} own.`);
+    if (p.age === 5) { p.occupation = 'student'; addJournal(state, t('{name} started school.', { name })); }
+    if (p.age === 18) { addJournal(state, t('{name} graduated from high school.', { name }), 'positive'); }
+    if (p.age === 22) { p.occupation = pick(state, PARENT_JOBS); addJournal(state, t('{name} found work as {job}.', { name, job: tg(withArticle(p.occupation), p.gender), _g: p.gender })); }
+    if (p.age === 24 && CHILD_ROLES.includes(p.role)) addJournal(state, t('{name} moved into a place of {their} own.', { name, their: t(p.gender === 'female' ? 'her' : 'his') }));
   } else if (['friend', 'bestFriend', 'partner', 'fiance', 'spouse', 'coworker'].includes(p.role)) {
-    if (p.age === 22 && p.occupation === 'student') { p.occupation = pick(state, PARENT_JOBS); addJournal(state, `${name} started working as ${withArticle(p.occupation)}.`); }
-    else if (p.age >= 24 && p.age < 60 && p.occupation && p.occupation !== 'student' && chance(state, 0.06)) addJournal(state, `${name} was promoted at work.`);
-    else if (p.age >= 65 && p.occupation !== 'retired' && chance(state, 0.4)) { p.occupation = 'retired'; addJournal(state, `${name} retired.`); }
+    if (p.age === 22 && p.occupation === 'student') { p.occupation = pick(state, PARENT_JOBS); addJournal(state, t('{name} started working as {job}.', { name, job: tg(withArticle(p.occupation), p.gender), _g: p.gender })); }
+    else if (p.age >= 24 && p.age < 60 && p.occupation && p.occupation !== 'student' && chance(state, 0.06)) addJournal(state, t('{name} was promoted at work.', { name, _g: p.gender }));
+    else if (p.age >= 65 && p.occupation !== 'retired' && chance(state, 0.4)) { p.occupation = 'retired'; addJournal(state, t('{name} retired.', { name })); }
   }
 }
 
@@ -208,7 +209,7 @@ function petLifeCycle(state, pet) {
   const lifespan = PET_SPECIES[pet.species].lifespan;
   if (pet.age >= lifespan - 2 && chance(state, pet.age >= lifespan + 2 ? 0.6 : 0.25)) {
     pet.alive = false; pet.diedAt = state.player.age;
-    addJournal(state, `Your ${PET_SPECIES[pet.species].label.toLowerCase()} ${pet.name} passed away peacefully at ${pet.age}.`, 'negative');
+    addJournal(state, t('Your {species} {petName} passed away peacefully at {age}.', { species: tg(PET_SPECIES[pet.species].label.toLowerCase(), pet.gender), _g: pet.gender, petName: pet.name, age: pet.age }), 'negative');
     changeStat(state, 'happiness', -8, `${pet.name} passed away`);
   }
 }
@@ -218,16 +219,16 @@ function relativeLifeCycle(state, p) {
   p.alive = false;
   const name = firstName(p);
   const label = ROLE_LABELS[p.role].toLowerCase();
-  addJournal(state, `Your ${label}, ${name}, passed away at the age of ${p.age}. You miss ${p.gender === 'female' ? 'her' : 'him'} very much.`, 'negative');
+  addJournal(state, t('Your {role}, {name}, passed away at the age of {age}. You miss {them} very much.', { role: tg(label, p.gender), _g: p.gender, name, age: p.age, them: t(p.gender === 'female' ? 'her' : 'him') }), 'negative');
   changeStat(state, 'happiness', -15, `${name} passed away`);
   if (p.role === 'mother' || p.role === 'father') {
     for (const step of byRole(state, p.role === 'mother' ? 'stepfather' : 'stepmother')) { /* the step-parent stays in the family */ void step; }
     const inheritance = between(state, 40, 600) * 100;
     changeMoney(state, inheritance, 'inheritance');
-    addJournal(state, `You inherited $${inheritance.toLocaleString('en-US')} from your ${label}.`);
-    info(state, 'In Memory', `Your ${label}, ${name}, passed away at ${p.age}. The family gathered to remember ${p.gender === 'female' ? 'her' : 'him'}, and you received an inheritance of $${inheritance.toLocaleString('en-US')}.`, { band: 'Family', tone: 'green', person: p.id });
+    addJournal(state, t('You inherited {amount} from your {role}.', { amount: dinheiro(inheritance), role: tg(label, p.gender), _g: p.gender }));
+    info(state, 'In Memory', t('Your {role}, {name}, passed away at {age}. The family gathered to remember {them}, and you received an inheritance of {amount}.', { role: tg(label, p.gender), _g: p.gender, name, age: p.age, them: t(p.gender === 'female' ? 'her' : 'him'), amount: dinheiro(inheritance) }), { band: 'Family', tone: 'green', person: p.id });
   } else {
-    info(state, 'In Memory', `Your ${label}, ${name}, passed away at ${p.age}.`, { band: 'Family', tone: 'green', person: p.id });
+    info(state, 'In Memory', t('Your {role}, {name}, passed away at {age}.', { _g: p.gender, role: tg(label, p.gender), name, age: p.age }), { band: 'Family', tone: 'green', person: p.id });
   }
 }
 
@@ -253,184 +254,184 @@ export function interact(state, p, action) {
   const feel = (stat, amount, why) => changeStat(state, stat, fade(amount), why);
   switch (action) {
     case 'spendTime':
-      closer(6); feel('happiness', 3, `time with ${name}`);
-      return `You spent quality time with ${name}.`;
+      closer(6); feel('happiness', 3, t('time with {name}', { name }));
+      return t('You spent quality time with {name}.', { name });
     case 'conversation': {
       const good = chance(state, 0.8);
-      closer(good ? 4 : -2); feel('happiness', good ? 1 : -1, `conversation with ${name}`);
-      return good ? `You and ${name} had a long, easy conversation.` : `Your conversation with ${name} ended awkwardly.`;
+      closer(good ? 4 : -2); feel('happiness', good ? 1 : -1, t('conversation with {name}', { name }));
+      return good ? t('You and {name} had a long, easy conversation.', { name }) : t('Your conversation with {name} ended awkwardly.', { name });
     }
     case 'compliment':
-      closer(3); feel('happiness', 1, `complimented ${name}`);
-      return `${name} was touched by your compliment.`;
+      closer(3); feel('happiness', 1, t('complimented {name}', { name }));
+      return t('{name} was touched by your compliment.', { name });
     case 'gift': {
       const cost = you.age < 13 ? 10 : 60;
       if (you.money < cost) return null;
-      changeMoney(state, -cost, `gift for ${name}`); closer(7); feel('happiness', 2, `gift for ${name}`);
-      return `You gave ${name} a thoughtful gift.`;
+      changeMoney(state, -cost, t('gift for {name}', { name })); closer(7); feel('happiness', 2, t('gift for {name}', { name }));
+      return t('You gave {name} a thoughtful gift.', { name });
     }
     case 'advice':
-      closer(2); feel('smarts', 1, `advice from ${name}`); feel('happiness', 1, `advice from ${name}`);
-      return `You asked ${name} for advice and came away wiser.`;
+      closer(2); feel('smarts', 1, t('advice from {name}', { name })); feel('happiness', 1, t('advice from {name}', { name }));
+      return t('You asked {name} for advice and came away wiser.', { name });
     case 'argue':
-      closer(-9); feel('happiness', -4, `argued with ${name}`);
-      return `You and ${name} had a heated argument.`;
+      closer(-9); feel('happiness', -4, t('argued with {name}', { name }));
+      return t('You and {name} had a heated argument.', { name });
     case 'allowance': {
-      if (p.closeness < 40 || !chance(state, 0.6)) { closer(-1); return `${name} said not this time.`; }
+      if (p.closeness < 40 || !chance(state, 0.6)) { closer(-1); return t('{name} said not this time.', { name }); }
       const amount = you.age < 10 ? between(state, 5, 20) : between(state, 20, 80);
-      changeMoney(state, amount, `allowance from ${name}`);
-      return `${name} gave you $${amount} of pocket money.`;
+      changeMoney(state, amount, t('allowance from {name}', { name }));
+      return t('{name} gave you {amount} of pocket money.', { name, amount: dinheiro(amount) });
     }
     case 'homework':
-      closer(5); feel('happiness', 2, `helped ${name}`);
-      return `You helped ${name} with homework.`;
+      closer(5); feel('happiness', 2, t('helped {name}', { name }));
+      return t('You helped {name} with homework.', { name });
     case 'playPet':
-      closer(6); feel('happiness', 3, `played with ${p.name}`);
-      return `You played with ${p.name} until you were both worn out.`;
+      closer(6); feel('happiness', 3, t('played with {name}', { name: p.name }));
+      return t('You played with {name} until you were both worn out.', { name: p.name });
     case 'walkPet':
-      closer(4); feel('happiness', 2, `walked ${p.name}`); feel('health', 2, `walked ${p.name}`);
-      return `You took ${p.name} for a long walk.`;
+      closer(4); feel('happiness', 2, t('walked {name}', { name: p.name })); feel('health', 2, t('walked {name}', { name: p.name }));
+      return t('You took {name} for a long walk.', { name: p.name });
     case 'treatPet': {
       if (you.money < 10) return null;
-      changeMoney(state, -10, `treat for ${p.name}`); closer(5);
-      return `${p.name} devoured the treat you bought.`;
+      changeMoney(state, -10, t('treat for {name}', { name: p.name })); closer(5);
+      return t('{name} devoured the treat you bought.', { name: p.name });
     }
     case 'movie': {
       const cost = 30;
       if (you.money < cost) return null;
-      changeMoney(state, -cost, `movies with ${name}`); closer(5); feel('happiness', 3, `movies with ${name}`);
-      return `You and ${name} went to the movies and argued about the ending all the way home.`;
+      changeMoney(state, -cost, t('movies with {name}', { name })); closer(5); feel('happiness', 3, t('movies with {name}', { name }));
+      return t('You and {name} went to the movies and argued about the ending all the way home.', { name });
     }
     case 'concert': {
       if (you.money < 80) return null;
-      changeMoney(state, -80, `concert with ${name}`); closer(6); feel('happiness', 4, `concert with ${name}`);
-      return `You and ${name} went to a concert and sang until you were hoarse.`;
+      changeMoney(state, -80, t('concert with {name}', { name })); closer(6); feel('happiness', 4, t('concert with {name}', { name }));
+      return t('You and {name} went to a concert and sang until you were hoarse.', { name });
     }
     case 'play':
-      closer(6); feel('happiness', 3, `played with ${name}`);
-      return `You spent the afternoon playing with ${name}.`;
+      closer(6); feel('happiness', 3, t('played with {name}', { name }));
+      return t('You spent the afternoon playing with {name}.', { name });
     case 'doctorVisit': {
       if (you.money < 60) return null;
-      changeMoney(state, -60, `checkup for ${name}`); closer(4); feel('happiness', 1, `cared for ${name}`);
-      return `You took ${name} to the doctor for a checkup and waited with a magazine.`;
+      changeMoney(state, -60, t('checkup for {name}', { name })); closer(4); feel('happiness', 1, t('cared for {name}', { name }));
+      return t('You took {name} to the doctor for a checkup and waited with a magazine.', { name });
     }
     case 'anniversary': {
       if (you.money < 120) return null;
       changeMoney(state, -120, 'anniversary'); closer(8); feel('happiness', 4, 'anniversary');
-      return `You and ${name} celebrated ${p.yearsTogether} years together.`;
+      return t('You and {name} celebrated {years} years together.', { name, years: p.yearsTogether });
     }
     case 'propose': {
-      if (p.closeness < 55 || p.yearsTogether < 1) { closer(-6); feel('happiness', -6, 'proposal declined'); return `${name} said it was too soon. The evening was awkward.`; }
+      if (p.closeness < 55 || p.yearsTogether < 1) { closer(-6); feel('happiness', -6, 'proposal declined'); return t('{name} said it was too soon. The evening was awkward.', { name }); }
       p.role = 'fiance'; closer(8); feel('happiness', 8, 'engaged');
-      return `You proposed to ${name}, and ${name} said yes. You are engaged!`;
+      return t('You proposed to {name}, and {name} said yes. You are engaged!', { name });
     }
     case 'startFamily': {
       if (children(state).length >= 4) return null;
-      if (!chance(state, 0.6)) { closer(2); return `You and ${name} talked about starting a family and decided to keep trying.`; }
+      if (!chance(state, 0.6)) { closer(2); return t('You and {name} talked about starting a family and decided to keep trying.', { name }); }
       const baby = haveChild(state);
       closer(8); feel('happiness', 8, 'new baby');
-      return `You and ${name} welcomed a baby ${baby.gender === 'female' ? 'girl' : 'boy'} named ${firstName(baby)} into the world.`;
+      return t('You and {name} welcomed a baby {kind} named {baby} into the world.', { name, kind: baby.gender === 'female' ? 'girl' : 'boy', baby: firstName(baby) });
     }
     case 'marry': {
       if (you.money < 500) return null;
       changeMoney(state, -500, 'wedding'); p.role = 'spouse'; closer(8); feel('happiness', 10, 'married');
-      return `You and ${name} got married in a small, joyful ceremony.`;
+      return t('You and {name} got married in a small, joyful ceremony.', { name });
     }
     case 'breakUp':
-      p.alive = false; feel('happiness', -10, `broke up with ${name}`);
-      return `You ended things with ${name}.`;
+      p.alive = false; feel('happiness', -10, t('broke up with {name}', { name }));
+      return t('You ended things with {name}.', { name });
     case 'unfriend':
-      p.alive = false; feel('happiness', -2, `unfriended ${name}`);
-      return `You decided to stop spending time with ${name}.`;
+      p.alive = false; feel('happiness', -2, t('unfriended {name}', { name }));
+      return t('You decided to stop spending time with {name}.', { name });
     case 'deepTalk': {
       const open = chance(state, 0.75);
-      closer(open ? 8 : -3); feel('happiness', open ? 4 : -2, `heart to heart with ${name}`);
-      return open ? `You and ${name} talked about the things you never say out loud.`
-        : `You tried to open up to ${name}, and it did not land the way you hoped.`;
+      closer(open ? 8 : -3); feel('happiness', open ? 4 : -2, t('heart to heart with {name}', { name }));
+      return open ? t('You and {name} talked about the things you never say out loud.', { name })
+        : t('You tried to open up to {name}, and it did not land the way you hoped.', { name });
     }
     case 'walkTogether':
-      closer(4); feel('happiness', 2, `walk with ${name}`); feel('health', 1, `walk with ${name}`);
-      return `You and ${name} walked until you ran out of pavement.`;
+      closer(4); feel('happiness', 2, t('walk with {name}', { name })); feel('health', 1, t('walk with {name}', { name }));
+      return t('You and {name} walked until you ran out of pavement.', { name });
     case 'mealOut': {
       if (you.money < 25) return null;
-      changeMoney(state, -25, `meal with ${name}`); closer(5); feel('happiness', 3, `meal with ${name}`);
-      return `You took ${name} out to eat and stayed until the place emptied.`;
+      changeMoney(state, -25, t('meal with {name}', { name })); closer(5); feel('happiness', 3, t('meal with {name}', { name }));
+      return t('You took {name} out to eat and stayed until the place emptied.', { name });
     }
     case 'helpAround':
-      closer(5); feel('happiness', 1, `helped ${name} at home`);
-      return `You did the chores before ${name} could ask.`;
+      closer(5); feel('happiness', 1, t('helped {name} at home', { name }));
+      return t('You did the chores before {name} could ask.', { name });
     case 'familyStory':
-      closer(4); feel('smarts', 1, `stories from ${name}`); feel('happiness', 2, `stories from ${name}`);
-      return `${name} told you about growing up, and you listened to all of it.`;
+      closer(4); feel('smarts', 1, t('stories from {name}', { name })); feel('happiness', 2, t('stories from {name}', { name }));
+      return t('{name} told you about growing up, and you listened to all of it.', { name });
     case 'teamUp':
-      closer(6); feel('happiness', 3, `teamed up with ${name}`);
-      return `You and ${name} took on the afternoon as a team.`;
+      closer(6); feel('happiness', 3, t('teamed up with {name}', { name }));
+      return t('You and {name} took on the afternoon as a team.', { name });
     case 'readStory':
-      closer(6); feel('happiness', 3, `story with ${name}`);
-      return `You read ${name} a story and did all the voices.`;
+      closer(6); feel('happiness', 3, t('story with {name}', { name }));
+      return t('You read {name} a story and did all the voices.', { name });
     case 'teachSkill':
-      closer(5); feel('happiness', 2, `taught ${name}`); feel('smarts', 1, `taught ${name}`);
-      return `You taught ${name} something you are good at.`;
+      closer(5); feel('happiness', 2, t('taught {name}', { name })); feel('smarts', 1, t('taught {name}', { name }));
+      return t('You taught {name} something you are good at.', { name });
     case 'studyTogether':
-      closer(4); feel('smarts', 3, `studied with ${name}`);
+      closer(4); feel('smarts', 3, t('studied with {name}', { name }));
       if (state.education) state.education.performance = Math.min(100, (state.education.performance || 0) + 2);
-      return `You and ${name} revised together and actually got through it.`;
+      return t('You and {name} revised together and actually got through it.', { name });
     case 'lunch':
-      closer(4); feel('happiness', 2, `lunch with ${name}`);
-      return `You and ${name} spent the whole lunch break complaining about work.`;
+      closer(4); feel('happiness', 2, t('lunch with {name}', { name }));
+      return t('You and {name} spent the whole lunch break complaining about work.', { name });
     case 'coverShift': {
-      closer(8); feel('happiness', -2, `covered for ${name}`); feel('health', -1, `covered for ${name}`);
+      closer(8); feel('happiness', -2, t('covered for {name}', { name })); feel('health', -1, t('covered for {name}', { name }));
       if (state.career) state.career.performance = Math.min(100, (state.career.performance || 0) + 2);
-      return `You covered ${name}'s shift. It was long, and ${name} noticed.`;
+      return t('You covered {name}\'s shift. It was long, and {name} noticed.', { name });
     }
     case 'checkIn':
-      closer(6); feel('happiness', 1, `checked in on ${name}`);
-      return `You checked in on ${name} out of the blue, and it meant something.`;
+      closer(6); feel('happiness', 1, t('checked in on {name}', { name }));
+      return t('You checked in on {name} out of the blue, and it meant something.', { name });
     case 'dateNight': {
       if (you.money < 45) return null;
-      changeMoney(state, -45, `date night with ${name}`); closer(7); feel('happiness', 4, `date night with ${name}`);
-      return `You and ${name} had an evening with no phones and no plans.`;
+      changeMoney(state, -45, t('date night with {name}', { name })); closer(7); feel('happiness', 4, t('date night with {name}', { name }));
+      return t('You and {name} had an evening with no phones and no plans.', { name });
     }
     case 'bestFriend':
-      if (p.closeness < 70) { closer(-2); return `You told ${name} how much the friendship means. It landed awkwardly.`; }
-      p.role = 'bestFriend'; closer(6); feel('happiness', 6, `best friends with ${name}`);
-      return `You and ${name} are best friends now, and both of you know it.`;
+      if (p.closeness < 70) { closer(-2); return t('You told {name} how much the friendship means. It landed awkwardly.', { name }); }
+      p.role = 'bestFriend'; closer(6); feel('happiness', 6, t('best friends with {name}', { name }));
+      return t('You and {name} are best friends now, and both of you know it.', { name });
     case 'apologise': {
       const forgiven = chance(state, 0.5);
-      closer(forgiven ? 12 : 2); feel('happiness', forgiven ? 3 : -1, `apologised to ${name}`);
-      return forgiven ? `You apologised to ${name}, and the air cleared.` : `You apologised to ${name}. It was heard, but not accepted.`;
+      closer(forgiven ? 12 : 2); feel('happiness', forgiven ? 3 : -1, t('apologised to {name}', { name }));
+      return forgiven ? t('You apologised to {name}, and the air cleared.', { name }) : t('You apologised to {name}. It was heard, but not accepted.', { name });
     }
     case 'trainPet': {
       const learned = chance(state, 0.6);
-      closer(learned ? 6 : 2); feel('happiness', learned ? 3 : 1, `training ${p.name}`);
-      return learned ? `${p.name} learned a new trick and will not stop doing it.` : `${p.name} watched you closely and learned nothing.`;
+      closer(learned ? 6 : 2); feel('happiness', learned ? 3 : 1, t('training {name}', { name: p.name }));
+      return learned ? t('{name} learned a new trick and will not stop doing it.', { name: p.name }) : t('{name} watched you closely and learned nothing.', { name: p.name });
     }
     case 'vetVisit': {
       if (you.money < 70) return null;
-      changeMoney(state, -70, `vet for ${p.name}`); closer(5); feel('happiness', 1, `cared for ${p.name}`);
-      return `You took ${p.name} to the vet. Everything checked out.`;
+      changeMoney(state, -70, t('vet for {name}', { name: p.name })); closer(5); feel('happiness', 1, t('cared for {name}', { name: p.name }));
+      return t('You took {name} to the vet. Everything checked out.', { name: p.name });
     }
     case 'makePeace':
-      if (chance(state, 0.5)) { p.role = 'friend'; p.closeness = 40; feel('happiness', 4, `made peace with ${name}`); return `You and ${name} buried the hatchet. It felt like a weight lifted.`; }
-      closer(4); return `You offered ${name} an olive branch. ${name} was not ready yet.`;
+      if (chance(state, 0.5)) { p.role = 'friend'; p.closeness = 40; feel('happiness', 4, t('made peace with {name}', { name })); return t('You and {name} buried the hatchet. It felt like a weight lifted.', { name }); }
+      closer(4); return t('You offered {name} an olive branch. {name} was not ready yet.', { name });
     case 'confront':
-      closer(-6); feel('happiness', 2, `confronted ${name}`);
-      return `You told ${name} exactly what you thought. Neither of you backed down.`;
+      closer(-6); feel('happiness', 2, t('confronted {name}', { name }));
+      return t('You told {name} exactly what you thought. Neither of you backed down.', { name });
     case 'ignore':
-      feel('happiness', 1, `ignored ${name}`);
-      return `You ignored ${name} completely. It bothered ${p.gender === 'female' ? 'her' : 'him'} more than you.`;
+      feel('happiness', 1, t('ignored {name}', { name }));
+      return t('You ignored {name} completely. It bothered {them} more than you.', { name, them: p.gender === 'female' ? 'her' : 'him' });
     case 'release':
-      p.alive = false; feel('happiness', -5, `rehomed ${p.name}`);
-      return `You found ${p.name} a loving new home.`;
+      p.alive = false; feel('happiness', -5, t('rehomed {name}', { name: p.name }));
+      return t('You found {name} a loving new home.', { name: p.name });
     case 'bathePet':
-      closer(3); feel('happiness', 1, `bathed ${p.name}`);
-      return `You gave ${p.name} a bath. Most of the water ended up on you.`;
+      closer(3); feel('happiness', 1, t('bathed {name}', { name: p.name }));
+      return t('You gave {name} a bath. Most of the water ended up on you.', { name: p.name });
     case 'askOut': {
-      if (partner(state)) return `You are already with someone.`;
+      if (partner(state)) return t('You are already with someone.');
       const yes = p.closeness >= 45 && chance(state, 0.6);
-      if (!yes) { closer(-5); feel('happiness', -3, `${name} said no`); return `You asked ${name} out. ${name} said it was better to stay friends.`; }
-      p.role = 'partner'; p.yearsTogether = 0; closer(8); feel('happiness', 6, `started dating ${name}`);
-      return `You asked ${name} out, and ${name} said yes. You are now a couple.`;
+      if (!yes) { closer(-5); feel('happiness', -3, t('{name} said no', { name })); return t('You asked {name} out. {name} said it was better to stay friends.', { name }); }
+      p.role = 'partner'; p.yearsTogether = 0; closer(8); feel('happiness', 6, t('started dating {name}', { name }));
+      return t('You asked {name} out, and {name} said yes. You are now a couple.', { name });
     }
     default:
       return null;
@@ -457,7 +458,7 @@ export function actionsFor(state, p) {
   }
   if (p.role === 'enemy') {
     const list = [['confront', 'Confront', 'Say what you think', 'Conflict'], ['ignore', 'Ignore', 'Rise above it', 'Conflict'],
-      ['makePeace', 'Make Peace', `Bury the hatchet with ${p.gender === 'female' ? 'her' : 'him'}`, 'Relationship']];
+      ['makePeace', 'Make Peace', t(p.gender === 'female' ? 'Bury the hatchet with her' : 'Bury the hatchet with him'), 'Relationship']];
     if (age >= 12) list.push(['apologise', 'Apologise', 'Own your part of it', 'Relationship']);
     return list;
   }
@@ -479,7 +480,7 @@ export function actionsFor(state, p) {
   // ---- Activities: things that cost time or money and need an age to make sense. ----
   if (age >= 6) list.push(['movie', 'Movie Theater', '$30 · go to the movies together', 'Activities']);
   if (age >= 14) list.push(['concert', 'Concert', '$80 · go to a concert together', 'Activities']);
-  if (age >= 8) list.push(['gift', 'Gift', `$${age < 13 ? 10 : 60} · a small present`, 'Activities']);
+  if (age >= 8) list.push(['gift', 'Gift', t('{price} · a small present', { price: dinheiro(age < 13 ? 10 : 60) }), 'Activities']);
   if (age >= 5 && p.age >= 5 && Math.abs(p.age - age) <= 12) list.push(['walkTogether', 'Go for a Walk', 'Fresh air and talking', 'Activities']);
   if (age >= 16 && money >= 25) list.push(['mealOut', 'Meal Out', '$25 · eat somewhere nice', 'Activities']);
 

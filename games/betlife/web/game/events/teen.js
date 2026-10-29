@@ -1,4 +1,5 @@
 // Ages 13-17: teenagers and high school. Original BetLife writing.
+import { t } from '../i18n/index.js';
 import { ev } from './define.js';
 
 const T = ['teen'];
@@ -38,15 +39,15 @@ export const TEEN_EVENTS = [
 
   // Friends and social life
   ev({ id: 'bestFriendMoment', category: 'friendship', stages: T, person: (c) => c.friends.filter((f) => f.role === 'friend'), once: true, kind: 'positive',
-    text: (c) => `After a long summer of adventures, you and ${c.whoName} became best friends.`, effects: { closeness: 8, happiness: 3, bestFriend: true } }),
+    text: (c) => t('After a long summer of adventures, you and {whoName} became best friends.', { whoName: c.whoName, _g: c.who && c.who.gender }), effects: { closeness: 8, happiness: 3, bestFriend: true } }),
   ev({ id: 'friendMoves', category: 'friendship', stages: T, person: 'friend', cooldown: 8, max: 1, weight: 0.5, kind: 'negative',
-    text: (c) => `${c.whoName}'s family moved to another city. You promised to stay in touch.`, effects: { happiness: -4, loseFriend: true } }),
+    text: (c) => t('{whoName}\'s family moved to another city. You promised to stay in touch.', { whoName: c.whoName, _g: c.who && c.who.gender }), effects: { happiness: -4, loseFriend: true } }),
   ev({ id: 'friendFallingOut', category: 'friendship', stages: T, person: 'friend', cooldown: 5, family: 'friendTrouble',
-    text: (c) => `You and ${c.whoName} did not speak for a month over something neither of you can remember now.`, effects: { closeness: -8, happiness: -3 } }),
+    text: (c) => t('You and {whoName} did not speak for a month over something neither of you can remember now.', { whoName: c.whoName, _g: c.who && c.who.gender }), effects: { closeness: -8, happiness: -3 } }),
   ev({ id: 'friendRoadTrip', category: 'friendship', stages: T, minAge: 16, person: 'friend', cooldown: 4, family: 'friendFun',
-    text: (c) => `You and ${c.whoName} spent a whole day exploring the city by bus.`, effects: { closeness: 5, happiness: 3 } }),
+    text: (c) => t('You and {whoName} spent a whole day exploring the city by bus.', { whoName: c.whoName, _g: c.who && c.who.gender }), effects: { closeness: 5, happiness: 3 } }),
   ev({ id: 'gamingMarathon', category: 'friendship', stages: T, person: 'friend', cooldown: 4, family: 'friendFun',
-    text: (c) => `You and ${c.whoName} played video games until sunrise and regretted nothing.`, effects: { closeness: 4, happiness: 3, health: -1 } }),
+    text: (c) => t('You and {whoName} played video games until sunrise and regretted nothing.', { whoName: c.whoName, _g: c.who && c.who.gender }), effects: { closeness: 4, happiness: 3, health: -1 } }),
   ev({ id: 'partyInvite', category: 'personal', stages: T, minAge: 15, needs: ['friends'], cooldown: 4,
     text: 'You were invited to a party and spent an hour deciding what to wear.', effects: { happiness: 2, looks: 1 } }),
   ev({ id: 'firstDate', category: 'relationship', stages: T, minAge: 16, needs: ['noPartner'], once: true, weight: 0.8,
@@ -60,17 +61,17 @@ export const TEEN_EVENTS = [
   ev({ id: 'savingsAccount', category: 'finance', stages: T, minAge: 14, once: true,
     text: 'You opened your first savings account and stared at the balance for a while.', effects: { smarts: 1 } }),
   ev({ id: 'curfewArgument', category: 'family', stages: T, minAge: 15, person: 'parent', cooldown: 4, family: 'familyFriction',
-    text: (c) => `You came home late and had a long talk with ${c.whoName} about curfews.`, effects: { closeness: -3, happiness: -2 } }),
+    text: (c) => t('You came home late and had a long talk with {whoName} about curfews.', { whoName: c.whoName, _g: c.who && c.who.gender }), effects: { closeness: -3, happiness: -2 } }),
   ev({ id: 'familyVacation', category: 'family', stages: T, cooldown: 5, max: 2, kind: 'positive', family: 'familyFun',
     text: 'Your family took a summer trip to the coast. You pretended not to enjoy it and enjoyed it a lot.', effects: { happiness: 3, family: 2 } }),
   ev({ id: 'parentTeaches', category: 'family', stages: T, person: 'parent', cooldown: 5, family: 'familyLesson',
-    text: (c) => `${c.whoName} taught you how to change a tire, budget a paycheck, and stay calm about both.`, effects: { smarts: 2, closeness: 3 } }),
+    text: (c) => t('{whoName} taught you how to change a tire, budget a paycheck, and stay calm about both.', { whoName: c.whoName, _g: c.who && c.who.gender }), effects: { smarts: 2, closeness: 3 } }),
   ev({ id: 'siblingAdvice', category: 'family', stages: T, person: 'sibling', cooldown: 4,
-    text: (c) => `${c.whoName} gave you honest advice about school, and it turned out to be right.`, effects: { closeness: 4, smarts: 1 } }),
+    text: (c) => t('{whoName} gave you honest advice about school, and it turned out to be right.', { whoName: c.whoName, _g: c.who && c.who.gender }), effects: { closeness: 4, smarts: 1 } }),
   ev({ id: 'drivingTestOffer', category: 'personal', stages: T, minAge: 16, needs: ['noLicence'], once: true, weight: 6, band: 'License', title: 'Driving License',
     text: 'It is time to take your driving test. The examiner starts with a road-sign question.', minigame: 'drivingQuiz' }),
   ev({ id: 'learnToDrive', category: 'personal', stages: T, minAge: 16, needs: ['noLicence'], person: 'parent', once: true,
-    text: (c) => `${c.whoName} took you to an empty parking lot to practice driving. Only one cone was harmed.`, effects: { smarts: 1, closeness: 2 } }),
+    text: (c) => t('{whoName} took you to an empty parking lot to practice driving. Only one cone was harmed.', { whoName: c.whoName, _g: c.who && c.who.gender }), effects: { smarts: 1, closeness: 2 } }),
   ev({ id: 'drivingRoadTrip', category: 'personal', stages: T, minAge: 16, needs: ['licence'], once: true, kind: 'positive',
     text: 'You drove yourself to school for the first time and parked very, very carefully.', effects: { happiness: 3 } }),
   ev({ id: 'skinTrouble', category: 'health', stages: T, once: true, weight: 0.7,

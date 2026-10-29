@@ -10,6 +10,7 @@
 //   8. end-of-life check
 //   9. occupation label refresh
 // The interface saves and re-renders afterwards. Nothing here runs twice for the same year.
+import { t, dinheiro } from './i18n/index.js';
 import { between } from './rng.js';
 import { changeStat } from './stats.js';
 import { addJournal, info, pushModal } from './journal.js';
@@ -92,8 +93,8 @@ function processEducation(state) {
   if (!Education.isEnrolled(e)) {
     if (p.age === Education.SCHOOL_START_AGE && !e.highSchoolGraduate && !e.droppedOut) {
       Education.startSchool(e);
-      addJournal(state, `You started kindergarten at ${Education.ELEMENTARY_NAME}.`, 'milestone');
-      info(state, 'School Begins', `You are starting school at ${Education.ELEMENTARY_NAME}.`, { band: 'School', tone: 'blue',
+      addJournal(state, t('You started kindergarten at {ELEMENTARYNA}.', { ELEMENTARYNA: Education.ELEMENTARY_NAME }), 'milestone');
+      info(state, 'School Begins', t('You are starting school at {ELEMENTARYNA}.', { ELEMENTARYNA: Education.ELEMENTARY_NAME }), { band: 'School', tone: 'blue',
         facts: [['School', Education.ELEMENTARY_NAME], ['Level', 'Elementary School'], ['Years', '6']] });
       classmateFriend(state, 'kindergarten');
     }
@@ -102,40 +103,43 @@ function processEducation(state) {
   const wasSchool = e.stage === 'school';
   const completed = Education.advanceYear(e);
   if (wasSchool && !completed && e.year === Education.FIRST_MIDDLE_GRADE) {
-    addJournal(state, `You started middle school at ${Education.MIDDLE_SCHOOL_NAME}.`, 'milestone');
-    info(state, 'Middle School', `You are moving up to ${Education.MIDDLE_SCHOOL_NAME}.`, { band: 'School', facts: [['School', Education.MIDDLE_SCHOOL_NAME], ['Level', 'Middle School'], ['Years', '3']] });
+    addJournal(state, t('You started middle school at {MIDDLESCHOOL}.', { MIDDLESCHOOL: Education.MIDDLE_SCHOOL_NAME }), 'milestone');
+    info(state, 'Middle School', t('You are moving up to {MIDDLESCHOOL}.', { MIDDLESCHOOL: Education.MIDDLE_SCHOOL_NAME }), { band: 'School', facts: [['School', Education.MIDDLE_SCHOOL_NAME], ['Level', 'Middle School'], ['Years', '3']] });
     classmateFriend(state, 'middle school');
   } else if (wasSchool && !completed && e.year === Education.FIRST_HIGH_GRADE) {
-    addJournal(state, `You started high school at ${Education.HIGH_SCHOOL_NAME}.`, 'milestone');
-    info(state, 'High School', `Welcome to ${Education.HIGH_SCHOOL_NAME}.`, { band: 'School', facts: [['School', Education.HIGH_SCHOOL_NAME], ['Level', 'High School'], ['Years', '4']] });
+    addJournal(state, t('You started high school at {HIGHSCHOOLNA}.', { HIGHSCHOOLNA: Education.HIGH_SCHOOL_NAME }), 'milestone');
+    info(state, 'High School', t('Welcome to {HIGHSCHOOLNA}.', { _g: state.player.gender, HIGHSCHOOLNA: Education.HIGH_SCHOOL_NAME }), { band: 'School', facts: [['School', Education.HIGH_SCHOOL_NAME], ['Level', 'High School'], ['Years', '4']] });
   }
   if (completed === 'highSchool') {
     const grade = Education.gradeLetter(Education.averageGrade(e));
-    addJournal(state, `You graduated from ${Education.HIGH_SCHOOL_NAME} with a ${grade} average.`, 'milestone');
+    addJournal(state, t('You graduated from {HIGHSCHOOLNA} with a {grade} average.', { HIGHSCHOOLNA: Education.HIGH_SCHOOL_NAME, grade }), 'milestone');
     p.occupation = 'High School Graduate';
     changeStat(state, 'happiness', 4, 'graduated high school');
     pushModal(state, { kind: 'decision', eventId: 'afterHighSchool', band: 'School', title: "What's Next?",
       text: 'High school is behind you. What do you want to do now?', facts: [['Average grade', grade], ['Smarts', `${p.smarts}%`]],
       choices: [{ label: 'Apply to university', index: 0 }, { label: 'Go to trade school', index: 1 }, { label: 'Look for a job', index: 2 }, { label: 'Take a year off', index: 3 }] });
   } else if (completed === 'university') {
-    addJournal(state, `You graduated from ${Education.UNIVERSITY_NAME} with a degree in ${e.degree}.`, 'milestone');
+    addJournal(state, t('You graduated from {UNIVERSITYNA} with a degree in {degree2}.', { UNIVERSITYNA: Education.UNIVERSITY_NAME, degree2: t(e.degree) }), 'milestone');
     p.occupation = 'Unemployed';
     changeStat(state, 'happiness', 6, 'university degree');
     changeStat(state, 'smarts', 3, 'university degree');
-    info(state, 'Graduation Day', `You earned your degree in ${e.degree} from ${Education.UNIVERSITY_NAME}. Time to find work on the Occupation screen.`, { band: 'University', tone: 'green' });
+    info(state, 'Graduation Day', t('You earned your degree in {degree2} from {UNIVERSITYNA}. Time to find work on the Occupation screen.', { degree2: t(e.degree), UNIVERSITYNA: Education.UNIVERSITY_NAME }), { band: 'University', tone: 'green' });
   } else if (completed === 'program') {
     const credential = e.credentials[e.credentials.length - 1];
-    addJournal(state, `You completed ${credential === 'MBA' ? 'business school with an MBA' : credential === "Master's" ? `graduate school with a master's degree` : `${credential.toLowerCase()} school`}.`, 'milestone');
+    const curso = credential === 'MBA' ? t('business school with an MBA')
+      : credential === "Master's" ? t("graduate school with a master's degree")
+      : t('{c} school', { c: t(credential.toLowerCase()) });
+    addJournal(state, t('You completed {course}.', { course: curso }), 'milestone');
     p.occupation = 'Unemployed';
     changeStat(state, 'happiness', 6, 'program completed');
     changeStat(state, 'smarts', 3, 'program completed');
-    info(state, 'Graduation Day', `You finished ${Education.schoolName({ stage: 'program', program: Object.values(Education.PROGRAMS).find((pr) => pr.credential === credential).id })}. New careers are open on the Occupation screen.`, { band: 'University', tone: 'green' });
+    info(state, 'Graduation Day', t('You finished {school}. New careers are open on the Occupation screen.', { school: t(Education.schoolName({ stage: 'program', program: Object.values(Education.PROGRAMS).find((pr) => pr.credential === credential).id })) }), { band: 'University', tone: 'green' });
   } else if (completed === 'trade') {
-    addJournal(state, `You earned your ${e.trade} certificate from ${Education.TRADE_SCHOOL_NAME}.`, 'milestone');
+    addJournal(state, t('You earned your {trade2} certificate from {TRADESCHOOLN}.', { trade2: t(e.trade), TRADESCHOOLN: Education.TRADE_SCHOOL_NAME }), 'milestone');
     p.occupation = 'Unemployed';
     changeStat(state, 'happiness', 5, 'trade certificate');
     changeStat(state, 'smarts', 2, 'trade certificate');
-    info(state, 'Certified', `You finished trade school with a ${e.trade} certificate. Jobs in your trade are waiting on the Occupation screen.`, { band: 'Trade School', tone: 'green' });
+    info(state, 'Certified', t('You finished trade school with a {trade2} certificate. Jobs in your trade are waiting on the Occupation screen.', { trade2: t(e.trade) }), { band: 'Trade School', tone: 'green' });
   }
 }
 
@@ -241,7 +245,7 @@ export function endLife(state, cause) {
   p.deathAge = p.age;
   p.deathCause = cause;
   p.occupation = 'Deceased';
-  addJournal(state, `You passed away at the age of ${p.age}, ${cause}. Your net worth at the end was $${Economy.netWorth(state).toLocaleString('en-US')}.`, 'milestone');
+  addJournal(state, t('You passed away at the age of {age}, {cause}. Your net worth at the end was {worth}.', { age: p.age, cause: t(cause), worth: dinheiro(Economy.netWorth(state)) }), 'milestone');
   state.ended = { age: p.age, cause };
   state.pending = state.pending.filter((m) => m.kind !== 'decision');
   pushModal(state, { kind: 'death' });
@@ -254,8 +258,8 @@ export function updateOccupation(state) {
   if (career.retired) { player.occupation = 'Retired'; return; }
   if (education.stage === 'university') player.occupation = 'University Student';
   else if (education.stage === 'trade') player.occupation = 'Trade School Student';
-  else if (education.stage === 'program') player.occupation = `${Education.currentProgram(education).name} Student`;
-  else if (education.stage === 'school') player.occupation = `${Education.schoolLevel(education)} Student`;
+  else if (education.stage === 'program') player.occupation = t('{name6} Student', { name6: Education.currentProgram(education).name });
+  else if (education.stage === 'school') player.occupation = t('{schoolLevel} Student', { schoolLevel: Education.schoolLevel(education) });
   else if (player.age <= 3) player.occupation = 'Infant';
   else if (player.age < Education.SCHOOL_START_AGE) player.occupation = 'Child';
   else if (player.age < 18) player.occupation = 'Teenager';

@@ -308,3 +308,108 @@ button.bl-row:hover, button.bl-row:focus-visible, a.bl-row:hover { background: v
 .bl-pack-icon { width: 20px; height: 20px; filter: grayscale(1) brightness(1.3); }
 .bl-banner-pattern { position: absolute; inset: 0; display: flex; flex-wrap: wrap; gap: 10px 26px; padding: 4px 10px; opacity: 0.12; filter: grayscale(1); overflow: hidden; pointer-events: none; } .bl-banner-pattern .bl-pic { width: 24px; height: 24px; }
 .bl-splash .bl-brand { font-size: 38px; } .bl-splash .bl-logo { width: 46px; height: 46px; }
+
+/* Cartão de idioma: a nota sobre o que ainda não foi traduzido */
+.bl-lang-soon { font-size: 11.5px; opacity: .72; margin: 6px 16px 0; text-align: center; line-height: 1.4; }
+
+/* Escolha secundária dentro de um cartão: existe, mas não disputa com a principal. */
+.bl-text-quiet { display: block; width: 100%; margin: 2px auto 0; padding: 8px 4px; background: none; border: 0;
+  font-size: 12.5px; color: #4a6b84; opacity: .78; text-decoration: underline; cursor: pointer; }
+.bl-text-quiet:hover { opacity: 1; }
+
+/* A saída para o Arcade na tela de resumo, abaixo das ações principais. */
+.bl-summary-actions + .bl-summary-actions { margin-top: 6px; }
+
+/* ---- Campo de texto dentro de um cartão (o nome do pet na adoção) ---- */
+.bl-portrait { display: grid; place-items: center; margin: 2px 0 10px; }
+.bl-portrait-pic { width: 94px; height: 94px; border-radius: 50%; background: #fff; border: 3px solid var(--bl-track-border); display: grid; place-items: center; padding: 12px; box-shadow: inset 0 -6px 14px rgba(0, 0, 0, 0.06); }
+.bl-portrait-pic .bl-pic-svg { width: 100%; height: 100%; }
+.bl-field-label { display: block; text-align: left; margin: 2px 0 6px; font-size: 13.5px; font-weight: 700; color: #333; }
+/* 16px no campo não é estética: abaixo disso o Safari do iPhone dá zoom no foco e desloca o cartão. */
+.bl-field-input { box-sizing: border-box; width: 100%; min-height: 42px; padding: 9px 11px; border: 2px solid var(--bl-track-border); border-radius: 6px; background: #fff; color: var(--bl-text); font-family: inherit; font-size: 16px; }
+.bl-field-input:focus { outline: none; border-color: var(--bl-action); box-shadow: 0 0 0 3px rgba(28, 111, 214, 0.18); }
+.bl-field-note { margin: 6px 0 10px; text-align: left; font-size: 12px; line-height: 1.35; color: var(--bl-muted); }
+.bl-field-note.is-error { color: var(--bl-danger); font-weight: 600; }
+.bl-field-input + .bl-modal-buttons, .bl-field-note + .bl-modal-buttons { margin-top: 12px; }
+.bl-btn:disabled { opacity: 0.45; box-shadow: none; cursor: default; }
+.bl-btn:disabled:active { transform: none; }
+
+/* ---- Tirar na moeda: palco, placas, moeda e a mão ---- */
+.bl-coin-stage { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; background: rgba(6, 10, 18, 0.74); animation: bl-overlay-in 0.16s ease-out backwards; }
+.bl-coin-panel { position: relative; width: min(308px, calc(100% - 32px)); background: var(--bl-card); border: 3px solid var(--bl-red); border-radius: 10px; padding: 14px 14px 10px; text-align: center; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45); animation: bl-card-in 0.26s cubic-bezier(0.5, 1.72, 0.62, 1) backwards; }
+.bl-coin-kicker { margin: 0 0 10px; font-family: var(--bl-display); font-size: 17px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--bl-blue); }
+.bl-coin-plates { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.bl-coin-plate { display: grid; justify-items: center; gap: 6px; padding: 10px 6px 8px; background: #fff; border: 2px solid var(--bl-track-border); border-radius: 10px; box-shadow: 0 3px 0 rgba(0, 0, 0, 0.1);
+  transition: transform 0.12s ease, background-color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease; }
+.bl-coin-plate-art { width: 46px; height: 46px; display: block; }
+.bl-coin-art { width: 100%; height: 100%; display: block; }
+.bl-coin-plate-label { font-size: 14px; font-weight: 700; color: #2a2f36; }
+.bl-coin-plate.is-pressed { transform: translateY(3px) scale(0.962); background: #e4eef9; border-color: var(--bl-action); box-shadow: inset 0 2px 7px rgba(0, 0, 0, 0.14); }
+.bl-coin-plate.is-winner { border-color: var(--bl-action); background: #eaf3ff; box-shadow: 0 0 0 3px rgba(28, 111, 214, 0.22); }
+.bl-coin-arena { position: relative; height: 104px; display: grid; place-items: center; perspective: 760px; }
+/* A perspectiva precisa estar no PAI DIRETO da moeda. Em `.bl-coin-arena` ela não alcançava a
+   peça (há este elemento no meio), o giro virava um espelhamento plano e a face de trás aparecia. */
+.bl-coin-toss { display: grid; place-items: center; perspective: 760px; }
+.bl-coin-piece { position: relative; width: 72px; height: 72px; transform-style: preserve-3d; transition: transform 1.02s cubic-bezier(0.22, 0.62, 0.2, 1); }
+/* Qual face aparece é decidido por atributo, e não por `backface-visibility`.
+   Tentei do jeito clássico — duas faces empilhadas, uma virada 180°, costas invisíveis — e também
+   com separação em Z e a perspectiva no pai direto: neste WebKit a face de trás desenhava por cima
+   de qualquer jeito, e a moeda mostrava coroa até quando tinha dado cara. Então a face é uma só, a
+   que vale, e o giro é o giro: a 60 ms por meia-volta ninguém vê a gravação espelhada, e o
+   resultado na tela é sempre o resultado do sorteio. */
+.bl-coin-side { position: absolute; inset: 0; }
+.bl-coin-stage[data-show="heads"] .bl-coin-side.is-tails,
+.bl-coin-stage[data-show="tails"] .bl-coin-side.is-heads { display: none; }
+.bl-coin-shadow { position: absolute; bottom: 10px; width: 56px; height: 11px; border-radius: 50%; background: rgba(10, 20, 35, 0.22); transition: transform 0.3s ease, opacity 0.3s ease; }
+.bl-coin-stage[data-stage="spin"] .bl-coin-toss { animation: bl-coin-toss 1.02s cubic-bezier(0.33, 0, 0.66, 1); }
+.bl-coin-stage[data-stage="spin"] .bl-coin-shadow { animation: bl-coin-shadow 1.02s cubic-bezier(0.33, 0, 0.66, 1); }
+.bl-coin-stage[data-stage="reveal"] .bl-coin-piece, .bl-coin-stage[data-stage="done"] .bl-coin-piece { animation: bl-coin-land 0.34s ease-out; }
+.bl-coin-result { min-height: 36px; margin: 6px 0 2px; font-size: 15px; font-weight: 700; line-height: 1.25; color: #1a1a1a; opacity: 0; transform: translateY(7px); transition: opacity 0.24s ease, transform 0.24s ease; }
+.bl-coin-stage[data-stage="reveal"] .bl-coin-result, .bl-coin-stage[data-stage="done"] .bl-coin-result { opacity: 1; transform: none; }
+@keyframes bl-coin-toss { 0% { transform: translateY(0) scale(1); } 46% { transform: translateY(-54px) scale(1.12); } 100% { transform: translateY(0) scale(1); } }
+@keyframes bl-coin-shadow { 0%, 100% { transform: scale(1); opacity: 1; } 46% { transform: scale(0.6); opacity: 0.4; } }
+@keyframes bl-coin-land { 0% { margin-top: 0; } 40% { margin-top: 5px; } 100% { margin-top: 0; } }
+
+/* A mão é posicionada pela ponta do dedo (ver `TIP` em ui/coin.js): o JS escreve o translate, o
+   CSS cuida do tempo. Por isso o mergulho do clique mora no SVG de dentro, e não aqui — dois
+   transforms no mesmo elemento se sobrescreveriam. */
+.bl-hand { position: absolute; left: 0; top: 0; width: 126px; pointer-events: none; transform: translate3d(0, 120vh, 0); transition: transform 0.68s cubic-bezier(0.3, 0.08, 0.22, 1); will-change: transform;
+  filter: drop-shadow(0 10px 14px rgba(0, 0, 0, 0.38)); }
+.bl-hand-svg { width: 100%; height: auto; display: block; transition: transform 0.14s ease-in; }
+.bl-hand-finger { transform-box: fill-box; transform-origin: 50% 96%; transition: transform 0.14s ease-in; }
+.bl-coin-stage[data-stage="aim"] .bl-hand { transition-duration: 0.18s; }
+.bl-coin-stage[data-stage="press"] .bl-hand-finger { transform: translateY(10px) rotate(9deg); }
+.bl-coin-stage[data-stage="press"] .bl-hand-svg { transform: translateY(5px); }
+.bl-coin-stage[data-stage="release"] .bl-hand-finger { transition-duration: 0.12s; }
+.bl-coin-stage[data-stage="spin"] .bl-hand { transition-duration: 0.52s; transition-timing-function: ease-in; }
+/* ---- O sorteio: a apresentação de três ou mais opções ---- */
+/* O rótulo à esquerda e o marcador à direita não são arranjo: o dedo encosta no marcador, e é isso
+   que mantém o nome da opção legível no quadro do clique, em qualquer largura de tela. */
+.bl-raffle { display: grid; gap: 8px; margin: 2px 0 6px; }
+.bl-raffle-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 44px; padding: 8px 12px;
+  background: #fff; border: 2px solid var(--bl-track-border); border-radius: 10px; box-shadow: 0 3px 0 rgba(0, 0, 0, 0.1);
+  transition: transform 0.12s ease, background-color 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease, opacity 0.22s ease; }
+.bl-raffle-label { font-size: 14.5px; font-weight: 700; line-height: 1.2; color: #2a2f36; text-align: left; }
+.bl-raffle-mark { flex: none; width: 22px; height: 22px; border-radius: 50%; background: #e7edf5; box-shadow: inset 0 0 0 2px var(--bl-track-border);
+  transition: background-color 0.1s ease, box-shadow 0.1s ease, transform 0.1s ease; }
+.bl-raffle-item.is-running { border-color: var(--bl-action); background: #eaf3ff; }
+.bl-raffle-item.is-running .bl-raffle-mark, .bl-raffle-item.is-winner .bl-raffle-mark { background: var(--bl-action); box-shadow: inset 0 0 0 2px var(--bl-blue); }
+.bl-raffle-item.is-running .bl-raffle-mark { transform: scale(1.18); }
+.bl-raffle-item.is-pressed { transform: translateY(3px) scale(0.985); background: #e4eef9; border-color: var(--bl-action); box-shadow: inset 0 2px 7px rgba(0, 0, 0, 0.14); }
+.bl-raffle-item.is-winner { border-color: var(--bl-action); background: #eaf3ff; box-shadow: 0 0 0 3px rgba(28, 111, 214, 0.22); }
+.bl-raffle-item.is-dim { opacity: 0.28; }
+
+@media (max-width: 430px) {
+  .bl-hand { width: 104px; }
+  .bl-raffle-label { font-size: 14px; }
+  .bl-coin-plate-art { width: 40px; height: 40px; }
+  .bl-coin-arena { height: 92px; }
+  .bl-coin-piece { width: 64px; height: 64px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bl-coin-stage, .bl-coin-panel { animation-duration: 0.01ms; }
+  .bl-coin-piece, .bl-hand, .bl-hand-svg, .bl-hand-finger, .bl-coin-plate,
+  .bl-raffle-item, .bl-raffle-mark { transition-duration: 0.01ms; }
+  .bl-coin-stage[data-stage="spin"] .bl-coin-toss, .bl-coin-stage[data-stage="spin"] .bl-coin-shadow,
+  .bl-coin-stage[data-stage="reveal"] .bl-coin-piece, .bl-coin-stage[data-stage="done"] .bl-coin-piece { animation: none; }
+}

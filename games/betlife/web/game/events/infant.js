@@ -1,13 +1,14 @@
 // Ages 0-3: babies and toddlers. Original BetLife writing.
+import { t } from '../i18n/index.js';
 import { ev } from './define.js';
 
 const S = ['infant'];
 
 export const INFANT_EVENTS = [
   ev({ id: 'firstSmile', category: 'family', stages: S, maxAge: 1, once: true, kind: 'positive', person: 'parent',
-    text: (c) => `You smiled for the first time, and ${c.whoName} would not stop talking about it.`, effects: { happiness: 2, closeness: 3 } }),
+    text: (c) => t('You smiled for the first time, and {whoName} would not stop talking about it.', { whoName: c.whoName, _g: c.who && c.who.gender }), effects: { happiness: 2, closeness: 3 } }),
   ev({ id: 'firstWord', category: 'family', stages: S, minAge: 1, maxAge: 2, once: true, kind: 'positive',
-    text: (c) => `You said your first word${c.mother ? `, and it sounded a lot like "${c.mother.gender === 'female' ? 'mama' : 'dada'}"` : ''}.`, effects: { happiness: 2, smarts: 2 } }),
+    text: (c) => (c.mother ? t('You said your first word, and it sounded a lot like "{word}".', { word: c.mother.gender === 'female' ? 'mama' : 'dada' }) : t('You said your first word.')), effects: { happiness: 2, smarts: 2 } }),
   ev({ id: 'firstSteps', category: 'family', stages: S, minAge: 1, maxAge: 2, once: true, kind: 'positive',
     text: 'You took your first wobbly steps across the living room and landed on your bottom, laughing.', effects: { happiness: 2, health: 1 } }),
   ev({ id: 'sleeplessNights', category: 'family', stages: S, maxAge: 1, once: true,
@@ -23,7 +24,7 @@ export const INFANT_EVENTS = [
   ev({ id: 'firstBirthdayCake', category: 'family', stages: S, minAge: 1, maxAge: 1, once: true, kind: 'positive',
     text: 'On your first birthday you put both hands straight into the cake.', effects: { happiness: 3 } }),
   ev({ id: 'peekaboo', category: 'family', stages: S, maxAge: 2, once: true, person: 'parent',
-    text: (c) => `${c.whoName} played peekaboo with you until you both had the hiccups from laughing.`, effects: { happiness: 2, closeness: 3 } }),
+    text: (c) => t('{whoName} played peekaboo with you until you both had the hiccups from laughing.', { whoName: c.whoName, _g: c.who && c.who.gender }), effects: { happiness: 2, closeness: 3 } }),
   ev({ id: 'stackingBlocks', category: 'hobby', stages: S, minAge: 1, maxAge: 3, once: true,
     text: 'You stacked six blocks into a tower before knocking it down with great satisfaction.', effects: { smarts: 2, happiness: 1 } }),
   ev({ id: 'scribbleArt', category: 'hobby', stages: S, minAge: 2, maxAge: 3, once: true,
@@ -35,17 +36,17 @@ export const INFANT_EVENTS = [
   ev({ id: 'siblingBorn', category: 'family', stages: ['infant', 'child'], minAge: 1, maxAge: 7, once: true, weight: 0.8, when: (c) => c.siblings.length < 2,
     text: '', effects: { newSibling: true, happiness: 2 } }),
   ev({ id: 'olderSiblingHelps', category: 'family', stages: S, minAge: 1, maxAge: 3, person: 'sibling', once: true, kind: 'positive',
-    text: (c) => `${c.whoName} taught you how to clap along to songs.`, effects: { closeness: 5, happiness: 2 } }),
+    text: (c) => t('{whoName} taught you how to clap along to songs.', { whoName: c.whoName, _g: c.who && c.who.gender }), effects: { closeness: 5, happiness: 2 } }),
   ev({ id: 'familyPetBond', category: 'family', stages: S, minAge: 1, maxAge: 3, person: 'pet', once: true,
-    text: (c) => `${c.who.name} started sleeping next to your crib every night.`, effects: { closeness: 6, happiness: 2 } }),
+    text: (c) => t('{whoName} started sleeping next to your crib every night.', { whoName: c.who.name }), effects: { closeness: 6, happiness: 2 } }),
   ev({ id: 'firstHaircut', category: 'personal', stages: S, minAge: 1, maxAge: 3, once: true,
     text: 'You had your first haircut and screamed as if the scissors were dragons.', effects: { looks: 2, happiness: -1 } }),
   ev({ id: 'busyToddler', category: 'personal', stages: S, minAge: 2, maxAge: 3, once: true,
     text: 'You learned to open every cupboard in the kitchen. Child locks appeared the next day.', effects: { smarts: 1 } }),
   ev({ id: 'storyTime', category: 'family', stages: S, minAge: 1, maxAge: 3, cooldown: 2, max: 2, person: 'parent',
-    text: (c) => `${c.whoName} read you the same bedtime story every night for a month because you asked for it.`, effects: { smarts: 2, closeness: 3 } }),
+    text: (c) => t('{whoName} read you the same bedtime story every night for a month because you asked for it.', { whoName: c.whoName, _g: c.who && c.who.gender }), effects: { smarts: 2, closeness: 3 } }),
   ev({ id: 'parkSwing', category: 'hobby', stages: S, minAge: 2, maxAge: 3, once: true,
     text: 'You discovered the swings at the park and demanded to be pushed higher every single time.', effects: { happiness: 3, health: 1 } }),
   ev({ id: 'parentPromotion', category: 'family', stages: ['infant', 'child', 'preteen'], maxAge: 12, person: 'parent', cooldown: 8, max: 2,
-    text: (c) => `${c.whoName} was promoted at work and brought home a cake to celebrate.`, effects: { family: 2, happiness: 1 } }),
+    text: (c) => t('{whoName} was promoted at work and brought home a cake to celebrate.', { whoName: c.whoName, _g: c.who && c.who.gender }), effects: { family: 2, happiness: 1 } }),
 ];

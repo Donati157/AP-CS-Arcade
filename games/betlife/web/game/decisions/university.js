@@ -1,4 +1,5 @@
 // Decisions at university or trade school. Original BetLife writing.
+import { t } from '../i18n/index.js';
 import { ev } from '../events/define.js';
 
 export const UNIVERSITY_DECISIONS = [
@@ -19,7 +20,7 @@ export const UNIVERSITY_DECISIONS = [
       { label: 'Go home', text: 'You went home for spring break and slept in your childhood bed.', effects: { happiness: 2, family: 3 } },
     ] }),
   ev({ id: 'changeMajor', category: 'education', needs: ['university'], when: (c) => c.edu.year === 2 && c.edu.performance < 60, once: true, band: 'University', title: 'Second Thoughts',
-    text: (c) => `Two years into ${c.edu.major}, you are not sure it is right for you.`, choices: [
+    text: (c) => t('Two years into {major}, you are not sure it is right for you.', { major: c.edu.major }), choices: [
       { label: 'Push through', text: 'You pushed through and rediscovered why you chose your major in the first place.', effects: { performance: 5, smarts: 1 } },
       { label: 'Talk to an advisor', text: 'An advisor helped you plan your remaining courses, and things clicked again.', effects: { performance: 3, happiness: 2 } },
     ] }),

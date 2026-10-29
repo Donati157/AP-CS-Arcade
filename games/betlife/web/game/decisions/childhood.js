@@ -1,4 +1,5 @@
 // Decisions for infants and children (ages 0-9). Original BetLife writing.
+import { t } from '../i18n/index.js';
 import { ev } from '../events/define.js';
 
 const S = ['infant'];
@@ -6,7 +7,7 @@ const C = ['child'];
 
 export const CHILDHOOD_DECISIONS = [
   ev({ id: 'vaccinationDay', category: 'health', stages: S, minAge: 1, maxAge: 2, once: true, person: 'parent', band: 'Family', title: 'The Doctor Visit',
-    text: (c) => `${c.whoName} takes you to the clinic for your shots. The nurse has a very bright sticker.`, choices: [
+    text: (c) => t('{whoName} takes you to the clinic for your shots. The nurse has a very bright sticker.', { whoName: c.whoName, _g: c.who && c.who.gender }), choices: [
       { label: 'Cry the whole time', text: 'You cried through the whole doctor visit. The sticker helped a little.', effects: { health: 2, happiness: -1 } },
       { label: 'Be brave', text: 'You held still for your shots like a champion and earned two stickers.', effects: { health: 2, happiness: 1, closeness: 2 } },
       { label: 'Hide under the chair', text: 'You hid under the chair at the clinic, which delayed everything by twenty minutes.', effects: { health: 2, closeness: -1 } },
@@ -18,7 +19,7 @@ export const CHILDHOOD_DECISIONS = [
       { label: 'Grab it back', text: 'You grabbed your toy back. There was a brief scuffle and a time-out.', effects: { happiness: -1 } },
     ] }),
   ev({ id: 'broccoliStandoff', category: 'family', stages: S, minAge: 2, maxAge: 3, once: true, person: 'parent', band: 'Family', title: 'Dinner Standoff',
-    text: (c) => `${c.whoName} put broccoli on your plate and is waiting.`, choices: [
+    text: (c) => t('{whoName} put broccoli on your plate and is waiting.', { whoName: c.whoName, _g: c.who && c.who.gender }), choices: [
       { label: 'Eat it', text: 'You ate the broccoli. It was not terrible, but you did not admit it.', effects: { health: 2, closeness: 2 } },
       { label: 'Feed it to the dog', text: (c) => (c.pets.length ? 'You slipped the broccoli to the pet under the table. Everyone noticed.' : 'You hid the broccoli under your napkin. Everyone noticed.'), effects: { happiness: 1, closeness: -1 } },
       { label: 'Refuse', text: 'You refused the broccoli and sat at the table for a very long time.', effects: { happiness: -1 } },
@@ -31,7 +32,7 @@ export const CHILDHOOD_DECISIONS = [
       { label: 'No pet, thanks', text: 'You decided the house was busy enough without a pet.', effects: { smarts: 1 } },
     ] }),
   ev({ id: 'brokenVase', category: 'personal', stages: C, minAge: 4, maxAge: 8, once: true, person: 'parent', band: 'Childhood', title: 'The Broken Vase',
-    text: (c) => `You knocked over a vase while playing indoors. ${c.whoName} is about to come in.`, choices: [
+    text: (c) => t('You knocked over a vase while playing indoors. {whoName} is about to come in.', { whoName: c.whoName, _g: c.who && c.who.gender }), choices: [
       { label: 'Tell the truth', text: 'You admitted you broke the vase. There was a sigh, and then a hug.', effects: { closeness: 4, happiness: 1 } },
       { label: 'Blame the cat', text: (c) => (c.pets.length ? 'You blamed the pet. The pet was cleared of all charges by lunchtime.' : 'You blamed a cat that does not exist. It did not go well.'), effects: { closeness: -4, happiness: -1 } },
       { label: 'Hide the pieces', text: 'You hid the pieces behind the couch. They were found on Saturday.', effects: { closeness: -2 } },
@@ -60,10 +61,10 @@ export const CHILDHOOD_DECISIONS = [
       { label: 'A trip to the zoo', text: 'Your family spent your birthday at the zoo. A giraffe ate your hat.', effects: { happiness: 3, smarts: 1, family: 2 } },
     ] }),
   ev({ id: 'playgroundBully', category: 'friendship', stages: ['child', 'preteen'], minAge: 6, once: true, person: 'friend', band: 'Friends', title: 'Standing Up',
-    text: (c) => `An older kid at the playground is picking on ${c.whoName}.`, choices: [
-      { label: 'Stand up for your friend', text: (c) => `You stood up for ${c.whoName}. The older kid backed off, surprised.`, effects: { closeness: 8, happiness: 2 } },
-      { label: 'Get a grown-up', text: (c) => `You fetched a grown-up, and the situation ended quickly. ${c.whoName} was grateful.`, effects: { closeness: 5, smarts: 1 } },
-      { label: 'Stay out of it', text: (c) => `You stayed out of it. ${c.whoName} did not say anything, which was worse.`, effects: { closeness: -6, happiness: -2 } },
+    text: (c) => t('An older kid at the playground is picking on {whoName}.', { whoName: c.whoName, _g: c.who && c.who.gender }), choices: [
+      { label: 'Stand up for your friend', text: (c) => t('You stood up for {whoName}. The older kid backed off, surprised.', { whoName: c.whoName, _g: c.who && c.who.gender }), effects: { closeness: 8, happiness: 2 } },
+      { label: 'Get a grown-up', text: (c) => t('You fetched a grown-up, and the situation ended quickly. {whoName} was grateful.', { whoName: c.whoName, _g: c.who && c.who.gender }), effects: { closeness: 5, smarts: 1 } },
+      { label: 'Stay out of it', text: (c) => t('You stayed out of it. {whoName} did not say anything, which was worse.', { whoName: c.whoName, _g: c.who && c.who.gender }), effects: { closeness: -6, happiness: -2 } },
     ] }),
   ev({ id: 'foundMoneyKid', category: 'finance', stages: ['child', 'preteen'], minAge: 6, once: true, band: 'Personal', title: 'Finders Keepers?',
     text: 'You find a $20 bill on the sidewalk outside the grocery store.', choices: [

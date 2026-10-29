@@ -1,5 +1,6 @@
 // Employment: getting hired, doing the job year after year, raises, promotions, warnings,
 // losing a job, quitting and retiring. Salary history is kept for the life summary.
+import { t, tg, dinheiro } from './i18n/index.js';
 import { chance, between } from './rng.js';
 import { changeStat, clampStat } from './stats.js';
 import { addJournal, info, pushModal } from './journal.js';
@@ -48,7 +49,7 @@ export function hire(state, careerDef) {
   career.retired = false;
   state.player.occupation = careerDef.ladder[0].title;
   state.player.livesWithParents = state.player.livesWithParents && careerDef.partTime;
-  addJournal(state, `You were hired as ${aOrAn(careerDef.ladder[0].title)} at ${careerDef.employer}, earning $${career.salary.toLocaleString('en-US')} a year.`, 'milestone');
+  addJournal(state, t('You were hired as {title} at {employer}, earning {salary} a year.', { _g: state.player.gender, title: tg(aOrAn(careerDef.ladder[0].title), state.player.gender), employer: careerDef.employer, salary: dinheiro(career.salary) }), 'milestone');
 }
 
 function aOrAn(title) {
@@ -75,7 +76,7 @@ export function quit(state) {
   const title = jobTitle(state.career);
   leaveJob(state, 'resigned');
   state.player.occupation = 'Unemployed';
-  addJournal(state, `You resigned from your job as ${aOrAn(title)}.`);
+  addJournal(state, t('You resigned from your job as {title}.', { title: tg(aOrAn(title), state.player.gender) }));
   changeStat(state, 'happiness', 2, 'resigned');
 }
 
@@ -89,10 +90,10 @@ export function retire(state, voluntary = true) {
   career.pension = Math.round(last * PENSION_SHARE * Math.min(1, years / 30) / 100) * 100;
   state.player.occupation = 'Retired';
   state.player.retired = true;
-  addJournal(state, voluntary ? `You retired after ${years} years of work.` : `Your company held a farewell party: after ${years} working years, you retired.`, 'milestone');
+  addJournal(state, voluntary ? t('You retired after {n} years of work.', { n: years }) : t('Your company held a farewell party: after {n} working years, you retired.', { n: years }), 'milestone');
   changeStat(state, 'happiness', 6, 'retired');
-  info(state, 'Retirement', `You retired at ${state.player.age}. ${career.pension > 0 ? `Your pension pays $${career.pension.toLocaleString('en-US')} a year.` : 'You never built up a pension, so money will be tight.'}`,
-    { band: 'Career', tone: 'green', facts: [['Years worked', String(years)], ['Pension', career.pension > 0 ? `$${career.pension.toLocaleString('en-US')} / year` : 'None']] });
+  info(state, 'Retirement', t('You retired at {age}. {pension}', { age: state.player.age, pension: career.pension > 0 ? t('Your pension pays {amount} a year.', { amount: dinheiro(career.pension) }) : t('You never built up a pension, so money will be tight.') }),
+    { band: 'Career', tone: 'green', facts: [['Years worked', String(years)], ['Pension', career.pension > 0 ? t('{amount} / year', { amount: dinheiro(career.pension) }) : 'None']] });
 }
 
 // ---- Job actions (each costs one of the year's actions; checked by the caller) --------------
@@ -122,8 +123,8 @@ export function askForRaise(state) {
   const odds = 0.15 + (career.performance - 60) / 120 + Math.min(career.rungTenure, 4) * 0.05;
   if (chance(state, odds)) {
     const percent = between(state, 3, 7);
-    applyRaise(state, percent, 'You asked for a raise and got one.');
-    return `Your manager agreed to a ${percent}% raise.`;
+    applyRaise(state, percent, t('You asked for a raise and got one.'));
+    return t('Your manager agreed to a {percent}% raise.', { percent });
   }
   changeStat(state, 'happiness', -2, 'raise refused');
   return 'Your manager said the budget could not stretch this year.';
@@ -153,7 +154,7 @@ export function humanResources(state, option, coworker = null) {
     case 'complaint':
       if (coworker) { coworker.closeness = Math.min(100, coworker.closeness + 15); coworker.interactedThisYear = true; }
       career.stress = clampStat(career.stress - 8); changeStat(state, 'happiness', 2, 'HR complaint');
-      return coworker ? `HR mediated your problem with ${coworker.name.split(' ')[0]}, and things settled down.` : 'HR listened to your complaint and promised to keep an eye on things.';
+      return coworker ? t('HR mediated your problem with {name}, and things settled down.', { name: coworker.name.split(' ')[0] }) : 'HR listened to your complaint and promised to keep an eye on things.';
     default:
       return null;
   }
@@ -172,7 +173,9 @@ function applyRaise(state, percent, journalText) {
   career.salary = Math.min(cap, Math.round(career.salary * (1 + percent / 100) / 10) * 10);
   career.raises += 1;
   career.lastRaiseAge = state.player.age;
-  addJournal(state, `${journalText} Your salary is now $${career.salary.toLocaleString('en-US')}.`, 'positive');
+  // `journalText` já chega traduzido do chamador; a segunda frase passa por `t()` aqui, senão
+  // o aumento aparecia metade em português e metade em inglês.
+  addJournal(state, `${journalText} ${t('Your salary is now {amount}.', { amount: dinheiro(career.salary) })}`, 'positive');
 }
 
 // ---- One working year -------------------------------------------------------------------------
@@ -208,7 +211,7 @@ export function processCareerYear(state) {
     if (age >= 19 && chance(state, 0.5)) {
       leaveJob(state, 'left');
       state.player.occupation = 'Unemployed';
-      addJournal(state, `Your part-time job as ${aOrAn(def.ladder[0].title)} came to an end.`);
+      addJournal(state, t('Your part-time job as {title} came to an end.', { title: tg(aOrAn(def.ladder[0].title), state.player.gender) }));
     }
     return;
   }
@@ -220,9 +223,9 @@ export function processCareerYear(state) {
       const title = jobTitle(career);
       leaveJob(state, 'let go');
       state.player.occupation = 'Unemployed';
-      addJournal(state, `${def.employer} let you go from your job as ${aOrAn(title)} after repeated warnings.`, 'negative');
+      addJournal(state, t('{employer} let you go from your job as {title} after repeated warnings.', { employer: def.employer, title: tg(aOrAn(title), state.player.gender) }), 'negative');
       changeStat(state, 'happiness', -12, 'lost job');
-      info(state, 'Let Go', `After repeated warnings about your performance, ${def.employer} ended your employment as ${aOrAn(title)}.`, { band: 'Career', tone: 'red' });
+      info(state, 'Let Go', t('After repeated warnings about your performance, {employer} ended your employment as {title}.', { employer: def.employer, title: tg(aOrAn(title), state.player.gender) }), { band: 'Career', tone: 'red' });
       return;
     }
     addJournal(state, `Your manager gave you a formal warning about your performance.`, 'negative');
@@ -245,10 +248,10 @@ export function processCareerYear(state) {
       const percent = Math.round((career.salary / old - 1) * 100);
       career.performance = clampStat(career.performance - 8);
       state.player.occupation = next.title;
-      addJournal(state, `${def.employer} promoted you to ${next.title} with a salary of $${career.salary.toLocaleString('en-US')}.`, 'milestone');
+      addJournal(state, t('{employer} promoted you to {title} with a salary of {salary}.', { employer: def.employer, title: tg(next.title, state.player.gender), salary: dinheiro(career.salary) }), 'milestone');
       changeStat(state, 'happiness', 7, 'promoted');
-      info(state, 'Promotion', `You have been promoted to ${next.title}.`, { band: 'Career', tone: 'blue',
-        facts: [['New title', next.title], ['New salary', `$${career.salary.toLocaleString('en-US')} (+${percent}%)`], ['Employer', def.employer]] });
+      info(state, 'Promotion', t('You have been promoted to {title}.', { _g: state.player.gender, title: tg(next.title, state.player.gender) }), { band: 'Career', tone: 'blue',
+        facts: [['New title', next.title], ['New salary', `${dinheiro(career.salary)} (+${percent}%)`], ['Employer', def.employer]] });
       return;
     }
   }
@@ -259,7 +262,7 @@ export function processCareerYear(state) {
   const raiseOdds = atCap ? 0 : comfortable ? 0.35 : career.performance >= 80 ? 0.6 : career.performance >= 60 ? 0.4 : career.performance >= 45 ? 0.15 : 0;
   if (chance(state, raiseOdds)) {
     const percent = comfortable ? between(state, 1, 2) : career.performance >= 80 ? between(state, 4, 7) : between(state, 2, 4);
-    applyRaise(state, percent, `You received a ${percent}% raise.`);
+    applyRaise(state, percent, t('You received a {percent}% raise.', { percent }));
     changeStat(state, 'happiness', 2, 'raise');
   } else if (career.performance < 45 && chance(state, 0.5)) {
     addJournal(state, 'Your performance review was mixed, and there was no raise this year.');
@@ -272,8 +275,8 @@ export function processCareerYear(state) {
     const years = career.yearsWorked;
     const pension = Math.round(career.salary * PENSION_SHARE * Math.min(1, years / 30) / 100) * 100;
     pushModal(state, { kind: 'decision', eventId: 'retirePrompt', band: 'Career', title: 'Time to Retire?',
-      text: `You are ${age} and have worked for ${years} years. Colleagues are starting to ask about your plans.`,
-      facts: [['Position', jobTitle(career)], ['Salary', `$${career.salary.toLocaleString('en-US')} / year`], ['Pension if you retire', `$${pension.toLocaleString('en-US')} / year`]],
+      text: t('You are {age} and have worked for {years} years. Colleagues are starting to ask about your plans.', { age, years }),
+      facts: [['Position', jobTitle(career)], ['Salary', t('{amount} / year', { amount: dinheiro(career.salary) })], ['Pension if you retire', t('{amount} / year', { amount: dinheiro(pension) })]],
       choices: [{ label: 'Retire this year', index: 0 }, { label: 'Keep working', index: 1 }] });
   }
 }

@@ -1,13 +1,14 @@
 // Adult life decisions: money, home, friends, lifestyle. Original BetLife writing.
+import { t } from '../i18n/index.js';
 import { ev } from '../events/define.js';
 
 const A = ['youngAdult', 'adult', 'middleAge'];
 
 export const ADULT_DECISIONS = [
   ev({ id: 'oldFriendVisitPlan', category: 'friendship', stages: A, person: 'friend', cooldown: 8, band: 'Friends', title: 'A Visit',
-    text: (c) => `${c.whoName} is passing through town for one night and wants to meet up. You have an early morning.`, choices: [
-      { label: 'Meet up', text: (c) => `You met ${c.whoName} and talked until the café closed. The morning was rough and worth it.`, effects: { closeness: 8, happiness: 4, health: -1 } },
-      { label: 'Rain check', text: (c) => `You asked ${c.whoName} for a rain check. The next visit was a long way off.`, effects: { closeness: -5 } },
+    text: (c) => t('{whoName} is passing through town for one night and wants to meet up. You have an early morning.', { whoName: c.whoName, _g: c.who && c.who.gender }), choices: [
+      { label: 'Meet up', text: (c) => t('You met {whoName} and talked until the café closed. The morning was rough and worth it.', { whoName: c.whoName, _g: c.who && c.who.gender }), effects: { closeness: 8, happiness: 4, health: -1 } },
+      { label: 'Rain check', text: (c) => t('You asked {whoName} for a rain check. The next visit was a long way off.', { whoName: c.whoName, _g: c.who && c.who.gender }), effects: { closeness: -5 } },
     ] }),
   ev({ id: 'roommateOffer', category: 'finance', stages: ['youngAdult'], needs: ['ownPlace', 'noHome', 'noPartner'], once: true, band: 'Money', title: 'Roommate?',
     text: 'A friend suggests sharing an apartment to split the rent.', choices: [
@@ -21,10 +22,10 @@ export const ADULT_DECISIONS = [
       { label: 'Sell it as is', text: 'You sold the car as is and started taking the bus.', effects: { money: 900, happiness: -2 }, then: (state) => { const i = state.assets.findIndex((a) => a.kind === 'car'); if (i >= 0) state.assets.splice(i, 1); } },
     ] }),
   ev({ id: 'lendMoney', category: 'finance', stages: A, needs: ['money'], person: 'friend', cooldown: 6, band: 'Money', title: 'A Loan',
-    text: (c) => `${c.whoName} asks to borrow $400 to get through a rough month.`, choices: [
-      { label: 'Lend it', text: (c) => `You lent ${c.whoName} the money. It came back, slowly, with a pie.`, effects: { money: -400, closeness: 8, happiness: 2 }, then: (state) => { state.flags.loanOwed = (state.flags.loanOwed || 0) + 400; } },
-      { label: 'Offer help instead', text: (c) => `You could not lend the money but helped ${c.whoName} plan a budget.`, effects: { closeness: 2, smarts: 1 } },
-      { label: 'Say no', text: (c) => `You said no. ${c.whoName} understood, but things were cooler for a while.`, effects: { closeness: -5 } },
+    text: (c) => t('{whoName} asks to borrow $400 to get through a rough month.', { whoName: c.whoName, _g: c.who && c.who.gender }), choices: [
+      { label: 'Lend it', text: (c) => t('You lent {whoName} the money. It came back, slowly, with a pie.', { whoName: c.whoName, _g: c.who && c.who.gender }), effects: { money: -400, closeness: 8, happiness: 2 }, then: (state) => { state.flags.loanOwed = (state.flags.loanOwed || 0) + 400; } },
+      { label: 'Offer help instead', text: (c) => t('You could not lend the money but helped {whoName} plan a budget.', { whoName: c.whoName, _g: c.who && c.who.gender }), effects: { closeness: 2, smarts: 1 } },
+      { label: 'Say no', text: (c) => t('You said no. {whoName} understood, but things were cooler for a while.', { whoName: c.whoName, _g: c.who && c.who.gender }), effects: { closeness: -5 } },
     ] }),
   ev({ id: 'volunteerBoard', category: 'personal', stages: A, minAge: 28, cooldown: 8, band: 'Personal', title: 'Community Board',
     text: 'A neighbor asks you to join the community association board. It means monthly meetings.', choices: [
@@ -47,15 +48,15 @@ export const ADULT_DECISIONS = [
       { label: 'Stay', text: 'You decided your life was where your people were.', effects: { happiness: 1, friends: 2 } },
     ] }),
   ev({ id: 'parentNeedsHelp', category: 'family', stages: ['adult', 'middleAge'], person: (c) => c.parents.filter((p) => p.age >= 68), cooldown: 6, band: 'Family', title: 'Helping Out',
-    text: (c) => `${c.whoName} is finding daily life harder and could use regular help.`, choices: [
-      { label: 'Visit every week', text: (c) => `You started visiting ${c.whoName} every week to help around the house.`, effects: { closeness: 10, happiness: 2, health: -1 } },
-      { label: 'Pay for a helper', text: (c) => `You paid for someone to help ${c.whoName} a few days a week.`, effects: { money: -2400, closeness: 5 } },
-      { label: 'Do what you can', text: (c) => `You called ${c.whoName} more often and helped when you could.`, effects: { closeness: 2 } },
+    text: (c) => t('{whoName} is finding daily life harder and could use regular help.', { whoName: c.whoName, _g: c.who && c.who.gender }), choices: [
+      { label: 'Visit every week', text: (c) => t('You started visiting {whoName} every week to help around the house.', { whoName: c.whoName, _g: c.who && c.who.gender }), effects: { closeness: 10, happiness: 2, health: -1 } },
+      { label: 'Pay for a helper', text: (c) => t('You paid for someone to help {whoName} a few days a week.', { whoName: c.whoName, _g: c.who && c.who.gender }), effects: { money: -2400, closeness: 5 } },
+      { label: 'Do what you can', text: (c) => t('You called {whoName} more often and helped when you could.', { whoName: c.whoName, _g: c.who && c.who.gender }), effects: { closeness: 2 } },
     ] }),
   ev({ id: 'childSchoolChoice', category: 'family', stages: A, person: (c) => c.children.filter((k) => k.age === 5), cooldown: 1, max: 3, band: 'Family', title: 'First Day of School',
-    text: (c) => `${c.whoName} is starting school. Do you take the morning off for the first day?`, choices: [
-      { label: 'Take the morning off', text: (c) => `You walked ${c.whoName} to the first day of school and cried a little in the car afterward.`, effects: { closeness: 6, happiness: 3, performance: -1 } },
-      { label: 'Work as usual', text: (c) => `${c.whoName} went off to school, and you heard all about it at dinner.`, effects: { closeness: 1 } },
+    text: (c) => t('{whoName} is starting school. Do you take the morning off for the first day?', { whoName: c.whoName, _g: c.who && c.who.gender }), choices: [
+      { label: 'Take the morning off', text: (c) => t('You walked {whoName} to the first day of school and cried a little in the car afterward.', { whoName: c.whoName, _g: c.who && c.who.gender }), effects: { closeness: 6, happiness: 3, performance: -1 } },
+      { label: 'Work as usual', text: (c) => t('{whoName} went off to school, and you heard all about it at dinner.', { whoName: c.whoName, _g: c.who && c.who.gender }), effects: { closeness: 1 } },
     ] }),
   ev({ id: 'gameNightHost', category: 'hobby', stages: A, needs: ['friends'], cooldown: 5, band: 'Friends', title: 'Game Night',
     text: 'Your friends want to start a regular game night. Someone has to host.', choices: [

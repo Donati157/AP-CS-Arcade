@@ -17,6 +17,9 @@
 import { webkit } from 'playwright';
 
 const BASE = process.argv[2] || 'http://127.0.0.1:8099/web/games/betlife/';
+// Idioma do teste: `BETLIFE_LANG=pt` roda a mesma suíte em português. Sem ele, inglês — o
+// original. É assim que as duas passagens do requisito 8 usam exatamente o mesmo caminho.
+const LANG = process.env.BETLIFE_LANG ? `&lang=${process.env.BETLIFE_LANG}` : '';
 const IDADES = (process.argv[3] || '6,10,16,19,25,35,50,68,80').split(',').map(Number);
 const SEED = Number(process.argv[4] || 7);
 const MAX_CLIQUES_POR_IDADE = 420;
@@ -106,7 +109,7 @@ async function novaVida(ateIdade, seed) {
   // A INTERAÇÃO continua 100% real: todo clique daqui para a frente é page.mouse sobre o elemento.
   // Sem isso a varredura nunca repete, porque cada vida sorteia família, dinheiro e eventos
   // diferentes — e cobertura que muda a cada execução não serve como auditoria.
-  const url = `${BASE}?seed=${seed}&age=${ateIdade}&person=first&asset=first`;
+  const url = `${BASE}?seed=${seed}&age=${ateIdade}&person=first&asset=first${LANG}`;
   await page.goto(url, { waitUntil: 'domcontentloaded' });
   await page.evaluate(() => { try { localStorage.clear(); sessionStorage.clear(); } catch (_) {} });
   await page.goto(url, { waitUntil: 'domcontentloaded' });
@@ -205,7 +208,7 @@ for (const idade of [10, 19, 30, 55]) {
     // `_=${tela}` não é lido pelo jogo: existe para a URL mudar fora do hash. Navegar para uma URL
     // que difere APENAS no hash não recarrega a página, o módulo não re-executa e o deep-link é
     // ignorado — era por isso que toda tela "caía em main" depois da primeira.
-    const url = `${BASE}?seed=${SEED}&age=${idade}&person=first&asset=first&shop=electronics&_=${tela}#${tela}`;
+    const url = `${BASE}?seed=${SEED}&age=${idade}&person=first&asset=first&shop=electronics&_=${tela}${LANG}#${tela}`;
     await page.goto(url, { waitUntil: 'domcontentloaded' });
     try { await page.waitForFunction(() => window.betlife && window.betlife.getState(), null, { timeout: 12000 }); }
     catch (_) { resultados.push({ idade, tela, acao: '(abrir)', veredito: 'NÃO CARREGOU', fase: 2 }); continue; }
@@ -244,7 +247,7 @@ for (const idade of [10, 19, 30, 55]) {
 // tela, cartão pós-vida auto-respondido, caminho de atributos lido errado). Só é relatado o que
 // morre duas vezes, a segunda sem nenhum histórico.
 async function confirmarMorto(r) {
-  const url = `${BASE}?seed=${SEED}&age=${r.idade}&person=first&asset=first&shop=electronics&_=conf${r.tela}#${r.tela}`;
+  const url = `${BASE}?seed=${SEED}&age=${r.idade}&person=first&asset=first&shop=electronics&_=conf${r.tela}${LANG}#${r.tela}`;
   try {
     await page.goto(url, { waitUntil: 'domcontentloaded' });
     await page.waitForFunction(() => window.betlife && window.betlife.getState(), null, { timeout: 12000 });

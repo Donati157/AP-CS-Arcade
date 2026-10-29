@@ -1,5 +1,6 @@
 // Things the player can own: vehicles, homes and possessions. Each has a value that changes
 // over time and a condition that wears down, and every asset costs a little each year to keep.
+import { t, dinheiro } from './i18n/index.js';
 import { between, chance } from './rng.js';
 import { changeMoney, changeStat } from './stats.js';
 import { addJournal } from './journal.js';
@@ -82,18 +83,18 @@ export function canBuy(state, shop, item) {
 export function buy(state, shop, item) {
   const verdict = canBuy(state, shop, item);
   if (verdict !== 'ok') return verdict;
-  changeMoney(state, -item.cost, `bought ${item.name}`);
+  changeMoney(state, -item.cost, t('bought {name4}', { name4: item.name }));
   const asset = { id: `a${state.nextAssetId++}`, itemId: item.id, name: item.name, label: item.label || '', type: item.type, kind: item.kind, value: item.cost,
     condition: item.condition ?? 100, upkeep: item.upkeep, boughtAt: state.player.age, cost: item.cost };
   state.assets.push(asset);
-  if (item.happiness) changeStat(state, 'happiness', item.happiness, `bought ${item.name}`);
-  if (item.smarts) changeStat(state, 'smarts', item.smarts, `bought ${item.name}`);
-  if (item.looks) changeStat(state, 'looks', item.looks, `bought ${item.name}`);
+  if (item.happiness) changeStat(state, 'happiness', item.happiness, t('bought {name4}', { name4: item.name }));
+  if (item.smarts) changeStat(state, 'smarts', item.smarts, t('bought {name4}', { name4: item.name }));
+  if (item.looks) changeStat(state, 'looks', item.looks, t('bought {name4}', { name4: item.name }));
   if (item.type === 'home') {
     state.player.livesWithParents = false;
-    addJournal(state, `You bought a ${item.name.toLowerCase()} for $${item.cost.toLocaleString('en-US')} and moved in.`, 'milestone');
+    addJournal(state, t('You bought a {item} for {price} and moved in.', { item: t(item.name.toLowerCase()), price: dinheiro(item.cost) }), 'milestone');
   } else {
-    addJournal(state, `You bought a ${item.name.toLowerCase()} for $${item.cost.toLocaleString('en-US')}.`, 'positive');
+    addJournal(state, t('You bought a {item} for {price}.', { item: t(item.name.toLowerCase()), price: dinheiro(item.cost) }), 'positive');
   }
   return 'ok';
 }
@@ -102,54 +103,54 @@ export function sell(state, asset) {
   const price = Math.round(asset.value * (asset.type === 'home' ? 0.95 : 0.85) * (0.6 + asset.condition / 250));
   changeMoney(state, price, `sold ${asset.name}`);
   state.assets = state.assets.filter((a) => a.id !== asset.id);
-  addJournal(state, `You sold your ${asset.name.toLowerCase()} for $${price.toLocaleString('en-US')}.`);
+  addJournal(state, t('You sold your {item} for {price}.', { item: t(asset.name.toLowerCase()), price: dinheiro(price) }));
   return price;
 }
 
 // Owner actions beyond repair and sell. Each returns journal text, or null when unaffordable.
 export function drive(state, asset) {
-  changeStat(state, 'happiness', 3, `drove the ${asset.name}`);
+  changeStat(state, 'happiness', 3, t('drove the {name5}', { name5: asset.name }));
   asset.condition = Math.max(0, asset.condition - 2);
-  return `You took the ${asset.name.toLowerCase()} out for a long drive with the windows down.`;
+  return t('You took the {toLowerCase3} out for a long drive with the windows down.', { toLowerCase3: asset.name.toLowerCase() });
 }
 
 export function maintenance(state, asset) {
   const cost = Math.max(40, Math.round(asset.value * 0.02 / 10) * 10);
   if (state.player.money < cost) return null;
-  changeMoney(state, -cost, `maintenance for ${asset.name}`);
+  changeMoney(state, -cost, t('maintenance for {name5}', { name5: asset.name }));
   asset.condition = Math.min(100, asset.condition + 15);
-  return `You had the ${asset.name.toLowerCase()} serviced for $${cost.toLocaleString('en-US')}.`;
+  return t('You had the {item} serviced for {price}.', { item: t(asset.name.toLowerCase()), price: dinheiro(cost) });
 }
 
 export function abandon(state, asset) {
   state.assets = state.assets.filter((a) => a.id !== asset.id);
-  changeStat(state, 'happiness', -2, `abandoned ${asset.name}`);
-  return `You left the ${asset.name.toLowerCase()} somewhere and walked away. It was somebody else's problem now.`;
+  changeStat(state, 'happiness', -2, t('abandoned {name5}', { name5: asset.name }));
+  return t('You left the {toLowerCase3} somewhere and walked away. It was somebody else\'s problem now.', { toLowerCase3: asset.name.toLowerCase() });
 }
 
 export function scrap(state, asset) {
   const money = Math.round(asset.value * 0.1);
-  changeMoney(state, money, `scrapped ${asset.name}`);
+  changeMoney(state, money, t('scrapped {name5}', { name5: asset.name }));
   state.assets = state.assets.filter((a) => a.id !== asset.id);
-  return `You scrapped the ${asset.name.toLowerCase()} for $${money.toLocaleString('en-US')} in parts.`;
+  return t('You scrapped the {item} for {price} in parts.', { item: t(asset.name.toLowerCase()), price: dinheiro(money) });
 }
 
 export function gift(state, asset, person) {
   state.assets = state.assets.filter((a) => a.id !== asset.id);
   person.closeness = Math.min(100, person.closeness + 12);
   person.interactedThisYear = true;
-  changeStat(state, 'happiness', 3, `gave ${asset.name} away`);
-  return `You gave your ${asset.name.toLowerCase()} to ${person.name.split(' ')[0]}, who could not stop smiling.`;
+  changeStat(state, 'happiness', 3, t('gave {name5} away', { name5: asset.name }));
+  return t('You gave your {toLowerCase3} to {split2}, who could not stop smiling.', { toLowerCase3: asset.name.toLowerCase(), split2: person.name.split(' ')[0] });
 }
 
 export function renovate(state, asset) {
   const cost = Math.round(asset.value * 0.06 / 100) * 100;
   if (state.player.money < cost) return null;
-  changeMoney(state, -cost, `renovated ${asset.name}`);
+  changeMoney(state, -cost, t('renovated {name5}', { name5: asset.name }));
   asset.value = Math.round(asset.value * 1.08);
   asset.condition = 100;
   changeStat(state, 'happiness', 3, 'renovation');
-  return `You renovated the ${asset.name.toLowerCase()} for $${cost.toLocaleString('en-US')}. It is worth more now.`;
+  return t('You renovated the {item} for {price}. It is worth more now.', { item: t(asset.name.toLowerCase()), price: dinheiro(cost) });
 }
 
 export function repairCost(asset) {
@@ -159,10 +160,10 @@ export function repairCost(asset) {
 export function repair(state, asset) {
   const cost = repairCost(asset);
   if (state.player.money < cost) return false;
-  changeMoney(state, -cost, `repaired ${asset.name}`);
+  changeMoney(state, -cost, t('repaired {name5}', { name5: asset.name }));
   asset.condition = 100;
   asset.brokenDown = false;
-  addJournal(state, `You had your ${asset.name.toLowerCase()} repaired for $${cost.toLocaleString('en-US')}.`);
+  addJournal(state, t('You had your {item} repaired for {price}.', { item: t(asset.name.toLowerCase()), price: dinheiro(cost) }));
   return true;
 }
 
@@ -177,7 +178,7 @@ export function processAssetsYear(state) {
     // A worn-out car breaks down once; the journal does not nag every year until it is repaired.
     if (a.kind === 'car' && a.condition < 25 && !a.brokenDown && chance(state, 0.6)) {
       a.brokenDown = true;
-      addJournal(state, `Your ${a.name.toLowerCase()} broke down and needs repairs.`, 'negative');
+      addJournal(state, t('Your {toLowerCase4} broke down and needs repairs.', { toLowerCase4: t(a.name.toLowerCase()) }), 'negative');
       changeStat(state, 'happiness', -3, 'car trouble');
     }
   }

@@ -6,6 +6,9 @@
 import { webkit } from 'playwright';
 
 const BASE = process.argv[2] || 'http://127.0.0.1:8099/web/games/betlife/';
+// Idioma do teste: `BETLIFE_LANG=pt` roda a mesma suíte em português. Sem ele, inglês — o
+// original. É assim que as duas passagens do requisito 8 usam exatamente o mesmo caminho.
+const LANG = process.env.BETLIFE_LANG ? `?lang=${process.env.BETLIFE_LANG}` : '';
 const browser = await webkit.launch();
 const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
 const page = await ctx.newPage();
@@ -28,9 +31,9 @@ await page.addInitScript(() => {
   window.setTimeout = function (...a) { window.__timers++; return st.apply(this, a); };
 });
 
-await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+await page.goto(BASE + LANG, { waitUntil: 'domcontentloaded' });
 await page.evaluate(() => { try { localStorage.clear(); sessionStorage.clear(); } catch (_) {} });
-await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+await page.goto(BASE + LANG, { waitUntil: 'domcontentloaded' });
 await page.waitForFunction(() => window.betlife, null, { timeout: 15000 });
 await page.waitForFunction(() => { const t = document.getElementById('game').dataset.screen; return t && !['splash', 'disclaimer'].includes(t); }, null, { timeout: 18000 });
 await page.waitForTimeout(400);

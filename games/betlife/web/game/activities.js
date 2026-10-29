@@ -1,12 +1,14 @@
 // Activities: the top-level list mirrors a dense mobile life sim (favorites, then everything in
 // alphabetical order). A row either opens a submenu of actions or performs one action directly.
 // Every action costs one of the year's actions; repeating one in the same year pays less.
+import { t, tg, dinheiro } from './i18n/index.js';
 import { chance, between, pick } from './rng.js';
 import { changeStat, changeMoney, applyEffects, diminished } from './stats.js';
 import { addJournal, info, pushModal } from './journal.js';
 import * as People from './people.js';
 import { ownsKind } from './assets.js';
 import { PLACES } from './life-generator.js';
+import { cleanName } from './pets.js';
 
 export const ACTIVITY_MIN_AGE = 3;
 
@@ -41,9 +43,13 @@ export const SUBMENUS = {
     item('goOnDate', 'Date', 'Find a date', 18, { happiness: 2 }, 'You went on a date.', { icon: 'heart', cost: 40, special: 'date' }),
     item('datingApp', 'Dating App', 'Better odds, more swiping', 18, { happiness: 1 }, 'You spent a while on a dating app.', { icon: 'chat', cost: 20, special: 'dateApp' }),
   ] },
+  // ATENÇÃO ao que estas duas linhas NÃO fazem: chamar `t()`. Este objeto é montado no import, e no
+  // import ainda não há idioma escolhido — um `t()` aqui congela o inglês para sempre, e foi assim
+  // que esta lista inteira (o nome de cada bicho e o preço com a expectativa de vida) ficou em
+  // inglês dentro de um jogo em português. O que fica guardado é CHAVE; quem traduz é a tela.
   pets: { name: 'Pets', sub: 'Get a pet', icon: 'dog', items: Object.entries(People.PET_SPECIES).map(([species, def]) =>
-    item(`adopt_${species}`, `Adopt a ${def.label}`, `$${def.cost} · lives about ${def.lifespan} years`, species === 'fish' || species === 'hamster' ? 6 : 8,
-      { happiness: 4 }, '', { icon: 'paw', cost: def.cost, special: 'adopt', species })) },
+    item(`adopt_${species}`, `Adopt a ${def.label}`, 'lives about {n} years', species === 'fish' || species === 'hamster' ? 6 : 8,
+      { happiness: 4 }, '', { icon: 'paw', cost: def.cost, special: 'adopt', species, subVars: { n: def.lifespan } })) },
   salon: { name: 'Salon & Spa', sub: 'Take time for yourself', icon: 'spa', items: [
     item('haircut', 'Hair Stylist', 'A fresh cut', 8, { looks: 2, happiness: 1 }, 'You got a fresh haircut and felt like a new person.', { icon: 'salon', cost: 30 }),
     item('hairColor', 'Dye Job', 'Try a new color', 14, { looks: 2 }, 'You dyed your hair a color your family had opinions about.', { icon: 'palette', cost: 60 }),
@@ -129,9 +135,9 @@ export function unavailableReason(state, activity) {
  * Does the activity. Returns { ok, title, text } for the interface. The caller has already
  * checked there is an action left; money is checked here.
  */
-export function perform(state, activity) {
+export function perform(state, activity, opts = null) {
   if (unavailableReason(state, activity)) return { ok: false, title: 'Not Now', text: unavailableReason(state, activity) };
-  if (activity.cost > state.player.money) return { ok: false, title: 'Not Enough Money', text: `This costs $${activity.cost} and you cannot afford it right now.` };
+  if (activity.cost > state.player.money) return { ok: false, title: 'Not Enough Money', text: t('This costs {price} and you cannot afford it right now.', { price: dinheiro(activity.cost) }) };
   const done = state.yearly.activities[activity.id] || 0;
   state.yearly.activities[activity.id] = done + 1;
   if (activity.cost) changeMoney(state, -activity.cost, activity.name);
@@ -150,31 +156,31 @@ export function perform(state, activity) {
       break;
     case 'newFriend': {
       const friend = People.addFriend(state);
-      text = friend ? `You joined a club and became friends with ${friend.name}.` : 'You joined a club, but your circle of friends is already full.';
-      if (friend) info(state, 'New Friend', `You and ${friend.name} hit it off at the club and became friends.`, { band: 'Friends', tone: 'blue', person: friend.id, facts: [['Name', friend.name], ['Age', String(friend.age)]] });
+      text = friend ? t('You joined a club and became friends with {name}.', { name: friend.name, _g: state.player.gender }) : 'You joined a club, but your circle of friends is already full.';
+      if (friend) info(state, 'New Friend', t('You and {name} hit it off at the club and became friends.', { name: friend.name }), { band: 'Friends', tone: 'blue', person: friend.id, facts: [['Name', friend.name], ['Age', String(friend.age)]] });
       break;
     }
     case 'date':
     case 'dateApp': {
       if (chance(state, activity.special === 'dateApp' ? 0.7 : 0.55)) {
         const love = People.startDating(state);
-        text = `You went on a date with ${love.name}, and it went well. You are now a couple.`;
+        text = t('You went on a date with {name}, and it went well. You are now a couple.', { name: love.name });
         changeStat(state, 'happiness', 4, 'new relationship');
-        info(state, 'Love Interest', `${love.name} wants to keep seeing you. You are officially a couple.`, { band: 'Love', tone: 'blue', person: love.id, facts: [['Name', love.name], ['Age', String(love.age)], ['Occupation', love.occupation || 'student']] });
+        info(state, 'Love Interest', t('{name} wants to keep seeing you. You are officially a couple.', { name: love.name }), { band: 'Love', tone: 'blue', person: love.id, facts: [['Name', love.name], ['Age', String(love.age)], ['Occupation', love.occupation || 'student']] });
       } else {
         text = pick(state, ['The date was pleasant but there was no spark.', 'Your date talked about themselves the entire evening.', 'You had a nice evening, but neither of you called back.']);
       }
       break;
     }
     case 'adopt': {
-      const pet = People.adoptPet(state, activity.species);
-      text = `You adopted a ${People.PET_SPECIES[activity.species].label.toLowerCase()} and named it ${pet.name}.`;
+      const pet = People.adoptPet(state, activity.species, cleanName(opts && opts.petName) || null);
+      text = t('You adopted a {species} and named it {petName}.', { species: tg(People.PET_SPECIES[activity.species].label.toLowerCase(), pet.gender), _g: pet.gender, petName: pet.name });
       break;
     }
     case 'adoptChild': {
       const child = People.haveChild(state);
       child.age = between(state, 0, 4);
-      text = `You adopted a ${child.age === 0 ? 'baby' : `${child.age}-year-old`} ${child.gender === 'female' ? 'girl' : 'boy'} named ${People.firstName(child)}.`;
+      text = t('You adopted a {age} {gender} named {name}.', { _g: child.gender, age: child.age === 0 ? t('baby') : t('{n}-year-old', { n: child.age }), gender: t(child.gender === 'female' ? 'girl' : 'boy'), name: People.firstName(child) });
       info(state, 'Adoption', text, { band: 'Family', tone: 'green', person: child.id, facts: [['Name', child.name], ['Age', String(child.age)]] });
       addJournal(state, text, 'milestone');
       return { ok: true, title: 'Adoption', text };
@@ -186,7 +192,7 @@ export function perform(state, activity) {
       state.player.residence = `${place.city}, ${place.country}`;
       state.player.livesWithParents = false;
       for (const r of People.alive(state)) if (r.role !== 'pet' && !People.PARTNER_ROLES.includes(r.role) && !People.CHILD_ROLES.includes(r.role)) People.changeCloseness(r, -6);
-      text = `You emigrated to ${place.city}, ${place.country}, and started over in a new city.`;
+      text = t('You emigrated to {city}, {country}, and started over in a new city.', { city: place.city, country: t(place.country) });
       addJournal(state, text, 'milestone');
       return { ok: true, title: 'A Fresh Start', text };
     }

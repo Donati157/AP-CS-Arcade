@@ -1,4 +1,5 @@
 // Ages 65 and up: retirement, family, changing health and reflection. Non-graphic. Original writing.
+import { t } from '../i18n/index.js';
 import { ev } from './define.js';
 
 const S = ['senior'];
@@ -20,19 +21,19 @@ export const SENIOR_EVENTS = [
   ev({ id: 'seniorTravel', category: 'hobby', stages: S, needs: ['money'], cooldown: 5, weight: 0.8,
     text: 'You took the trip you had postponed for decades.', effects: { happiness: 5, money: -1500 } }),
   ev({ id: 'grandchildBorn', category: 'family', stages: LATE, minAge: 48, person: (c) => c.children.filter((k) => k.age >= 24 && k.age <= 40), cooldown: 4, max: 4, kind: 'milestone', family: 'grandchild',
-    text: (c) => `${c.whoName} had a baby. You are a grandparent now, and you cannot stop showing photos.`, effects: { happiness: 6, closeness: 4 } }),
+    text: (c) => t('{whoName} had a baby. You are a grandparent now, and you cannot stop showing photos.', { whoName: c.whoName, _g: c.who && c.who.gender }), effects: { happiness: 6, closeness: 4 } }),
   ev({ id: 'grandchildVisit', category: 'family', stages: S, when: (c) => (c.state.events.count.grandchildBorn || 0) > 0, cooldown: 3, family: 'grandchild',
     text: 'Your grandchildren spent a week with you and left glitter in every room.', effects: { happiness: 4 } }),
   ev({ id: 'childVisitsSenior', category: 'family', stages: S, person: 'child', cooldown: 3, family: 'childContact',
-    text: (c) => `${c.whoName} visited for the holidays and fixed everything in the house that beeped.`, effects: { closeness: 5, happiness: 3 } }),
+    text: (c) => t('{whoName} visited for the holidays and fixed everything in the house that beeped.', { whoName: c.whoName, _g: c.who && c.who.gender }), effects: { closeness: 5, happiness: 3 } }),
   ev({ id: 'childCareer', category: 'family', stages: LATE, person: (c) => c.children.filter((k) => k.age >= 25 && k.age <= 45), cooldown: 6, family: 'childContact',
-    text: (c) => `${c.whoName} was promoted at work and called you first.`, effects: { happiness: 3, closeness: 2 } }),
+    text: (c) => t('{whoName} was promoted at work and called you first.', { whoName: c.whoName, _g: c.who && c.who.gender }), effects: { happiness: 3, closeness: 2 } }),
   ev({ id: 'oldFriendReconnect', category: 'friendship', stages: S, cooldown: 8, max: 2,
     text: 'An old friend you had lost track of found you again, and it was as if no time had passed.', effects: { newFriend: true, happiness: 4 } }),
   ev({ id: 'seniorFriendGone', category: 'friendship', stages: S, person: 'friend', cooldown: 6, weight: 0.6, kind: 'negative',
-    text: (c) => `Your friend ${c.whoName} passed away. You spoke at the memorial about the good years.`, effects: { happiness: -8, loseFriend: true } }),
+    text: (c) => t('Your friend {whoName} passed away. You spoke at the memorial about the good years.', { whoName: c.whoName, _g: c.who && c.who.gender }), effects: { happiness: -8, loseFriend: true } }),
   ev({ id: 'spouseAnniversary', category: 'relationship', stages: LATE, needs: ['spouse'], person: 'partner', when: (c) => c.partner.yearsTogether >= 25 && c.partner.yearsTogether % 5 === 0, cooldown: 4, kind: 'positive',
-    text: (c) => `You and ${c.whoName} celebrated ${c.partner.yearsTogether} years together with the whole family.`, effects: { happiness: 5, partnerCloseness: 6 } }),
+    text: (c) => t('You and {whoName} celebrated {yearsTogether} years together with the whole family.', { whoName: c.whoName, _g: c.who && c.who.gender, yearsTogether: c.partner.yearsTogether }), effects: { happiness: 5, partnerCloseness: 6 } }),
   ev({ id: 'slowingDown', category: 'health', stages: S, minAge: 70, cooldown: 5,
     text: 'The stairs took a little longer this year.', effects: { health: -2 } }),
   ev({ id: 'hearingAid', category: 'health', stages: S, minAge: 70, once: true, weight: 0.7,
@@ -60,7 +61,7 @@ export const SENIOR_EVENTS = [
   ev({ id: 'centenarian', category: 'lifeStage', stages: S, minAge: 100, maxAge: 100, weight: 8, once: true, kind: 'milestone',
     text: 'You turned one hundred years old and received a letter from the mayor.', effects: { happiness: 6 } }),
   ev({ id: 'seniorPetCompanion', category: 'family', stages: S, person: 'pet', cooldown: 4,
-    text: (c) => `${c.who.name} kept you company through the long winter evenings.`, effects: { closeness: 4, happiness: 3 } }),
+    text: (c) => t('{whoName} kept you company through the long winter evenings.', { whoName: c.who.name }), effects: { closeness: 4, happiness: 3 } }),
   ev({ id: 'seniorPuzzle', category: 'hobby', stages: S, cooldown: 4, family: 'seniorHobby',
     text: 'You got hooked on crossword puzzles and finished the hardest one of the year.', effects: { smarts: 2, happiness: 2 } }),
   ev({ id: 'quietEvening', category: 'personal', stages: S, cooldown: 4, weight: 0.6,

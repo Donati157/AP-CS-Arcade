@@ -1,11 +1,12 @@
 // Decisions in later life. Non-graphic, original BetLife writing.
+import { t } from '../i18n/index.js';
 import { ev } from '../events/define.js';
 
 const S = ['senior'];
 
 export const SENIOR_DECISIONS = [
   ev({ id: 'retireNow', category: 'career', needs: ['fullTime'], minAge: 65, cooldown: 2, band: 'Work', title: 'Ready to Retire?',
-    text: (c) => `You have worked for ${c.career.yearsWorked} years. Colleagues keep asking when you will retire.`, choices: [
+    text: (c) => t('You have worked for {yearsWorked} years. Colleagues keep asking when you will retire.', { yearsWorked: c.career.yearsWorked }), choices: [
       { label: 'Retire this year', text: 'You decided this was the year to retire.', effects: {}, followUp: 'retire' },
       { label: 'One more year', text: 'You decided on one more year. Maybe two.', effects: { happiness: 1 } },
     ] }),
@@ -37,8 +38,8 @@ export const SENIOR_DECISIONS = [
       { label: 'Later', text: 'You decided there was still plenty of time for that.', effects: {} },
     ] }),
   ev({ id: 'oldFriendTrip', category: 'friendship', stages: S, person: 'friend', needs: ['money'], cooldown: 6, band: 'Friends', title: 'One More Adventure',
-    text: (c) => `${c.whoName} wants to take the road trip you two always talked about.`, choices: [
-      { label: 'Go', text: (c) => `You and ${c.whoName} took the road trip at last, arguing about the map the whole way.`, effects: { closeness: 8, happiness: 6, money: -1200 } },
-      { label: 'Maybe next year', text: (c) => `You told ${c.whoName} maybe next year. You both knew what that meant.`, effects: { closeness: -3, happiness: -2 } },
+    text: (c) => t('{whoName} wants to take the road trip you two always talked about.', { whoName: c.whoName, _g: c.who && c.who.gender }), choices: [
+      { label: 'Go', text: (c) => t('You and {whoName} took the road trip at last, arguing about the map the whole way.', { whoName: c.whoName, _g: c.who && c.who.gender }), effects: { closeness: 8, happiness: 6, money: -1200 } },
+      { label: 'Maybe next year', text: (c) => t('You told {whoName} maybe next year. You both knew what that meant.', { whoName: c.whoName, _g: c.who && c.who.gender }), effects: { closeness: -3, happiness: -2 } },
     ] }),
 ];

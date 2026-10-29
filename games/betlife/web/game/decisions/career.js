@@ -1,10 +1,11 @@
 // Decisions at work. Original BetLife writing.
+import { t } from '../i18n/index.js';
 import { ev } from '../events/define.js';
 import { offeredJob } from '../game-state.js';
 
 export const CAREER_DECISIONS = [
   ev({ id: 'overtimeRequest', category: 'career', needs: ['fullTime'], cooldown: 4, band: 'Work', title: 'Extra Hours',
-    text: (c) => `Your manager at ${c.employer} asks if you can put in extra hours this year for a big push.`, choices: [
+    text: (c) => t('Your manager at {employer} asks if you can put in extra hours this year for a big push.', { employer: c.employer }), choices: [
       { label: 'Take the hours', text: 'You worked the extra hours. The paycheck was bigger, and so were the bags under your eyes.', effects: { money: 1500, performance: 5, happiness: -3, health: -2 } },
       { label: 'Keep your schedule', text: 'You kept your regular schedule and your evenings.', effects: { happiness: 2, performance: -1 } },
     ] }),
@@ -43,7 +44,7 @@ export const CAREER_DECISIONS = [
       { label: 'Focus on your own work', text: 'You focused on your own work and hit every target.', effects: { performance: 3 } },
     ] }),
   ev({ id: 'retirementOffer', category: 'career', needs: ['fullTime'], minAge: 62, cooldown: 3, band: 'Work', title: 'Time to Retire?',
-    text: (c) => `${c.employer} is offering early retirement packages. You could stop working now.`, choices: [
+    text: (c) => t('{employer} is offering early retirement packages. You could stop working now.', { employer: c.employer }), choices: [
       { label: 'Retire', text: 'You accepted the retirement package.', effects: { money: 4000 }, followUp: 'retire' },
       { label: 'Keep working', text: 'You decided you were not done working yet.', effects: { happiness: 1 } },
     ] }),
@@ -53,16 +54,16 @@ export const CAREER_DECISIONS = [
       { label: 'Say no politely', text: 'You said no politely and had a great birthday.', effects: { happiness: 3, performance: -1 } },
     ] }),
   ev({ id: 'unemployedReferral', category: 'career', needs: ['unemployedAdult'], minAge: 19, person: 'friend', cooldown: 4, band: 'Work', title: 'A Lead',
-    text: (c) => `${c.whoName} knows someone who is hiring and can put in a good word, but the job starts at the bottom.`, choices: [
-      { label: 'Ask for the referral', text: (c) => `${c.whoName} put in a good word. Check the job board: your name is on the shortlist.`, effects: { closeness: 4, happiness: 2, smarts: 1 }, followUp: 'jobs' },
+    text: (c) => t('{whoName} knows someone who is hiring and can put in a good word, but the job starts at the bottom.', { whoName: c.whoName, _g: c.who && c.who.gender }), choices: [
+      { label: 'Ask for the referral', text: (c) => t('{whoName} put in a good word. Check the job board: your name is on the shortlist.', { whoName: c.whoName, _g: c.who && c.who.gender }), effects: { closeness: 4, happiness: 2, smarts: 1 }, followUp: 'jobs' },
       { label: 'Keep looking on your own', text: 'You thanked your friend and kept looking on your own terms.', effects: { happiness: 1 } },
     ] }),
   // Uma indicação que vira emprego de verdade. `when` exige que exista vaga elegível AGORA, então a
   // oferta nunca aparece para quem não poderia aceitá-la.
   ev({ id: 'friendJobOffer', category: 'career', needs: ['unemployedAdult'], minAge: 19, person: 'friend', cooldown: 5,
     when: (c) => !!offeredJob(c.state), band: 'Work', title: 'An Opening',
-    text: (c) => `${c.whoName} says there is an opening where they work and the manager wants to meet you this week.`, choices: [
-      { label: 'Take the interview', text: (c) => `${c.whoName} walked you in and vouched for you.`, effects: { closeness: 5, happiness: 3 }, followUp: 'jobOffer' },
+    text: (c) => t('{whoName} says there is an opening where they work and the manager wants to meet you this week.', { whoName: c.whoName, _g: c.who && c.who.gender }), choices: [
+      { label: 'Take the interview', text: (c) => t('{whoName} walked you in and vouched for you.', { whoName: c.whoName, _g: c.who && c.who.gender }), effects: { closeness: 5, happiness: 3 }, followUp: 'jobOffer' },
       { label: 'Not this one', text: 'You thanked them and said you were holding out for something else.', effects: { happiness: 1 } },
     ] }),
 ];

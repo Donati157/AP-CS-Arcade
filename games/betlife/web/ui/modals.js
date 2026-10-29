@@ -1,4 +1,5 @@
 // Dialog cards: decisions, info, confirmations and the end-of-life summary.
+import { LANGUAGES, LANGUAGES_READY, t, tg } from '../game/i18n/index.js';
 import { pic, avatarFor } from '../game/icons.js';
 import * as People from '../game/people.js';
 import { esc } from './render.js';
@@ -9,12 +10,12 @@ const titleIcon = (modal) => pic(modal.icon || BAND_ICONS[modal.band] || 'sparkl
 
 function band(modal, state) {
   const person = modal.person ? People.findPerson(state, modal.person) : null;
-  if (person) return `<div class="bl-band bl-band-person"><span class="bl-band-avatar">${avatarFor(person)}</span><span class="bl-band-name">${esc(person.name)}</span><span class="bl-band-role">${esc(modal.bandRole || People.roleLabel(person))}</span></div>`;
-  if (modal.band) return `<div class="bl-band"><span class="bl-band-role">${esc(modal.band)}</span></div>`;
+  if (person) return `<div class="bl-band bl-band-person"><span class="bl-band-avatar">${avatarFor(person)}</span><span class="bl-band-name">${esc(person.name)}</span><span class="bl-band-role">${esc(tg(modal.bandRole || People.roleLabel(person), person.gender))}</span></div>`;
+  if (modal.band) return `<div class="bl-band"><span class="bl-band-role">${esc(t(modal.band))}</span></div>`;
   return '';
 }
 
-const facts = (list) => (list && list.length ? `<div class="bl-facts">${list.map(([k, v]) => `<div class="bl-fact"><b>${esc(k)}:</b> ${esc(v)}</div>`).join('')}</div>` : '');
+const facts = (list, g = null) => (list && list.length ? `<div class="bl-facts">${list.map(([k, v]) => `<div class="bl-fact"><b>${esc(t(String(k), g))}:</b> ${esc(t(String(v), g))}</div>`).join('')}</div>` : '');
 // Trait bars on people cards (new friend, love interest…), like the reference's Looks/Smarts/Craziness block.
 function traitBars(modal, state) {
   const person = modal.person ? People.findPerson(state, modal.person) : null;
@@ -27,11 +28,15 @@ function traitBars(modal, state) {
 
 export function decision(modal, state) {
   const buttons = modal.choices.map((c) => `<button class="bl-btn bl-btn-blue" data-choice="${c.index}">${esc(c.label)}</button>`).join('');
-  const coin = modal.choices.length > 1 ? `<button class="bl-coin" data-choice="random">${pic('dice')}<span>Flip a coin</span></button>` : '';
+  // O link diz o que vai acontecer: com duas opções é a moeda, com três ou mais é o sorteio.
+  // Prometer uma moeda e mostrar outra coisa seria o jogo mentindo sobre o próprio acaso.
+  const coin = modal.choices.length > 1
+    ? `<button class="bl-coin" data-choice="random">${pic('dice')}<span>${esc(t(modal.choices.length === 2 ? 'Flip a coin' : 'Draw at random'))}</span></button>`
+    : '';
   return card('decision', `${band(modal, state)}
     <h2 class="bl-modal-title">${titleIcon(modal)}<span>${esc(modal.title)}</span></h2>
     <p class="bl-modal-text">${esc(modal.text)}</p>${facts(modal.facts)}${traitBars(modal, state)}
-    ${modal.noQuestion ? '' : '<p class="bl-modal-question">What will you do?</p>'}
+    ${modal.noQuestion ? '' : `<p class="bl-modal-question">${esc(t('What will you do?'))}</p>`}
     <div class="bl-modal-buttons">${buttons}</div>${coin}`);
 }
 
@@ -45,12 +50,51 @@ export function info(modal, state) {
 }
 
 // A small confirmation asked by the interface itself (resign, sell, buy, new life…).
-export function confirm(opts) {
-  const buttons = opts.choices.map((label, i) => `<button class="bl-btn ${i === 0 ? (opts.danger ? 'bl-btn-red' : 'bl-btn-blue') : 'bl-btn-grey'}" data-choice="${i}">${esc(label)}</button>`).join('');
-  return card(opts.tone || 'blue', `${opts.band ? `<div class="bl-band"><span class="bl-band-role">${esc(opts.band)}</span></div>` : ''}
-    <h2 class="bl-modal-title">${pic(opts.icon || 'info')}<span>${esc(opts.title)}</span></h2>
-    <p class="bl-modal-text">${esc(opts.text)}</p>${facts(opts.facts)}
+//
+// A TRADUÇÃO ENTRA AQUI, pelo mesmo motivo de `pushModal`: este cartão recebe texto cru de quem
+// pergunta (`ask({ title: 'Adopt this pet?' })`), e quem pergunta é a interface, espalhada por 30
+// lugares de `betlife.js`. Traduzir no lugar de origem exigiria `t()` em cada um deles — e foi
+// justamente o que faltou: as frases estavam no catálogo, o cartão não as pedia, e toda
+// confirmação do jogo aparecia em inglês dentro de um jogo em português.
+export function confirm(opts, state = null) {
+  const g = { _g: state && state.player ? state.player.gender : undefined };
+  // `opts.secondary` marca uma escolha que NÃO deve competir com a principal: ela sai como um link
+  // discreto embaixo, não como um botão de igual peso. Serve para coisas opcionais — guardar uma
+  // cópia de uma vida antiga, por exemplo — que não podem parecer o caminho esperado.
+  const buttons = opts.choices.map((label, i) => (i === opts.secondary
+    ? `<button class="bl-text-btn bl-text-quiet" data-choice="${i}">${esc(t(String(label), g))}</button>`
+    : `<button class="bl-btn ${i === 0 ? (opts.danger ? 'bl-btn-red' : 'bl-btn-blue') : 'bl-btn-grey'}" data-choice="${i}"${i === 0 && opts.field && !String(opts.field.value || '').trim() ? ' disabled' : ''}>${esc(t(String(label), g))}</button>`)).join('');
+  return card(opts.tone || 'blue', `${opts.band ? `<div class="bl-band"><span class="bl-band-role">${esc(t(opts.band))}</span></div>` : ''}
+    <h2 class="bl-modal-title">${pic(opts.icon || 'info')}<span>${esc(t(String(opts.title), g))}</span></h2>
+    ${portrait(opts.pet)}
+    <p class="bl-modal-text">${esc(t(String(opts.text), g))}</p>${facts(opts.facts, g)}
+    ${field(opts.field, g)}
     <div class="bl-modal-buttons">${buttons}</div>`);
+}
+
+// O retrato do animal no cartão de adoção: a mesma ilustração que a lista usa, grande, porque
+// aqui ela é o assunto do cartão e não um ícone de linha.
+function portrait(pet) {
+  if (!pet || !pet.species) return '';
+  return `<div class="bl-portrait" aria-hidden="true"><span class="bl-portrait-pic">${avatarFor({ role: 'pet', species: pet.species })}</span></div>`;
+}
+
+/** Um campo de texto dentro do cartão: `{ label, value, placeholder, maxLength, error, hint }`.
+ *  O botão de confirmar nasce desabilitado quando o campo chega vazio (ver `confirm`), e
+ *  `betlife.js` mantém isso em dia a cada tecla. */
+function field(f, g) {
+  if (!f) return '';
+  // `data-full` e `data-empty` são as duas versões do recado embaixo do campo. Quem troca entre elas
+  // é `betlife.js`, a cada tecla: assim o jogador lê POR QUE o botão está desligado, em vez de ver
+  // um botão apagado sem explicação. Ficam aqui, já traduzidas, para a escuta não ter de saber de
+  // que cartão veio o campo.
+  const recados = ` data-full="${esc(f.hint ? t(String(f.hint), g) : '')}" data-empty="${esc(f.whenEmpty ? t(String(f.whenEmpty), g) : '')}"`;
+  const nota = f.error
+    ? `<p class="bl-field-note is-error" role="alert"${recados}>${esc(t(String(f.error), g))}</p>`
+    : f.hint || f.whenEmpty ? `<p class="bl-field-note"${recados}>${esc(f.hint ? t(String(f.hint), g) : '')}</p>` : '';
+  return `<label class="bl-field-label" for="bl-field">${esc(t(String(f.label), g))}</label>
+    <input class="bl-field-input" id="bl-field" type="text" value="${esc(f.value || '')}" maxlength="${Number(f.maxLength) || 24}"
+      placeholder="${esc(f.placeholder ? t(String(f.placeholder), g) : '')}" autocomplete="off" autocapitalize="words" spellcheck="false" enterkeyhint="done">${nota}`;
 }
 
 // Tombstone: original vector artwork. Ragged stone with texture, corner ribbon, skull and crossbones,
@@ -91,26 +135,28 @@ function stoneSvg() {
 export function death(summary) {
   const ribbon = summary.ribbon || { label: 'Ordinary', icon: 'leaf' };
   return `<div class="bl-overlay bl-overlay-dark">
-    <div class="bl-capsule" role="status" style="top: 62px"><span class="bl-capsule-icon">${pic('party')}</span><span class="bl-capsule-text"><span>Complete a Life</span><strong>Completed a full life</strong></span></div>
+    <div class="bl-capsule" role="status" style="top: 62px"><span class="bl-capsule-icon">${pic('party')}</span><span class="bl-capsule-text"><span>${esc(t('Complete a Life'))}</span><strong>${esc(t('Completed a full life'))}</strong></span></div>
     <div class="bl-stone-wrap" role="dialog" aria-modal="true">
     <div class="bl-stone">${stoneSvg()}
-      <div class="bl-ribbon"><span class="bl-ribbon-icon">${pic(ribbon.icon)}</span><span>${esc(ribbon.label)}</span></div>
-      <div class="bl-stone-text"><h2 class="bl-stone-name">${esc(summary.name)}</h2><p class="bl-stone-age">Aged ${summary.age} years</p>
+      <div class="bl-ribbon"><span class="bl-ribbon-icon">${pic(ribbon.icon)}</span><span>${esc(t(ribbon.label))}</span></div>
+      <div class="bl-stone-text"><h2 class="bl-stone-name">${esc(summary.name)}</h2><p class="bl-stone-age">${esc(t(summary.age === 1 ? 'Aged {n} year' : 'Aged {n} years', { n: summary.age }))}</p>
       <p class="bl-stone-epitaph">${esc(summary.epitaph)}</p></div>
     </div>
-    <button class="bl-btn bl-btn-green bl-btn-pill" data-choice="continue">Continue</button>
-    <button class="bl-text-btn bl-text-yellow" data-choice="undoDeath">Undo this death with a Rewind!</button></div></div>`;
+    <button class="bl-btn bl-btn-green bl-btn-pill" data-choice="continue">${esc(t('Continue'))}</button>
+    <button class="bl-text-btn bl-text-yellow" data-choice="undoDeath">${esc(t('Undo this death with a Rewind!'))}</button></div></div>`;
 }
 
 // After the summary: start again, like the reference's post-life menu.
 export function postLife(name, hasProfile, children = []) {
   return `<div class="bl-overlay"><div class="bl-postlife" role="dialog" aria-modal="true">
     <h2>${pic('skull')}<span>${esc(name)}</span></h2>
-    <p>Start an all-new life or try again as ${esc(name.split(' ')[0])}!</p>
-    ${children.map((k) => `<button class="bl-btn bl-btn-blue bl-btn-big" data-choice="child:${esc(k.id)}">Continue as ${esc(k.name.split(' ')[0])} <span class="bl-light">(${k.age})</span></button>`).join('')}
-    <button class="bl-btn bl-btn-green bl-btn-big" data-choice="random">Start a new random life!</button>
-    <button class="bl-btn bl-btn-yellow bl-btn-big" data-choice="custom">Start a custom life!</button>
-    ${hasProfile ? `<button class="bl-text-btn bl-text-light" data-choice="retry">try again as ${esc(name.split(' ')[0])}</button>` : ''}</div></div>`;
+    <p>${esc(t('Start an all-new life or try again as {name}!', { name: name.split(' ')[0] }))}</p>
+    ${children.map((k) => `<button class="bl-btn bl-btn-blue bl-btn-big" data-choice="child:${esc(k.id)}">${esc(t('Continue as {name}', { name: k.name.split(' ')[0] }))} <span class="bl-light">(${k.age})</span></button>`).join('')}
+    <button class="bl-btn bl-btn-green bl-btn-big" data-choice="random">${esc(t('Start a new random life!'))}</button>
+    <button class="bl-btn bl-btn-yellow bl-btn-big" data-choice="custom">${esc(t('Start a custom life!'))}</button>
+    <button class="bl-btn bl-btn-blue bl-btn-big" data-choice="summary">${esc(t('See the whole life'))}</button>
+    ${hasProfile ? `<button class="bl-text-btn bl-text-light" data-choice="retry">${esc(t('try again as {name}', { name: name.split(' ')[0] }))}</button>` : ''}
+    <button class="bl-text-btn bl-text-light" data-choice="arcade">← ${esc(t('back to the Arcade'))}</button></div></div>`;
 }
 
 // Road-sign quiz for the driving license (original signs, three answers).
@@ -126,12 +172,12 @@ export function minigame(modal, state) {
   if (modal.game === 'drivingQuiz') {
     const q = SIGNS[state.player.age % SIGNS.length];
     const order = [0, 1, 2].sort((a, b) => ((a * 7 + state.seed) % 5) - ((b * 7 + state.seed) % 5));
-    return card('decision', `<div class="bl-band"><span class="bl-band-role">${esc(modal.band)}</span></div>
+    return card('decision', `<div class="bl-band"><span class="bl-band-role">${esc(t(modal.band))}</span></div>
       <h2 class="bl-modal-title">${pic('car')}<span>${esc(modal.title)}</span></h2>
       <p class="bl-modal-text">${esc(modal.text)}</p>
-      <div class="bl-facts"><div class="bl-fact"><b>Sign:</b> ${esc(q.sign)}</div></div>
-      <p class="bl-modal-question">What does it mean?</p>
-      <div class="bl-modal-buttons">${order.map((i) => `<button class="bl-btn bl-btn-blue" data-choice="${i === q.correct ? 'pass' : 'fail'}">${esc(q.answers[i])}</button>`).join('')}</div>`);
+      <div class="bl-facts"><div class="bl-fact"><b>${esc(t('Sign:'))}</b> ${esc(t(q.sign))}</div></div>
+      <p class="bl-modal-question">${esc(t('What does it mean?'))}</p>
+      <div class="bl-modal-buttons">${order.map((i) => `<button class="bl-btn bl-btn-blue" data-choice="${i === q.correct ? 'pass' : 'fail'}">${esc(t(q.answers[i]))}</button>`).join('')}</div>`);
   }
   if (modal.game === 'eyeExam') {
     const letters = 'EFHLTZ';
@@ -139,12 +185,12 @@ export function minigame(modal, state) {
     const odd = letters[(state.seed + 3) % letters.length];
     const cells = 48; const oddIndex = (state.seed * 7 + state.player.age * 13) % cells;
     const grid = Array.from({ length: cells }, (_, i) => `<button class="bl-eye-cell" data-choice="${i === oddIndex ? 'pass' : 'fail'}">${i === oddIndex ? odd : base}</button>`).join('');
-    return card('decision', `<div class="bl-band"><span class="bl-band-role">${esc(modal.band)}</span></div>
+    return card('decision', `<div class="bl-band"><span class="bl-band-role">${esc(t(modal.band))}</span></div>
       <h2 class="bl-modal-title">${pic('eye')}<span>${esc(modal.title)}</span></h2>
       <p class="bl-modal-text">${esc(modal.text)}</p>
       <div class="bl-eye-grid" id="bl-eye-grid">${grid}</div>
-      <p class="bl-modal-question bl-eye-timer" id="bl-eye-timer">Time remaining: 8 seconds</p>
-      <button class="bl-text-btn" data-choice="fail">I need glasses</button>`);
+      <p class="bl-modal-question bl-eye-timer" id="bl-eye-timer">${esc(t('Time remaining: {n} seconds', { n: 8 }))}</p>
+      <button class="bl-text-btn" data-choice="fail">${esc(t('I need glasses'))}</button>`);
   }
   return card('blue', `<h2 class="bl-modal-title">${esc(modal.title)}</h2><div class="bl-modal-buttons"><button class="bl-btn bl-btn-green" data-choice="pass">OK</button></div>`);
 }
@@ -158,14 +204,22 @@ export function badgeBanner(modal) {
 
 // Language picker shown once, on the very first start (the game text is English; the choice is remembered).
 export function languageCard(current = 'en') {
-  const langs = [['en', 'English'], ['es', 'Spanish'], ['fr', 'French'], ['pt', 'Portuguese']];
+  const prontos = LANGUAGES_READY;
+  const faltando = LANGUAGES.filter((l) => !l.completo);
+  const seletor = prontos.length > 1
+    ? `<label class="bl-lang-label" for="bl-lang">${esc(t('Choose a language:'))}</label>
+       <select id="bl-lang" class="bl-lang-select">${prontos.map((l) => `<option value="${l.id}"${l.id === current ? ' selected' : ''}>${l.nome}</option>`).join('')}</select>`
+    : `<input type="hidden" id="bl-lang" value="${prontos[0] ? prontos[0].id : 'en'}">
+       <p class="bl-lang-label">${esc(t('BetLife is written in {lang}.', { lang: prontos[0] ? prontos[0].nome : 'English' }))}</p>`;
+  const emBreve = faltando.length
+    ? `<p class="bl-lang-soon">${esc(t('{langs}: not translated yet.', { langs: faltando.map((l) => l.nome).join(', ') }))}</p>`
+    : '';
   return `<div class="bl-overlay"><div class="bl-modal bl-lang" role="dialog" aria-modal="true">
     <div class="bl-band bl-band-lang"><span class="bl-band-avatar">${pic('globe')}</span><span class="bl-band-role">Hello! Hola! Olá! Hallo!</span></div>
-    <p class="bl-lang-prompt">Please select your preferred language!</p>
+    <p class="bl-lang-prompt">${esc(t(prontos.length > 1 ? 'Please select your preferred language!' : 'Welcome to BetLife!'))}</p>
     <div class="bl-lang-icon" aria-hidden="true">${pic('lang')}</div>
-    <label class="bl-lang-label" for="bl-lang">Choose a language:</label>
-    <select id="bl-lang" class="bl-lang-select">${langs.map(([v, l]) => `<option value="${v}"${v === current ? ' selected' : ''}>${l}</option>`).join('')}</select>
-    <button class="bl-btn bl-btn-blue" data-choice="language">I'm ready!</button></div></div>`;
+    ${seletor}${emBreve}
+    <button class="bl-btn bl-btn-blue" data-choice="language">${esc(t("I'm ready!"))}</button></div></div>`;
 }
 
 function card(tone, body, extra = '', dismissable = false) {

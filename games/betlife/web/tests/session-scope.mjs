@@ -249,74 +249,135 @@ await emNovaAba(async (page, erros) => {
 });
 
 
-/* ══ 6. A vida que a versão anterior deixou no disco ═══════════════════════ */
-titulo('6. VIDA ANTIGA NO DISCO — oferecida, nunca apagada em silêncio');
+/* ══ 6. A vida antiga: avisada, nunca um pedido de download ════════════════ */
+titulo('6. VIDA ANTIGA NO DISCO — o jogo avisa e deixa JOGAR; baixar é opcional');
 {
   const plantar = async (page) => {
     await page.goto(JOGO, { waitUntil: 'domcontentloaded' });
     await page.evaluate(() => { try { localStorage.clear(); sessionStorage.clear();
       localStorage.setItem('betlife.web.save', JSON.stringify({ version: 2, player: { name: 'Antonia Reis', age: 41, alive: true, money: 1234 }, timeline: [{ text: 'x' }] }));
+      localStorage.setItem('betlife.web.setup', '1');
       localStorage.setItem('betlife.web.language', 'en'); } catch (_) {} });
+    // espiona QUALQUER tentativa de download, antes de a página do jogo rodar
+    await page.addInitScript(() => { window.__downloads = [];
+      const c = HTMLAnchorElement.prototype.click;
+      HTMLAnchorElement.prototype.click = function () { if (this.download) window.__downloads.push(this.download); return c.apply(this, arguments); }; });
     await page.goto(JOGO, { waitUntil: 'domcontentloaded' });
     await page.waitForFunction(() => window.betlife, null, { timeout: 15000 });
-    await page.waitForTimeout(2300);
+    await page.waitForTimeout(2400);
   };
   const cartao = (page) => page.evaluate(() => { const m = document.getElementById('modal-root');
-    return m.firstChild ? { txt: m.innerText.replace(/\s+/g, ' '), botoes: [...m.querySelectorAll('[data-choice]')].map((b) => b.innerText.trim()) } : null; });
+    if (!m.firstChild) return null;
+    const bs = [...m.querySelectorAll('[data-choice]')];
+    return { txt: m.innerText.replace(/\s+/g, ' '),
+      principal: bs.filter((b) => b.className.includes('bl-btn')).map((b) => b.innerText.trim()),
+      discretos: bs.filter((b) => b.className.includes('bl-text')).map((b) => b.innerText.trim()) }; });
+  const baixados = (page) => page.evaluate(() => window.__downloads || []);
 
-  // caminho "baixar"
+  // caminho normal: jogar
   disco = undefined;
   await emNovaAba(async (page, erros) => {
     await plantar(page);
     const c = await cartao(page);
-    check('o jogo avisa sobre a vida antiga', !!c && /old version/i.test(c.txt), c ? c.txt.slice(0, 60) : 'nenhum cartão');
-    check('o cartão diz de quem é a vida', !!c && /Antonia Reis/.test(c.txt) && /41/.test(c.txt), c ? c.txt.slice(0, 120) : '');
-    check('oferece baixar e descartar', !!c && c.botoes.length === 2 && /download/i.test(c.botoes[0]), JSON.stringify(c && c.botoes));
-    check('NÃO apagou antes de o jogador escolher', await page.evaluate(() => !!localStorage.getItem('betlife.web.save')), 'a vida sumiu sozinha');
+    check('o jogo avisa sobre a vida antiga', !!c && /old saved life/i.test(c.txt), c ? c.txt.slice(0, 70) : 'nenhum cartão');
+    check('o botão PRINCIPAL é jogar, não baixar', !!c && /start playing/i.test(c.principal[0] || ''), JSON.stringify(c && c.principal));
+    check('baixar é opção secundária e discreta', !!c && c.discretos.some((x) => /save a copy/i.test(x)), JSON.stringify(c && c.discretos));
+    check('e está claramente identificada como .json', !!c && c.discretos.some((x) => /\.json/i.test(x)), JSON.stringify(c && c.discretos));
+    check('NADA foi baixado só por abrir o jogo', (await baixados(page)).length === 0, JSON.stringify(await baixados(page)));
 
-    const baixando = page.waitForEvent('download', { timeout: 9000 }).catch(() => null);
     await page.evaluate(() => document.querySelector('#modal-root [data-choice="0"]')?.click());
-    const arq = await baixando;
-    await page.waitForTimeout(600);
-    check('baixar produz um arquivo', !!arq, 'nenhum download');
-    if (arq) {
-      const fs = await import('node:fs');
-      const j = JSON.parse(fs.readFileSync(await arq.path(), 'utf8'));
-      check('o arquivo contém a vida de verdade', j.player && j.player.name === 'Antonia Reis' && j.player.age === 41, JSON.stringify(j.player || {}).slice(0, 60));
-      check('o arquivo tem nome legível', /antonia/i.test(arq.suggestedFilename()), arq.suggestedFilename());
-    }
-    check('só depois de baixar a vida sai do disco', !(await page.evaluate(() => !!localStorage.getItem('betlife.web.save'))));
-    check('a preferência de idioma sobreviveu', (await page.evaluate(() => localStorage.getItem('betlife.web.language'))) === 'en');
-    check('sem erro de JavaScript', erros.length === 0, erros.slice(0, 2).join(' | '));
-  });
-
-  // caminho "descartar"
-  disco = undefined;
-  await emNovaAba(async (page) => {
-    await plantar(page);
-    await page.evaluate(() => { const b = document.querySelectorAll('#modal-root [data-choice]'); if (b.length > 1) b[b.length - 1].click(); });
-    await page.waitForTimeout(600);
-    check('descartar remove a vida antiga', !(await page.evaluate(() => !!localStorage.getItem('betlife.web.save'))));
-    check('e o aviso não volta na próxima abertura', await (async () => {
+    await page.waitForTimeout(900);
+    check('jogar NÃO dispara download', (await baixados(page)).length === 0, JSON.stringify(await baixados(page)));
+    check('jogar limpa a vida antiga do disco', !(await page.evaluate(() => !!localStorage.getItem('betlife.web.save'))));
+    check('as preferências sobrevivem', (await page.evaluate(() => localStorage.getItem('betlife.web.language'))) === 'en');
+    check('e o aviso não volta', await (async () => {
       await page.goto(JOGO, { waitUntil: 'domcontentloaded' });
       await page.waitForFunction(() => window.betlife, null, { timeout: 15000 });
       await page.waitForTimeout(2000);
-      const c = await cartao(page);
-      return !c || !/old version/i.test(c.txt);
+      const c2 = await cartao(page);
+      return !c2 || !/old saved life/i.test(c2.txt);
     })());
+    check('sem erro de JavaScript', erros.length === 0, erros.slice(0, 2).join(' | '));
   });
 
-  // a guarda de sessão não pode apagar a vida antiga antes do aviso
+  // caminho voluntário: guardar uma cópia
   disco = undefined;
   await emNovaAba(async (page) => {
     await plantar(page);
-    await page.goto(ARCADE, { waitUntil: 'domcontentloaded' });     // passa pelo hub
-    await page.waitForTimeout(500);
+    const esperando = page.waitForEvent('download', { timeout: 9000 }).catch(() => null);
+    await page.evaluate(() => { const b = [...document.querySelectorAll('#modal-root [data-choice]')].find((x) => /save a copy/i.test(x.innerText)); if (b) b.click(); });
+    const arq = await esperando;
+    await page.waitForTimeout(700);
+    check('pedir a cópia produz o arquivo', !!arq, 'nenhum download');
+    if (arq) {
+      const fs = await import('node:fs');
+      const j = JSON.parse(fs.readFileSync(await arq.path(), 'utf8'));
+      check('o arquivo contém a vida de verdade', j.player && j.player.name === 'Antonia Reis', JSON.stringify(j.player || {}).slice(0, 50));
+    }
+    check('e depois a vida antiga sai do disco', !(await page.evaluate(() => !!localStorage.getItem('betlife.web.save'))));
+  });
+
+  // nenhum download em NENHUM momento do jogo normal
+  disco = undefined;
+  await emNovaAba(async (page) => {
+    await page.addInitScript(() => { window.__downloads = [];
+      const c = HTMLAnchorElement.prototype.click;
+      HTMLAnchorElement.prototype.click = function () { if (this.download) window.__downloads.push(this.download); return c.apply(this, arguments); }; });
     await page.goto(JOGO, { waitUntil: 'domcontentloaded' });
-    await page.waitForFunction(() => window.betlife, null, { timeout: 15000 });
-    await page.waitForTimeout(1200);
-    check('passar pelo hub não apaga a vida antiga do disco', await page.evaluate(() => !!localStorage.getItem('betlife.web.save')),
-      'a guarda de sessão apagou antes de o jogador escolher');
+    await pronto(page); await limpar(page);
+    for (let i = 0; i < 6 && (await est(page)).tela !== 'main'; i++) {
+      await page.evaluate(() => document.querySelector('[data-action="startRandom"], [data-action="newLife"]')?.click());
+      await page.waitForTimeout(380); await limpar(page);
+    }
+    for (let i = 0; i < 12; i++) { await clicar(page, '#game [data-action="age"]'); await limpar(page); }
+    await clicar(page, '#game [data-action="go"][data-target="menu"]');
+    await page.evaluate(() => document.querySelector('#game [data-action="newLife"]')?.click());
+    await page.waitForTimeout(600); await limpar(page);
+    check('jogar, envelhecer e recomeçar não baixam nada', (await baixados(page)).length === 0, JSON.stringify(await baixados(page)));
+  });
+}
+
+/* ══ 7. A morte: resumo visual, nova vida e volta ao Arcade ════════════════ */
+titulo('7. MORTE — resumo visual no jogo, com nova vida e saída para o Arcade');
+{
+  disco = undefined;
+  await emNovaAba(async (page, erros) => {
+    await page.addInitScript(() => { window.__downloads = [];
+      const c = HTMLAnchorElement.prototype.click;
+      HTMLAnchorElement.prototype.click = function () { if (this.download) window.__downloads.push(this.download); return c.apply(this, arguments); }; });
+    await page.goto(`${JOGO}?seed=7&age=27&modal=death&_=m#main`, { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => window.betlife && window.betlife.getState(), null, { timeout: 15000 });
+    await page.waitForTimeout(1100);
+
+    const lapide = await page.evaluate(() => { const m = document.getElementById('modal-root');
+      return m.firstChild ? m.innerText.replace(/\s+/g, ' ') : null; });
+    check('a morte mostra uma lápide com nome, idade e epitáfio',
+      !!lapide && /Aged \d+ years/i.test(lapide) && /lived to the age/i.test(lapide), lapide ? lapide.slice(0, 80) : 'nenhum cartão');
+    check('nada é baixado ao morrer', (await page.evaluate(() => window.__downloads || [])).length === 0);
+
+    await page.evaluate(() => document.querySelector('#modal-root [data-choice="continue"]')?.click());
+    await page.waitForTimeout(900);
+    const pos = await page.evaluate(() => { const m = document.getElementById('modal-root');
+      return m.firstChild ? [...m.querySelectorAll('[data-choice]')].map((b) => `${b.dataset.choice}|${b.innerText.replace(/\s+/g, ' ').trim()}`) : null; });
+    check('o cartão pós-vida oferece começar outra vida', !!pos && pos.some((x) => /^random\|/.test(x)), JSON.stringify(pos));
+    check('oferece ver a vida inteira', !!pos && pos.some((x) => /^summary\|/.test(x)), JSON.stringify(pos));
+    check('e oferece voltar ao Arcade', !!pos && pos.some((x) => /^arcade\|/.test(x)), JSON.stringify(pos));
+
+    await page.evaluate(() => document.querySelector('#modal-root [data-choice="summary"]')?.click());
+    await page.waitForTimeout(700);
+    const res = await page.evaluate(() => { const g = document.getElementById('game');
+      return { tela: g.dataset.screen, texto: g.innerText.replace(/\s+/g, ' '),
+        acoes: [...g.querySelectorAll('.bl-summary-actions button')].map((b) => b.innerText.trim()) }; });
+    check('"ver a vida inteira" abre o resumo', res.tela === 'summary', `tela ${res.tela}`);
+    check('o resumo traz os fatos da vida', /Birthplace/i.test(res.texto) && /Net worth/i.test(res.texto), res.texto.slice(0, 70));
+    check('o resumo traz os marcos', /Milestones/i.test(res.texto));
+    check('e tem nova vida + volta ao Arcade', res.acoes.some((a) => /NEW LIFE/i.test(a)) && res.acoes.some((a) => /ARCADE/i.test(a)), JSON.stringify(res.acoes));
+    check('nada foi baixado no caminho inteiro', (await page.evaluate(() => window.__downloads || [])).length === 0);
+
+    await page.evaluate(() => document.querySelector('#game [data-action="arcade"]')?.click());
+    await page.waitForTimeout(1600);
+    check('o botão do Arcade leva mesmo ao Arcade', /\/web\/?$/.test(new URL(page.url()).pathname) || /ARCADE/i.test(await page.title()), page.url());
+    check('sem erro de JavaScript na morte', erros.length === 0, erros.slice(0, 2).join(' | '));
   });
 }
 

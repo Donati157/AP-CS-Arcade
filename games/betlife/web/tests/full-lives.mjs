@@ -15,7 +15,14 @@
 import { webkit } from 'playwright';
 
 const BASE = process.argv[2] || 'http://127.0.0.1:8099/web/games/betlife/';
-const ARCADE = BASE.replace(/web\/games\/betlife\/$/, 'web/');
+// Idioma do teste: `BETLIFE_LANG=pt` roda a mesma suíte em português. Sem ele, inglês — o
+// original. É assim que as duas passagens do requisito 8 usam exatamente o mesmo caminho.
+const LANG = process.env.BETLIFE_LANG ? `&lang=${process.env.BETLIFE_LANG}` : '';
+// A raiz do Arcade é o que sobra ao tirar `games/<jogo>/` do fim. A versão anterior só casava com o
+// layout local (`.../web/games/betlife/`); contra o site publicado (`.../games/betlife/`) ela não
+// casava, "voltar ao Arcade" ia para o próprio jogo, o marcador de sessão nunca era limpo e o teste
+// acusava um defeito que não existe.
+const ARCADE = BASE.replace(/games\/[^/]+\/?$/, '');
 
 const browser = await webkit.launch();
 const resultados = [];
@@ -101,7 +108,7 @@ async function paraMain(page, max = 8) {
 // Abre uma vida pronta e determinística. `#main` é obrigatório: sem hash o fixture monta o estado
 // mas deixa a tela em `start`, porque `screen` só é corrigido quando não é uma tela válida.
 async function abrirFixture(page, seed, idade, extra = '') {
-  const url = `${BASE}?seed=${seed}&age=${idade}${extra}#main`;
+  const url = `${BASE}?seed=${seed}&age=${idade}${extra}${LANG}#main`;
   await page.goto(url, { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => window.betlife && window.betlife.getState(), null, { timeout: 15000 });
   await page.waitForTimeout(320);
@@ -217,7 +224,17 @@ titulo('VIDA B — outra vida, sempre a ÚLTIMA opção: a experiência tem de m
   check('a segunda vida também chega ao fim', !r.fim.vivo, `parou vivo aos ${r.fim.idade}`);
   check('nenhum invariante violado', r.violacoes.length === 0, r.violacoes.slice(0, 3).join(' | '));
   check('é outra pessoa', r.fim.nome !== a.nome, `${r.fim.nome} vs ${a.nome}`);
-  const difere = [r.fim.ocupacao !== a.ocupacao, r.fim.idade !== a.idade, Math.abs(r.fim.dinheiro - a.dinheiro) > 100, r.marcos.formatura !== a.marcos.formatura].filter(Boolean).length;
+  // Os eixos comparados: quatro não bastavam. As duas vidas são sorteadas, e três dos quatro podiam
+  // coincidir por acaso — o teste falhava sozinho, sem nada ter quebrado. Entraram o tamanho do
+  // diário e o cargo, que duas vidas aleatórias praticamente nunca igualam.
+  const difere = [
+    r.fim.ocupacao !== a.ocupacao,
+    r.fim.idade !== a.idade,
+    Math.abs(r.fim.dinheiro - a.dinheiro) > 100,
+    r.marcos.formatura !== a.marcos.formatura,
+    r.fim.diario !== a.diario,
+    (r.fim.carreira && r.fim.carreira.cargo) !== (a.carreira && a.carreira.cargo),
+  ].filter(Boolean).length;
   check('escolhas diferentes produzem uma vida materialmente diferente', difere >= 2, `apenas ${difere} eixos diferentes`);
   check('sem erro de JavaScript', erros.length === 0, erros.slice(0, 2).join(' | '));
   console.log(`      ${r.fim.nome}: morreu aos ${r.fim.idade} · ${r.fim.ocupacao} · $${r.fim.dinheiro} (vida A: ${a.idade} anos, ${a.ocupacao}, $${a.dinheiro})`);
@@ -369,7 +386,11 @@ titulo('VIDA E — sem dinheiro, sem opções, limites e troca de emprego');
     const depoisDinheiro = (await estado(page)).dinheiro;
     check('a loja oferece algo para comprar', temBotao, 'nenhum item com ação de compra');
     check('comprar sem dinheiro não tira dinheiro', depoisDinheiro === antesDinheiro, `${antesDinheiro} → ${depoisDinheiro}`);
-    check('e o jogo diz por quê', !!recusou && /afford|money|Not So Fast/i.test(recusou), recusou ? `mensagem: ${recusou}` : 'nenhuma mensagem apareceu');
+    // A mensagem é aceita NOS DOIS IDIOMAS. Esta verificação já passou em português por um motivo
+    // errado: o título do cartão vazava em inglês ('Not So Fast'), e era o inglês que o regex
+    // encontrava. Quando o cartão passou a ser traduzido de verdade, a verificação quebrou — e o que
+    // estava errado era ela, não o jogo.
+    check('e o jogo diz por quê', !!recusou && /afford|money|Not So Fast|dinheiro|Calma lá/i.test(recusou), recusou ? `mensagem: ${recusou}` : 'nenhuma mensagem apareceu');
     await responder(page);
   } else {
     check('loja alcançável aos 30', false, `caiu em ${naLoja}`);

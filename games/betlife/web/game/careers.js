@@ -5,6 +5,8 @@
 // ladder: positions from entry level upward; minYears is the tenure needed at that rung before
 // a promotion to the next one can happen.
 
+import { t } from './i18n/index.js';
+
 function path(id, name, category, employer, requires, ladder, extra = {}) {
   return { id, name, category, employer, requires: { minAge: 18, diploma: true, degree: null, trade: null, credential: null, smartsInstead: 0, smarts: 0, looks: 0, health: 0, ...requires },
     ladder: ladder.map(([title, salary, minYears = 3]) => ({ title, salary, minYears })), partTime: false, ...extra };
@@ -137,11 +139,11 @@ export function requirementText(career) {
   const r = career.requires;
   const parts = [];
   if (r.credential) parts.push(`${r.credential[0]} school`);
-  else if (r.degree) parts.push(`${r.degree.length === 1 ? r.degree[0] : 'Related'} degree`);
-  else if (r.trade) parts.push(`${r.trade[0]} certificate`);
+  else if (r.degree) parts.push(t('{degree} degree', { degree: r.degree.length === 1 ? t(r.degree[0]) : t('Related') }));
+  else if (r.trade) parts.push(t('{trade2} certificate', { trade2: t(r.trade[0]) }));
   else if (r.diploma) parts.push('High school diploma');
   else parts.push(`Age ${r.minAge}+`);
-  if (r.smartsInstead > 0 && (r.degree || r.trade)) parts.push(`or Smarts ${r.smartsInstead}+`);
+  if (r.smartsInstead > 0 && (r.degree || r.trade)) parts.push(t('or Smarts {smartsInstead}+', { smartsInstead: r.smartsInstead }));
   const stats = [];
   if (r.smarts) stats.push(`Smarts ${r.smarts}+`); if (r.looks) stats.push(`Looks ${r.looks}+`); if (r.health) stats.push(`Health ${r.health}+`);
   if (stats.length) parts.push(`· ${stats.join(', ')}`);

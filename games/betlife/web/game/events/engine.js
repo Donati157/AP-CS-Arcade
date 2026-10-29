@@ -1,6 +1,7 @@
 // The event engine: builds the life context, finds every event the player is eligible for,
 // respects cooldowns and repeat limits, picks by category and weight, and applies the result.
 // There is no filler event: a year with nothing eligible simply has no random event.
+import { t, tg } from '../i18n/index.js';
 import { chance, pick, pickWeighted, rand } from '../rng.js';
 import { applyEffects, changeStat } from '../stats.js';
 import { addJournal, pushModal, info } from '../journal.js';
@@ -39,6 +40,11 @@ export function buildContext(state) {
     student: Education.isEnrolled(edu), graduate: edu.highSchoolGraduate, degree: edu.degree,
     unemployedAdult: p.age >= 18 && !Career.isEmployed(career) && !Education.isEnrolled(edu) && !career.retired,
     who: null, whoName: '', school: Education.schoolName(edu), glasses: !!state.flags.glasses,
+    // Dois gêneros, porque as frases de evento falam de duas pessoas diferentes: `meuGenero`
+    // é o do jogador (Você ficou amiga de X) e `c.who.gender` é o da outra pessoa
+    // (X foi promovida). Passar o errado troca a concordância sem quebrar nada — por isso
+    // os dois existem com nome, em vez de um `_g` que cada texto adivinha.
+    meuGenero: p.gender,
   };
 }
 
@@ -204,15 +210,15 @@ export function applyEventEffects(state, effects, c, reason) {
     if (friend) personRequest(state, friend, 'friendRequest');
   }
   if (effects.newCoworker) {
-    const mate = People.addFriend(state, { role: 'coworker', age: state.player.age + Math.round((rand(state) - 0.5) * 20), occupation: c.job ? `${c.job} colleague` : 'coworker' });
-    if (mate) addJournal(state, `You and your coworker ${mate.name} became friends.`, 'positive');
+    const mate = People.addFriend(state, { role: 'coworker', age: state.player.age + Math.round((rand(state) - 0.5) * 20), occupation: c.job ? t('{job} colleague', { job: t(c.job) }) : 'coworker' });
+    if (mate) addJournal(state, t('You and your coworker {name} became friends.', { name: mate.name }), 'positive');
   }
   if (effects.newSibling) {
     const gender = rand(state) < 0.5 ? 'female' : 'male';
     const baby = People.createSibling(state, gender, 0);
     baby.closeness = 70;
     state.relationships.push(baby);
-    addJournal(state, `Your parents had a baby ${gender === 'female' ? 'girl' : 'boy'} named ${People.firstName(baby)}, your new ${gender === 'female' ? 'sister' : 'brother'}.`, 'milestone');
+    addJournal(state, t('Your parents had a baby {gender} named {name}, your new {role}.', { _g: gender, gender: t(gender === 'female' ? 'girl' : 'boy'), name: People.firstName(baby), role: t(gender === 'female' ? 'sister' : 'brother') }), 'milestone');
   }
   if (effects.newPartner && !c.partner) {
     const love = People.startDating(state);
@@ -220,18 +226,18 @@ export function applyEventEffects(state, effects, c, reason) {
   }
   if (effects.newChild) {
     const baby = People.haveChild(state);
-    addJournal(state, `You welcomed a baby ${baby.gender === 'female' ? 'girl' : 'boy'} named ${People.firstName(baby)} into the world.`, 'milestone');
+    addJournal(state, t('You welcomed a baby {gender} named {name} into the world.', { _g: baby.gender, gender: t(baby.gender === 'female' ? 'girl' : 'boy'), name: People.firstName(baby) }), 'milestone');
     changeStat(state, 'happiness', 8, 'new baby');
-    info(state, 'A New Baby', `You are the proud parent of a baby ${baby.gender === 'female' ? 'girl' : 'boy'} named ${People.firstName(baby)}.`, { band: 'Family', tone: 'green', person: baby.id, facts: [['Name', baby.name], ['Relationship', baby.role === 'daughter' ? 'Daughter' : 'Son']] });
+    info(state, 'A New Baby', t('You are the proud parent of a baby {gender} named {name}.', { _g: state.player.gender, gender: t(baby.gender === 'female' ? 'girl' : 'boy'), name: People.firstName(baby) }), { band: 'Family', tone: 'green', person: baby.id, facts: [['Name', baby.name], ['Relationship', baby.role === 'daughter' ? 'Daughter' : 'Son']] });
   }
   if (effects.newPet) {
     const species = effects.newPet === true ? pick(state, ['dog', 'cat']) : effects.newPet;
     const pet = People.adoptPet(state, species);
-    addJournal(state, `A ${People.PET_SPECIES[species].label.toLowerCase()} named ${pet.name} joined the family.`, 'positive');
+    addJournal(state, t('A {species} named {name} joined the family.', { species: tg(People.PET_SPECIES[species].label.toLowerCase(), pet.gender), _g: pet.gender, name: pet.name }), 'positive');
   }
   if (effects.breakUp && c.partner) {
     c.partner.alive = false;
-    addJournal(state, `You and ${People.firstName(c.partner)} broke up.`, 'negative');
+    addJournal(state, t('You and {name} broke up.', { name: People.firstName(c.partner) }), 'negative');
   }
   if (effects.bestFriend && c.who && c.who.role === 'friend') c.who.role = 'bestFriend';
   if (effects.loseFriend && c.who) c.who.alive = false;
@@ -254,11 +260,11 @@ export function personRequest(state, who, eventId) {
   const role = classmate ? 'Classmate' : who.role === 'coworker' ? 'Coworker' : eventId === 'loveRequest' ? 'Love Interest' : 'Friend';
   const first = People.firstName(who);
   const text = eventId === 'loveRequest'
-    ? (classmate ? `Your classmate, ${first}, has asked you out.` : `${first} has asked you out.`)
-    : (classmate ? `Your classmate, ${first}, wants to become your friend.` : `${first} wants to become your friend.`);
-  const facts = [['Name', who.name], ['Gender', who.gender === 'female' ? 'Female' : 'Male'], ['Age', String(who.age)]];
+    ? (classmate ? t('Your classmate, {name}, has asked you out.', { name: first }) : t('{name} has asked you out.', { name: first }))
+    : (classmate ? t('Your classmate, {name}, wants to become your friend.', { name: first, _g: who.gender }) : t('{name} wants to become your friend.', { name: first, _g: who.gender }));
+  const facts = [['Name', who.name], ['Gender', t(who.gender === 'female' ? 'Female' : 'Male')], ['Age', String(who.age)]];
   if (classmate && eventId === 'loveRequest') facts.push(['Activity', who.activity || 'None'], ['Clique', who.clique || 'None']);
-  else if (!classmate && who.occupation) facts.push(['Occupation', who.occupation]);
+  else if (!classmate && who.occupation) facts.push(['Occupation', tg(who.occupation, who.gender)]);
   pushModal(state, { kind: 'decision', eventId, band: role, bandRole: role, title: event.title, text, facts, person: who.id, icon: eventId === 'loveRequest' ? 'heart' : 'hug', noQuestion: true,
     traitSet: classmate ? 'school' : 'adult', choices: event.choices.map((ch, i) => ({ label: render(ch.label, c), index: i })) });
 }

@@ -7,6 +7,7 @@
 // A game is published only when its manifest says "status": "playable" AND its web entry file exists.
 // Everything under web/games/ and web/games.json is generated; do not edit those by hand.
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -136,12 +137,34 @@ for (const game of games) {
     // It has no shell to carry the session guard, so the guard is injected into the copy. The
     // student's own file is never touched; only what is published gets the extra lines.
     installSessionGuard(join(target, m.web.entry || 'index.html'), m);
+    stampAssetVersion(join(target, m.web.entry || 'index.html'));
   }
   console.log(`  published ${m.name} -> web/games/${m.id}/`);
 }
 writeFileSync(REGISTRY_FILE, JSON.stringify(registry, null, 2) + '\n');
 console.log(`✔ Wrote web/games.json with ${registry.filter((g) => g.playable).length} playable game(s).`);
 
+
+// Troca `?v=NNN` pelo hash do conteúdo que a página carrega.
+//
+// Por quê: o `index.html` referencia `betlife.js?v=250`, e esse número é o único mecanismo que
+// obriga um navegador a buscar o arquivo novo. Numa publicação anterior o código mudou e o número
+// não — a URL ficou idêntica, e um navegador com cópia em cache podia seguir rodando a versão
+// velha. Depender de alguém lembrar de incrementar à mão é o mesmo que não ter mecanismo.
+//
+// Agora o número é o hash do próprio conteúdo: muda quando o conteúdo muda, e só então.
+function stampAssetVersion(pagePath) {
+  if (!existsSync(pagePath)) return;
+  const html = readFileSync(pagePath, 'utf8');
+  const dir = dirname(pagePath);
+  const stamped = html.replace(/(src|href)="([^"?]+\.(?:js|css))\?v=[^"]*"/g, (todo, attr, rel) => {
+    const alvo = join(dir, rel);
+    if (!existsSync(alvo)) return todo;
+    const v = createHash('sha256').update(readFileSync(alvo)).digest('hex').slice(0, 10);
+    return `${attr}="${rel}?v=${v}"`;
+  });
+  if (stamped !== html) writeFileSync(pagePath, stamped);
+}
 
 // Puts the "entering a game starts a new session" guard into a page that has no arcade shell.
 // It goes at the top of <head> so it runs before the game's own scripts read storage.

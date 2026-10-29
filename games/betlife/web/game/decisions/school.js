@@ -1,4 +1,5 @@
 // Decisions during middle school and high school (ages 10-17). Original BetLife writing.
+import { t } from '../i18n/index.js';
 import { ev } from '../events/define.js';
 
 const PT = ['preteen', 'teen'];
@@ -23,9 +24,9 @@ export const SCHOOL_DECISIONS = [
       { label: 'Watch from the audience', text: 'You cheered for your friends from the audience.', effects: { happiness: 1, friends: 1 } },
     ] }),
   ev({ id: 'studyBuddy', category: 'friendship', stages: T, needs: ['highSchool'], person: 'friend', cooldown: 4, band: 'Friends', title: 'Study Buddy',
-    text: (c) => `${c.whoName} asks you to help study before a big test.`, choices: [
-      { label: 'Help them', text: (c) => `You spent the evening helping ${c.whoName} study. You both did well.`, effects: { closeness: 6, smarts: 1, performance: 1 } },
-      { label: "Say you're busy", text: (c) => `You told ${c.whoName} you were too busy to help.`, effects: { closeness: -4, happiness: 1 } },
+    text: (c) => t('{whoName} asks you to help study before a big test.', { whoName: c.whoName, _g: c.who && c.who.gender }), choices: [
+      { label: 'Help them', text: (c) => t('You spent the evening helping {whoName} study. You both did well.', { whoName: c.whoName, _g: c.who && c.who.gender }), effects: { closeness: 6, smarts: 1, performance: 1 } },
+      { label: "Say you're busy", text: (c) => t('You told {whoName} you were too busy to help.', { whoName: c.whoName, _g: c.who && c.who.gender }), effects: { closeness: -4, happiness: 1 } },
     ] }),
   ev({ id: 'dogWalkingJob', category: 'finance', stages: PT, minAge: 11, once: true, band: 'Money', title: 'Dog Walking',
     text: 'A neighbor offers to pay you to walk their dog every week this year.', choices: [
@@ -44,9 +45,9 @@ export const SCHOOL_DECISIONS = [
       { label: 'Skip it', text: 'You decided team sports were not your thing.', effects: {} },
     ] }),
   ev({ id: 'peerPressureSkip', category: 'personal', stages: T, needs: ['highSchool'], minAge: 14, once: true, person: 'friend', band: 'Friends', title: 'Skipping Class',
-    text: (c) => `${c.whoName} wants to skip the last class of the day and go get milkshakes.`, choices: [
-      { label: 'Go along', text: (c) => `You skipped class with ${c.whoName}. The milkshakes were great; the missed quiz was not.`, effects: { closeness: 4, happiness: 2, performance: -4 } },
-      { label: 'Stay in class', text: (c) => `You stayed in class and met ${c.whoName} afterward instead.`, effects: { closeness: 1, performance: 1 } },
+    text: (c) => t('{whoName} wants to skip the last class of the day and go get milkshakes.', { whoName: c.whoName, _g: c.who && c.who.gender }), choices: [
+      { label: 'Go along', text: (c) => t('You skipped class with {whoName}. The milkshakes were great; the missed quiz was not.', { whoName: c.whoName, _g: c.who && c.who.gender }), effects: { closeness: 4, happiness: 2, performance: -4 } },
+      { label: 'Stay in class', text: (c) => t('You stayed in class and met {whoName} afterward instead.', { whoName: c.whoName, _g: c.who && c.who.gender }), effects: { closeness: 1, performance: 1 } },
     ] }),
   ev({ id: 'partTimeJobOffer', category: 'career', stages: T, minAge: 15, once: true, needs: ['school'], band: 'Money', title: 'First Job Offer',
     text: 'The corner café is hiring weekend help. It would mean less free time but real money.', choices: [
@@ -65,13 +66,13 @@ export const SCHOOL_DECISIONS = [
       { label: 'Not sure yet', text: 'You told the counselor you had no idea, and they said that was normal.', effects: { happiness: 1 } },
     ] }),
   ev({ id: 'friendSecret', category: 'friendship', stages: PT, minAge: 12, person: 'friend', cooldown: 5, band: 'Friends', title: 'A Secret',
-    text: (c) => `${c.whoName} tells you a secret and makes you promise not to tell anyone.`, choices: [
-      { label: 'Keep it', text: (c) => `You kept ${c.whoName}'s secret, and your friendship grew stronger.`, effects: { closeness: 7, happiness: 1 } },
-      { label: 'Tell someone', text: (c) => `You told someone ${c.whoName}'s secret. It got back to them within a day.`, effects: { closeness: -12, happiness: -3 } },
+    text: (c) => t('{whoName} tells you a secret and makes you promise not to tell anyone.', { whoName: c.whoName, _g: c.who && c.who.gender }), choices: [
+      { label: 'Keep it', text: (c) => t('You kept {whoName}\'s secret, and your friendship grew stronger.', { whoName: c.whoName, _g: c.who && c.who.gender }), effects: { closeness: 7, happiness: 1 } },
+      { label: 'Tell someone', text: (c) => t('You told someone {whoName}\'s secret. It got back to them within a day.', { whoName: c.whoName, _g: c.who && c.who.gender }), effects: { closeness: -12, happiness: -3 } },
     ] }),
   ev({ id: 'carGiftOffer', category: 'asset', stages: T, minAge: 16, needs: ['licence', 'noCar'], person: 'parent', once: true, band: 'Family', title: 'Wheels',
-    text: (c) => `${c.whoName} offers you the old family car if you promise to pay for the gas.`, choices: [
-      { label: 'Accept gratefully', text: (c) => `${c.whoName} gave you the old family car. It rattles, and you love it.`, effects: { happiness: 5, closeness: 3 },
+    text: (c) => t('{whoName} offers you the old family car if you promise to pay for the gas.', { whoName: c.whoName, _g: c.who && c.who.gender }), choices: [
+      { label: 'Accept gratefully', text: (c) => t('{whoName} gave you the old family car. It rattles, and you love it.', { whoName: c.whoName, _g: c.who && c.who.gender }), effects: { happiness: 5, closeness: 3 },
         then: (state) => { state.assets.push({ id: `a${state.nextAssetId++}`, itemId: 'oldHatch', name: 'Old Family Hatchback', type: 'vehicle', kind: 'car', value: 2500, condition: 50, upkeep: 0.12, boughtAt: state.player.age, cost: 0 }); } },
       { label: 'Turn it down', text: 'You turned down the old car. You would rather save for your own.', effects: { smarts: 1 } },
     ] }),

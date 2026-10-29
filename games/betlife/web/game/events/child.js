@@ -1,4 +1,5 @@
 // Ages 4-12: childhood and the preteen years. Original BetLife writing.
+import { t } from '../i18n/index.js';
 import { ev } from './define.js';
 import { makeEnemy, addStepParent } from '../people.js';
 import { info } from '../journal.js';
@@ -23,9 +24,9 @@ export const CHILD_EVENTS = [
   ev({ id: 'lemonadeStand', category: 'finance', stages: CP, minAge: 7, once: true, kind: 'positive',
     text: 'You ran a lemonade stand on a hot Saturday and made your first money.', effects: { money: 18, smarts: 1, happiness: 2 } }),
   ev({ id: 'neighborhoodGame', category: 'friendship', stages: CP, minAge: 6, person: 'friend', cooldown: 4, family: 'friendPlay',
-    text: (c) => `You and ${c.whoName} invented a game with three balls and a bucket that nobody else understood.`, effects: { happiness: 3, closeness: 4 } }),
+    text: (c) => t('You and {whoName} invented a game with three balls and a bucket that nobody else understood.', { whoName: c.whoName, _g: c.who && c.who.gender }), effects: { happiness: 3, closeness: 4 } }),
   ev({ id: 'sleepover', category: 'friendship', stages: CP, minAge: 7, person: 'friend', cooldown: 4, family: 'friendPlay',
-    text: (c) => `You had a sleepover at ${c.whoName}'s house and nobody slept before two in the morning.`, effects: { happiness: 3, closeness: 4, health: -1 } }),
+    text: (c) => t('You had a sleepover at {whoName}\'s house and nobody slept before two in the morning.', { whoName: c.whoName, _g: c.who && c.who.gender }), effects: { happiness: 3, closeness: 4, health: -1 } }),
   ev({ id: 'parkFriend', category: 'friendship', stages: C, minAge: 4, maxAge: 7, once: true, kind: 'positive',
     text: 'You met another kid at the park and by the end of the afternoon you were inseparable.', effects: { newFriend: true, happiness: 2 } }),
 
@@ -40,27 +41,27 @@ export const CHILD_EVENTS = [
     text: 'Your parents decided to separate. They both promised nothing would change for you, and mostly kept that promise.', effects: { happiness: -4 },
     then: (state) => { state.flags.parentsSeparated = true; } }),
   ev({ id: 'parentRemarries', category: 'family', minAge: 2, maxAge: 17, cooldown: 3, max: 2, weight: 3, person: (c) => c.state.flags.parentsSeparated ? c.parents.filter((p) => (p.role === 'mother' || p.role === 'father') && !p.remarried) : [],
-    text: (c) => `${c.whoName} got married again. You gained a ${c.who.role === 'mother' ? 'stepfather' : 'stepmother'}.`, kind: 'milestone',
-    then: (state, c) => { if (c.who) { c.who.remarried = true; const step = addStepParent(state, c.who.role); info(state, 'A New Family Member', `${c.whoName} married ${step.name}. Welcome your new ${step.role === 'stepmother' ? 'stepmother' : 'stepfather'}.`, { band: 'Family', tone: 'green', person: step.id, facts: [['Name', step.name], ['Relationship', step.role === 'stepmother' ? 'Stepmother' : 'Stepfather'], ['Occupation', step.occupation]] }); } } }),
+    text: (c) => t('{whoName} got married again. You gained a {stepparent}.', { whoName: c.whoName, _g: c.who && c.who.gender, stepparent: t(c.who.role === 'mother' ? 'stepfather' : 'stepmother') }), kind: 'milestone',
+    then: (state, c) => { if (c.who) { c.who.remarried = true; const step = addStepParent(state, c.who.role); info(state, 'A New Family Member', t('{whoName} married {stepName}. Welcome your new {role}.', { _g: step.gender, whoName: c.whoName, stepName: step.name, role: t(step.role === 'stepmother' ? 'stepmother' : 'stepfather') }), { band: 'Family', tone: 'green', person: step.id, facts: [['Name', step.name], ['Relationship', step.role === 'stepmother' ? 'Stepmother' : 'Stepfather'], ['Occupation', step.occupation]] }); } } }),
   ev({ id: 'eyeExamCheck', category: 'health', minAge: 7, maxAge: 40, cooldown: 8, max: 2, weight: 0.8, band: 'Healthcare', title: 'Eyesight', when: (c) => !c.glasses,
     text: 'Your eyesight seems to be getting worse. Your parents booked an eye exam: find the odd character before time runs out.', minigame: 'eyeExam' }),
   ev({ id: 'schoolRival', category: 'friendship', stages: ['child', 'preteen', 'teen'], minAge: 8, once: true, weight: 2.5, needs: ['school'],
     text: 'A kid at school decided you were the competition. Every group project turned into a contest.', effects: { happiness: -2 },
-    then: (state) => { const e = makeEnemy(state, { age: state.player.age + 1, occupation: 'student' }); state.timeline.push({ age: state.player.age, text: `${e.name} became your rival.`, kind: 'negative' }); } }),
+    then: (state) => { const e = makeEnemy(state, { age: state.player.age + 1, occupation: 'student' }); state.timeline.push({ age: state.player.age, text: t('{name} became your rival.', { name: e.name }), kind: 'negative' }); } }),
   ev({ id: 'parentsArgue', category: 'family', stages: CP, minAge: 5, cooldown: 6, max: 2, when: (c) => c.mother && c.father,
     text: 'Your parents argued about money one evening. They made up, but you noticed.', effects: { happiness: -2 } }),
   ev({ id: 'helpedCooking', category: 'family', stages: CP, minAge: 6, person: 'parent', cooldown: 5,
-    text: (c) => `You helped ${c.whoName} cook dinner and only broke one egg on the floor.`, effects: { smarts: 1, closeness: 3 } }),
+    text: (c) => t('You helped {whoName} cook dinner and only broke one egg on the floor.', { whoName: c.whoName, _g: c.who && c.who.gender }), effects: { smarts: 1, closeness: 3 } }),
   ev({ id: 'siblingRivalry', category: 'family', stages: CP, minAge: 5, person: 'sibling', cooldown: 4,
-    text: (c) => `You and ${c.whoName} fought over the remote for a week, then teamed up against bedtime.`, effects: { closeness: 1, happiness: 1 } }),
+    text: (c) => t('You and {whoName} fought over the remote for a week, then teamed up against bedtime.', { whoName: c.whoName, _g: c.who && c.who.gender }), effects: { closeness: 1, happiness: 1 } }),
   ev({ id: 'siblingDefends', category: 'family', stages: CP, minAge: 6, person: 'sibling', once: true, kind: 'positive',
-    text: (c) => `${c.whoName} stood up for you when an older kid was being unkind.`, effects: { closeness: 6, happiness: 2 } }),
+    text: (c) => t('{whoName} stood up for you when an older kid was being unkind.', { whoName: c.whoName, _g: c.who && c.who.gender }), effects: { closeness: 6, happiness: 2 } }),
   ev({ id: 'chores', category: 'family', stages: CP, minAge: 7, once: true,
     text: 'You got your first chores: feeding the plants and pretending to make your bed.', effects: { smarts: 1, money: 10 } }),
   ev({ id: 'petArrives', category: 'family', stages: C, minAge: 4, maxAge: 9, once: true, needs: ['noPets'], weight: 0.7,
     text: '', effects: { newPet: true, happiness: 3 } }),
   ev({ id: 'petTrick', category: 'family', stages: CP, person: 'pet', cooldown: 4,
-    text: (c) => `You taught ${c.who.name} a trick. It works about half the time.`, effects: { closeness: 5, happiness: 2 } }),
+    text: (c) => t('You taught {whoName} a trick. It works about half the time.', { whoName: c.who.name }), effects: { closeness: 5, happiness: 2 } }),
 
   // School (elementary)
   ev({ id: 'goldStar', category: 'education', stages: C, needs: ['elementary'], cooldown: 3, max: 3, kind: 'positive', family: 'classWin',
@@ -126,5 +127,5 @@ export const CHILD_EVENTS = [
   ev({ id: 'talentedDrawing', category: 'hobby', stages: CP, minAge: 6, once: true,
     text: 'You filled an entire sketchbook with drawings of dragons and your pet.', effects: { happiness: 2, smarts: 1 } }),
   ev({ id: 'videoGameTournament', category: 'hobby', stages: ['preteen', 'teen'], minAge: 10, person: 'friend', cooldown: 5,
-    text: (c) => `You and ${c.whoName} entered a video game tournament and lost in the first round, laughing.`, effects: { happiness: 2, closeness: 3 } }),
+    text: (c) => t('You and {whoName} entered a video game tournament and lost in the first round, laughing.', { whoName: c.whoName, _g: c.who && c.who.gender }), effects: { happiness: 2, closeness: 3 } }),
 ];

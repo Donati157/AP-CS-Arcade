@@ -7,15 +7,27 @@ import * as Assets from './game/assets.js';
 import * as Activities from './game/activities.js';
 import * as People from './game/people.js';
 import * as Education from './game/education.js';
+import * as Pets from './game/pets.js';
 import { withArticle } from './game/life-generator.js';
+import { pushModal } from './game/journal.js';
 import { SCREENS } from './ui/screens.js';
 import * as Modals from './ui/modals.js';
+import { sorteio } from './ui/sorteio.js';
 import { money, esc } from './ui/render.js';
 import { legacyDiskSummary, exportLegacyDiskSave, discardLegacyDiskSave } from './game/save.js';
+import { setLanguage, gravarIdioma, idiomaGravado, language, t, tg } from './game/i18n/index.js';
 
 export const VERSION = '2.7.0-web';
 
 const root = document.getElementById('game');
+// O cabeçalho do BetLife é HTML fixo em `index.html`, fora do render — então o idioma tem de
+// alcançá-lo à parte, na subida e a cada troca. Sem isso o único texto em inglês que sobrava na
+// tela era justamente o link de saída.
+function traduzCasca() {
+  const voltar = document.getElementById('shell-back');
+  if (voltar) voltar.textContent = `← ${t('Back to Arcade')}`;
+}
+
 const modalRoot = document.getElementById('modal-root');
 const toastRoot = document.getElementById('toast-root');
 
@@ -35,7 +47,7 @@ function startEyeTimer(modal) {
   eyeTimer = setInterval(() => {
     left -= 1;
     const el = document.getElementById('bl-eye-timer');
-    if (el) el.textContent = `Time remaining: ${left} seconds`;
+    if (el) el.textContent = t('Time remaining: {n} seconds', { n: left });
     if (left <= 0) { clearInterval(eyeTimer); if (G.currentModal(state) === modal) answer('fail'); }
   }, 1000);
 }
@@ -86,7 +98,7 @@ function mountModal(html, token) {
 
 function renderModal() {
   if (uiModal && uiModal.kind === 'language') { mountModal(Modals.languageCard(uiModal.current), uiModal); return; }
-  if (uiModal) { mountModal(Modals.confirm(uiModal), uiModal); focusModal(); return; }
+  if (uiModal) { mountModal(Modals.confirm(uiModal, state), uiModal); focusModal(); return; }
   if (postLifeOpen && state) { mountModal(Modals.postLife(state.player.name, !!state.profile, People.children(state)), 'postlife'); focusModal(); return; }
   const modal = state ? G.currentModal(state) : null;
   if (!modal) { clearTimeout(mountTimer); mountedModal = null; modalRoot.innerHTML = ''; return; }
@@ -104,6 +116,10 @@ function renderModal() {
 }
 
 function focusModal() {
+  // Num cartão com campo o cursor pertence ao campo, não ao botão: o jogador chegou aqui para
+  // digitar um nome, e o texto sugerido fica selecionado para ele poder trocar direto.
+  const campo = modalRoot.querySelector('.bl-field-input');
+  if (campo) { campo.focus(); campo.select(); return; }
   const first = modalRoot.querySelector('button');
   if (first) first.focus();
 }
@@ -113,12 +129,16 @@ function go(target) {
   screen = target === 'home' ? 'main' : target;
   let setup = '1';
   try { setup = localStorage.getItem('betlife.web.setup'); } catch { /* ignore */ }
-  if (wasIntro && screen === 'start' && !setup) uiModal = { kind: 'language', current: 'en' };
+  if (wasIntro && screen === 'start' && !setup) uiModal = { kind: 'language', current: language() };
   render();
 }
 
+// Mais uma fronteira que recebe texto cru de trinta lugares, e pela mesma razão do cartão de
+// confirmação a tradução entra AQUI. Faltava: o aviso de 'New Pet' saía em inglês por cima de uma
+// frase em português, e nenhuma auditoria de tela pega isso — o aviso vive três segundos.
 function toast(title, text, tone = 'blue') {
-  toastRoot.innerHTML = `<div class="bl-toast tone-${tone}"><strong>${esc(title)}</strong><span>${esc(text)}</span></div>`;
+  const g = { _g: state && state.player ? state.player.gender : undefined };
+  toastRoot.innerHTML = `<div class="bl-toast tone-${tone}"><strong>${esc(t(String(title ?? ''), g))}</strong><span>${esc(t(String(text ?? ''), g))}</span></div>`;
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => { toastRoot.innerHTML = ''; }, 3200);
 }
@@ -138,6 +158,27 @@ function ask(opts) {
     uiModal = { ...opts, resolve };
     render();
   });
+}
+
+// Pergunta o nome de um bicho e devolve o nome limpo, ou `null` se o jogador desistir.
+//
+// O laço existe porque validar é conversar: nome vazio ou gigante volta o cartão com o aviso e com
+// o que a pessoa digitou, em vez de aceitar um bicho sem nome ou engolir a tentativa em silêncio.
+// Nada é cobrado aqui — quem adota é quem chama, depois do `return`.
+async function askPetName(opts) {
+  let valor = opts.suggestion || '';
+  let erro = null;
+  for (let tentativa = 0; tentativa < 12; tentativa++) {
+    const r = await ask({ ...opts, field: { label: 'What do you want to call your pet?', value: valor, error: erro,
+      hint: erro ? null : 'You can keep the suggested name or type your own.', whenEmpty: 'Your pet needs a name.',
+      maxLength: Pets.MAX_PET_NAME } });
+    if (!r || r.index !== 0) return null;
+    valor = r.value;
+    const problema = Pets.nameProblem(valor);
+    if (!problema) return Pets.cleanName(valor);
+    erro = problema === 'empty' ? 'Your pet needs a name.' : t('Keep the name under {n} characters.', { n: Pets.MAX_PET_NAME });
+  }
+  return null;
 }
 
 // ---- Life start ------------------------------------------------------------------------------------------------
@@ -179,22 +220,28 @@ function answer(choice) {
     if (choice !== 'language') return;
     const select = document.getElementById('bl-lang');
     const lang = select ? select.value : 'en';
-    try { localStorage.setItem('betlife.web.language', lang); localStorage.setItem('betlife.web.setup', '1'); } catch { /* private mode */ }
+    gravarIdioma(lang);                                  // grava E aplica: o próximo render já sai traduzido
+    traduzCasca();
+    try { localStorage.setItem('betlife.web.setup', '1'); } catch { /* private mode */ }
     uiModal = null;
     render();
-    if (lang !== 'en') toast('Language', 'BetLife text is available in English for now. Your choice was saved.', 'blue');
     return;
   }
   if (uiModal) {
     const m = uiModal;
+    // O valor é lido ANTES de `render()`, que reescreve o cartão: depois dele o campo já não existe.
+    const digitado = m.field ? (modalRoot.querySelector('.bl-field-input')?.value ?? '') : null;
     uiModal = null;
-    if (m.resolve) m.resolve(choice === 'ok' ? 0 : Number(choice));
+    const escolhido = choice === 'ok' ? 0 : Number(choice);
+    if (m.resolve) m.resolve(m.field ? { index: escolhido, value: digitado } : escolhido);
     render();
     return;
   }
   if (postLifeOpen) {
+    if (choice === 'summary') { postLifeOpen = false; go('summary'); return; }
+    if (choice === 'arcade') { location.href = '../../'; return; }
     postLifeOpen = false;
-    if (String(choice).startsWith('child:')) { const next = G.continueAsChild(state, String(choice).slice(6)); if (next) { G.clearSavedGame(); state = next; screen = 'main'; render(); uiModal = { title: 'The Story Continues', text: `You are now ${state.player.name}, age ${state.player.age}. Press Age to keep the family story going.`, choices: ['Continue'], icon: 'seedling', band: 'Life', tone: 'green' }; render(); } return; }
+    if (String(choice).startsWith('child:')) { const next = G.continueAsChild(state, String(choice).slice(6)); if (next) { G.clearSavedGame(); state = next; screen = 'main'; render(); uiModal = { title: 'The Story Continues', text: t('You are now {name}, age {age}. Press Age to keep the family story going.', { name: state.player.name, age: state.player.age }), choices: ['Continue'], icon: 'seedling', band: 'Life', tone: 'green' }; render(); } return; }
     if (choice === 'random') startNewLife({});
     else if (choice === 'custom') go('newlife');
     else if (choice === 'retry') startNewLife(G.retryProfile(state));
@@ -241,7 +288,7 @@ async function handle(action, data) {
     case 'socialSignUp': report(G.socialSignUp(state, data.source)); break;
     case 'socialPost': report(G.socialPost(state, data.source)); break;
     case 'socialDelete': { const c = await ask({ title: 'Delete account?', band: 'Social Media', icon: 'phone', text: 'Your followers will be gone for good.', choices: ['Delete', 'Keep it'], danger: true }); if (c === 0) { sel.source = null; screen = 'socialMedia'; report(G.socialDelete(state, data.source)); } break; }
-    case 'premium': toast(`${data.feature} is an admin tool`, 'Changing stats or rewinding years is a premium candidate and is not part of normal play.', 'blue'); break;
+    case 'premium': toast(t('{feature} is an admin tool', { feature: data.feature }), 'Changing stats or rewinding years is a premium candidate and is not part of normal play.', 'blue'); break;
     case 'freelance': report(G.freelanceGig(state)); break;
     case 'recruiterConfirm': {
       const c = await ask({ title: 'Job Recruiter', band: 'Career', icon: 'chat', text: 'For $1,000 the recruiter places you in the best-paying job you qualify for.', facts: [['Fee', money(1000)], ['Bank Balance', money(state.player.money)]], choices: ["Let's try it", 'Not now'] });
@@ -262,10 +309,28 @@ async function handle(action, data) {
       break;
     }
     case 'about': go('about'); break;
+    // Sair para o Arcade de dentro do jogo. O mesmo destino do link no alto da página; existe aqui
+    // porque, no fim de uma vida, é onde o jogador está olhando.
+    case 'arcade': location.href = '../../'; break;
+    // Trocar de idioma no meio do jogo. Redesenha na hora; o que já está no diário fica na língua em
+    // que foi vivido, porque o diário é a memória daquela vida e não um texto re-renderizável.
+    case 'language': uiModal = { kind: 'language', current: language() }; render(); break;
     case 'person': sel.person = data.person; go('person'); break;
     case 'asset': sel.asset = data.asset; go('asset'); break;
     case 'activity': {
       const act = Activities.findActivity(data.activity);
+      // Adotar pela lista de atividades é o MESMO ato de adotar numa loja, e tem de perguntar o
+      // nome do mesmo jeito: era o caminho que ficava de fora quando só o cartão da loja perguntava.
+      if (act && act.special === 'adopt' && !Activities.unavailableReason(state, act)) {
+        const especie = People.PET_SPECIES[act.species];
+        const nome = await askPetName({ title: act.name, band: 'Activities', icon: 'paw', text: act.sub,
+          pet: { species: act.species }, suggestion: Pets.suggestName(state, act.species), choices: ['Adopt', 'Not now'],
+          facts: [[t('Lifespan'), t('about {n} years', { n: especie ? especie.lifespan : 10 })],
+            [t('Cost'), money(act.cost)], [t('Bank Balance'), money(state.player.money)]] });
+        if (nome === null) break;
+        report(G.doActivity(state, data.activity, { petName: nome }));
+        break;
+      }
       if (act && act.cost > 0 && !Activities.unavailableReason(state, act)) {
         const effects = Object.entries(act.effects).filter(([, v]) => v).map(([k, v]) => `${v > 0 ? '+' : ''}${v} ${k[0].toUpperCase()}${k.slice(1)}`).join(', ');
         const c = await ask({ title: act.name, band: 'Activities', icon: act.icon || 'star', text: act.sub, facts: [['Cost', money(act.cost)], ...(effects ? [['Effect', effects]] : []), ['Bank Balance', money(state.player.money)]], choices: [act.name, 'Not now'] });
@@ -283,15 +348,27 @@ async function handle(action, data) {
       report(result); break;
     }
     case 'adoptConfirm': {
-      const c = await ask({ title: 'Adopt this pet?', band: 'Pets', icon: 'paw', text: 'A pet joins your family for life.', choices: ['Adopt', 'Not now'] });
-      if (c === 0) { const result = G.adoptFromSource(state, data.source, data.animal); if (result.ok) screen = 'pets'; report(result); }
+      const source = Pets.SOURCES.find((s) => s.id === data.source);
+      const animal = source ? Pets.inventory(state, source).find((a) => a.id === data.animal) : null;
+      if (!animal) break;
+      const especie = People.PET_SPECIES[animal.species];
+      const nome = await askPetName({ title: 'Adopt this pet?', band: 'Pets', icon: 'paw', text: 'A pet joins your family for life.',
+        pet: { species: animal.species }, suggestion: animal.name, choices: ['Adopt', 'Not now'],
+        facts: [[t('Breed'), animal.breed], [t('Age'), animal.age === 0 ? t('Baby') : t('{n}-year-old', { n: animal.age })],
+          [t('Lifespan'), t('about {n} years', { n: especie ? especie.lifespan : 10 })],
+          [t('Fee'), money(animal.fee)], [t('Bank Balance'), money(state.player.money)]] });
+      // Cancelar não cobra, não cria o animal e não escreve no diário: o jogo fica como estava.
+      if (nome === null) break;
+      const result = G.adoptFromSource(state, data.source, data.animal, nome);
+      if (result.ok) screen = 'pets';
+      report(result);
       break;
     }
     case 'programConfirm': {
       const pr = Education.PROGRAMS[data.program];
       if (!pr) break;
-      const c = await ask({ title: pr.name, band: 'Education', icon: 'cap', text: `${pr.school}: ${pr.note}.`, facts: [['Length', `${pr.years} years`], ['Tuition', `${money(pr.tuition)} / year`], ['Result', pr.credential]], choices: ['Enroll', 'Not now'] });
-      if (c === 0) { if (G.enrollProgram(state, data.program)) { go('main'); toast('Enrolled', `You are now studying at ${pr.school}.`, 'green'); } }
+      const c = await ask({ title: pr.name, band: 'Education', icon: 'cap', text: t('{school}: {note}.', { school: pr.school, note: t(pr.note) }), facts: [['Length', t('{n} years', { n: pr.years })], ['Tuition', t('{amount} / year', { amount: money(pr.tuition) })], ['Result', t(pr.credential)]], choices: ['Enroll', 'Not now'] });
+      if (c === 0) { if (G.enrollProgram(state, data.program)) { go('main'); toast('Enrolled', t('You are now studying at {school}.', { school: pr.school }), 'green'); } }
       break;
     }
     case 'interact': report(G.interactWith(state, data.person, data.do)); break;
@@ -302,21 +379,21 @@ async function handle(action, data) {
       const career = Careers.findCareer(data.career);
       if (!career) break;
       const entry = career.ladder[0];
-      const c = await ask({ title: 'Apply for this job?', band: 'Career', icon: 'briefcase', text: `${career.employer} is hiring ${withArticle(entry.title)}.`, facts: [['Title', entry.title], ['Career', career.name], ['Salary', `${money(entry.salary)} / year`], ['Requires', Careers.requirementText(career)]], choices: ['Apply', 'Not now'] });
+      const c = await ask({ title: 'Apply for this job?', band: 'Career', icon: 'briefcase', text: t('{employer} is hiring {title}.', { employer: career.employer, title: tg(withArticle(entry.title), state.player.gender) }), facts: [['Title', t(entry.title)], ['Career', t(career.name)], ['Salary', t('{amount} / year', { amount: money(entry.salary) })], ['Requires', Careers.requirementText(career)]], choices: ['Apply', 'Not now'] });
       if (c === 0) {
         const result = G.applyForCareer(state, data.career);
         if (result.ok) { screen = 'main'; report(result); }
-        else { uiModal = { title: 'Application Rejected', band: 'Career', icon: 'briefcase', tone: 'red', text: `${career.employer} turned you down. ${result.text}`, choices: ['OK'] }; render(); }
+        else { uiModal = { title: 'Application Rejected', band: 'Career', icon: 'briefcase', tone: 'red', text: t('{employer} turned you down. {reason}', { employer: career.employer, reason: result.text }), choices: ['OK'] }; render(); }
       }
       break;
     }
     case 'quitConfirm': {
-      const c = await ask({ title: 'Resign?', band: 'Career', icon: 'exit', text: `Are you sure you want to leave ${Career.employer(state.career)}?`, choices: ['Resign', 'Stay'], danger: true });
+      const c = await ask({ title: 'Resign?', band: 'Career', icon: 'exit', text: t('Are you sure you want to leave {employer}?', { employer: Career.employer(state.career) }), choices: ['Resign', 'Stay'], danger: true });
       if (c === 0) { G.quitJob(state); toast('Resigned', 'You handed in your resignation.', 'blue'); go('main'); }
       break;
     }
     case 'retireConfirm': {
-      const c = await ask({ title: 'Retire?', band: 'Career', icon: 'flag', text: `Retire now after ${state.career.yearsWorked} years of work? Your salary stops and a pension begins.`, choices: ['Retire', 'Keep working'] });
+      const c = await ask({ title: 'Retire?', band: 'Career', icon: 'flag', text: t('Retire now after {n} years of work? Your salary stops and a pension begins.', { n: state.career.yearsWorked }), choices: ['Retire', 'Keep working'] });
       if (c === 0) { G.retireNow(state); go('main'); }
       break;
     }
@@ -340,19 +417,19 @@ async function handle(action, data) {
     case 'buyConfirm': {
       const shop = Assets.findShop(data.shop); const item = Assets.findItem(data.item);
       if (!shop || !item) break;
-      const c = await ask({ title: item.name, band: 'Shopping', icon: 'bag', text: `Buy ${withArticle(item.name.toLowerCase())} from ${shop.name}?`, facts: [['Price', money(item.cost)], ['Bank Balance', money(state.player.money)]], choices: ['Buy', 'Not now'] });
+      const c = await ask({ title: item.name, band: 'Shopping', icon: 'bag', text: t('Buy {item} from {shop}?', { item: t(withArticle(item.name.toLowerCase())), shop: t(shop.name) }), facts: [['Price', money(item.cost)], ['Bank Balance', money(state.player.money)]], choices: ['Buy', 'Not now'] });
       if (c === 0) {
         const verdict = G.buyItem(state, data.shop, data.item);
-        if (verdict === 'ok') { toast('Purchased', `You bought ${withArticle(item.name.toLowerCase())}.`, 'green'); go(item.type === 'home' ? 'assets' : 'shop'); }
-        else { uiModal = { title: 'Not So Fast', band: 'Shopping', icon: 'shopping', tone: 'red', text: { tooYoung: 'You are too young to buy that.', noLicence: `You need a driving licence before ${shop.name} will sell you ${withArticle(item.name.toLowerCase())}.`, owned: 'You already own one of those.', noMoney: `You cannot afford ${withArticle(item.name.toLowerCase())} right now.` }[verdict] || 'Something went wrong.', choices: ['OK'] }; render(); }
+        if (verdict === 'ok') { toast('Purchased', t('You bought {item}.', { item: t(withArticle(item.name.toLowerCase())) }), 'green'); go(item.type === 'home' ? 'assets' : 'shop'); }
+        else { uiModal = { title: 'Not So Fast', band: 'Shopping', icon: 'shopping', tone: 'red', text: { tooYoung: 'You are too young to buy that.', noLicence: t('You need a driving licence before {shop} will sell you {item}.', { shop: t(shop.name), item: t(withArticle(item.name.toLowerCase())) }), owned: 'You already own one of those.', noMoney: t('You cannot afford {item} right now.', { item: t(withArticle(item.name.toLowerCase())) }) }[verdict] || 'Something went wrong.', choices: ['OK'] }; render(); }
       }
       break;
     }
     case 'sellConfirm': {
       const a = Assets.findAsset(state, data.asset);
       if (!a) break;
-      const c = await ask({ title: `Sell your ${a.name.toLowerCase()}?`, band: 'Belongings', icon: 'dollar', text: 'You will get part of its current value back.', facts: [['Value', money(a.value)]], choices: ['Sell', 'Keep'] });
-      if (c === 0) { const price = G.sellAsset(state, data.asset); toast('Sold', `You received ${money(price)}.`, 'green'); go('assets'); }
+      const c = await ask({ title: t('Sell your {item}?', { item: t(a.name.toLowerCase()) }), band: 'Belongings', icon: 'dollar', text: 'You will get part of its current value back.', facts: [['Value', money(a.value)]], choices: ['Sell', 'Keep'] });
+      if (c === 0) { const price = G.sellAsset(state, data.asset); toast('Sold', t('You received {amount}.', { amount: money(price) }), 'green'); go('assets'); }
       break;
     }
     case 'repair': {
@@ -375,10 +452,25 @@ async function handle(action, data) {
 // whose result you are meant to read, so it takes you to where the lines are; anything that writes
 // nothing - browsing a shop, selling, repairing, opening a person - leaves you where you were, which
 // is what you want while you are working through a list of things.
+// Ação concluída volta para a vida; abrir uma tela, consultar ou configurar, não.
+//
+// A regra é "o diário cresceu?". Parece heurística, e é — mas é a certa, e vale registrar por quê,
+// porque eu tentei trocá-la por algo aparentemente mais rigoroso e PIOREI o jogo.
+//
+// A tentativa foi comparar uma impressão digital do personagem (dinheiro, atributos, carreira,
+// educação, proximidade de cada pessoa…) antes e depois, e voltar sempre que algo mudasse. O
+// problema é o que acontece junto: uma ação que concede uma conquista deixa o banner na fila
+// (`state.pending`), e enquanto a fila não esvazia a ação não terminou. A verificação passava a
+// adiar, e a volta à vida só acontecia quando o banner sumia sozinho — três segundos depois, num
+// pulo de tela sem causa aparente para quem está jogando.
+//
+// A auditoria de navegação pegou isso: 736 ações, 0 fora do destino com esta regra, 22 fora com a
+// "melhoria". O diário cresce em toda ação que o jogador entende como concluída, porque é ele que
+// conta a história da vida — e é exatamente esse o critério certo para devolver o jogador a ela.
 function afterAction(hadState, journalBefore) {
   if (!hadState || !state || screen === 'main') return;
-  // A card is still open: the player is in the middle of answering it, and moving the screen under it
-  // would be pulling the floor out.
+  // Um cartão ainda aberto quer dizer que a ação não terminou: o jogador está no meio de uma
+  // escolha, e puxar a tela debaixo dele seria tirar o chão.
   if (uiModal || postLifeOpen) return;
   if (state.timeline.length === journalBefore) return;
   go('main');
@@ -409,6 +501,7 @@ modalRoot.addEventListener('click', (event) => {
   const el = event.target.closest('[data-choice]');
   if (!el || answering) return;
   const choice = el.dataset.choice;
+  if (choice === 'random' && el.classList.contains('bl-coin')) { sorteioFlow(el); return; }
   answering = true;
   el.classList.add('is-chosen');
   setTimeout(() => {
@@ -420,9 +513,80 @@ modalRoot.addEventListener('click', (event) => {
   }, PRESS_HOLD);
 });
 
+// O campo de texto do cartão: o botão de confirmar acompanha o que está escrito, para o jogador
+// ver que um nome vazio não serve antes de tentar, e Enter vale como confirmar.
+modalRoot.addEventListener('input', (event) => {
+  const campo = event.target.closest('.bl-field-input');
+  if (!campo) return;
+  const vazio = !campo.value.trim();
+  const botao = modalRoot.querySelector('.bl-modal-buttons [data-choice="0"]');
+  if (botao) botao.disabled = vazio;
+  const nota = modalRoot.querySelector('.bl-field-note');
+  if (nota && nota.dataset.empty) {
+    nota.textContent = vazio ? nota.dataset.empty : nota.dataset.full;
+    nota.classList.toggle('is-error', vazio);
+  }
+});
+modalRoot.addEventListener('keydown', (event) => {
+  if (event.key !== 'Enter') return;
+  const campo = event.target.closest('.bl-field-input');
+  if (!campo) return;
+  event.preventDefault();
+  const botao = modalRoot.querySelector('.bl-modal-buttons [data-choice="0"]');
+  if (botao && !botao.disabled) botao.click();
+});
+
+// O sorteio.
+//
+// A ORDEM IMPORTA: o jogo sorteia primeiro, a animação mostra depois. A mão vai até a opção que já
+// venceu — ela não escolhe nada, e trocar essa ordem faria a decisão depender de pixels.
+//
+// A APRESENTAÇÃO depende de quantas opções existem, e isso não é estética: uma moeda só decide
+// entre DUAS coisas. Com duas, é a moeda, e a face sai da opção sorteada — cara é a primeira, coroa
+// é a segunda. Com três ou mais, mostrar uma moeda seria afirmar uma coisa falsa sobre como a
+// escolha foi feita; aparece o sorteio, com as opções na tela e o marcador parando na que saiu.
+// Nos dois casos o resultado é o de `randomChoice`, o mesmo de antes da animação existir.
+//
+// `answering` fica levantado do primeiro clique até o cartão ser respondido: é ele que faz de
+// vários cliques durante a animação um único sorteio.
+const menosMovimento = () => { try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return false; } };
+
+async function sorteioFlow(el) {
+  const modal = G.currentModal(state);
+  if (!modal || modal.kind !== 'decision' || !modal.choices || modal.choices.length < 2) return;
+  // O sorteio sai primeiro e FORA do `try`: se alguma coisa aqui falhasse com `answering` já
+  // levantado, o cartão ficaria sem resposta e a interface travada para sempre.
+  const index = G.randomChoice(state, modal);
+  const posicao = modal.choices.findIndex((c) => c.index === index);
+  const escolha = modal.choices[posicao] || modal.choices[0];
+  const duas = modal.choices.length === 2;
+  answering = true;
+  el.classList.add('is-chosen');
+  try {
+    await sorteio({
+      mode: duas ? 'coin' : 'raffle',
+      face: duas ? (posicao === 0 ? 'heads' : 'tails') : undefined,
+      options: modal.choices.map((c) => c.label),
+      winner: Math.max(0, posicao),
+      reduced: menosMovimento(),
+      labels: { title: t(duas ? 'Flip a coin' : 'Random draw'), heads: t('Heads'), tails: t('Tails') },
+      outcome: t(duas ? 'The coin chose: {choice}' : 'The draw chose: {choice}', { choice: escolha.label }),
+    });
+  } finally {
+    el.classList.remove('is-chosen');
+    answering = false;
+  }
+  answer(String(index));
+}
+
 // Screenshot fixtures (development only): ?seed=7&age=27 builds a deterministic life, and
 // &modal=decision|info|person|death|postlife|banner stages a dialog on top of it.
 const params = new URLSearchParams(location.search);
+
+// O idioma é aplicado ANTES de qualquer desenho, para que a primeira tela já saia traduzida.
+// `?lang=pt` existe para as capturas e para os testes; fora isso vale o que está gravado.
+setLanguage(params.get('lang') && ['en', 'pt'].includes(params.get('lang')) ? params.get('lang') : idiomaGravado());
+traduzCasca();
 if (params.has('seed')) {
   const { simulateTo } = await import('./game/simulate.js');
   state = simulateTo(Number(params.get('seed')) || 1, Number(params.get('age')) || 0);
@@ -435,8 +599,8 @@ if (params.has('seed')) {
     const vehicle = state.assets.find((a) => a.type === 'vehicle') || state.assets[0]; if (vehicle) sel.asset = vehicle.id;
   }
   const fixtureModal = params.get('modal');
-  if (fixtureModal === 'decision') state.pending.push({ kind: 'decision', eventId: 'fixture', band: 'Childhood', title: 'Favorite Toy', icon: 'toy', text: 'You are playing with some friends when a smaller kid grabs the toy xylophone right out of your hands.', choices: [{ label: 'Cry' }, { label: 'Let them play with it' }, { label: 'Take it back' }, { label: 'Tell a grown-up' }] });
-  if (fixtureModal === 'info') state.pending.push({ kind: 'info', band: 'School', tone: 'blue', icon: 'cap', title: 'Primary School', text: 'You are starting primary school.', facts: [['School', 'Maple Grove Elementary'], ['Type', 'Public'], ['Level', 'Elementary School'], ['Years', '6']] });
+  if (fixtureModal === 'decision') pushModal(state, { kind: 'decision', eventId: 'fixture', band: 'Childhood', title: 'Favorite Toy', icon: 'toy', text: 'You are playing with some friends when a smaller kid grabs the toy xylophone right out of your hands.', choices: [{ label: 'Cry' }, { label: 'Let them play with it' }, { label: 'Take it back' }, { label: 'Tell a grown-up' }] });
+  if (fixtureModal === 'info') pushModal(state, { kind: 'info', band: 'School', tone: 'blue', icon: 'cap', title: 'Primary School', text: 'You are starting primary school.', facts: [['School', 'Maple Grove Elementary'], ['Type', 'Public'], ['Level', 'Elementary School'], ['Years', '6']] });
   if (fixtureModal === 'person' || fixtureModal === 'love') {
     const { personRequest } = await import('./game/events/engine.js');
     const People = await import('./game/people.js');
@@ -470,30 +634,32 @@ render();
 
 // ---- A vida que a versão anterior deixou no disco ---------------------------------------------
 //
-// A versão publicada gravava a vida em `localStorage` e nunca a apagava, então quem jogou lá tem
-// uma vida guardada. O progresso agora vive na aba, e essa vida antiga não vai voltar a ser jogada
-// — mas ela NÃO é apagada em silêncio. O jogo avisa de quem é, oferece baixar como arquivo, e só
-// remove depois que o jogador escolhe. Nas fixtures de captura o aviso não aparece.
+// A versão antiga gravava a vida em `localStorage` e nunca a apagava; quem jogou nela tem uma vida
+// guardada. Ela não some em silêncio — mas o aviso também não pode virar um pedido de exportação.
+//
+// A PRIMEIRA versão disto tinha "Download it" como botão principal, e transformava a entrada do jogo
+// num diálogo de arquivo. Errado: o BetLife é um simulador de vida, não uma ferramenta de dados.
+// Agora o botão principal é JOGAR, que descarta; guardar uma cópia é uma linha discreta embaixo, e
+// nada começa a baixar sozinho em momento nenhum.
 async function ofereceVidaAntiga() {
   if (params.has('seed') || params.has('fixture')) return;
   const antiga = legacyDiskSummary();
   if (!antiga) return;
-  const quem = antiga.idade === null ? antiga.nome : `${antiga.nome}, ${antiga.idade} ${antiga.idade === 1 ? 'ano' : 'anos'}`;
+  const quem = antiga.idade === null ? antiga.nome : `${antiga.nome}, ${antiga.idade}`;
   const escolha = await ask({
-    title: 'A life from the old version',
+    title: 'An old saved life',
     band: 'Saved Life', icon: 'info', tone: 'blue',
-    text: 'BetLife now keeps your progress in this tab only, so this saved life will not be loaded again. '
-        + 'You can download it first — it is a plain JSON file you can keep.',
-    facts: [['Character', quem], ['Size', `${(antiga.bytes / 1024).toFixed(1)} KB`]],
-    choices: ['Download it', 'Discard it'],
+    text: t('BetLife keeps your progress in this tab now, so {quem} will not be loaded again. ', { quem })
+        + 'Tap Start playing and it is cleared for good.',
+    choices: ['Start playing', 'Save a copy first (.json)'],
+    secondary: 1,                  // a segunda opção é discreta, não um botão de igual peso
   });
-  if (escolha === 0) {
+  if (escolha === 1) {
     const baixou = exportLegacyDiskSave();
     if (!baixou) {
-      await ask({ title: 'Could not download', band: 'Saved Life', icon: 'info', tone: 'red',
-        text: 'This browser would not let the file through. The life is still on disk — try again, or discard it.',
-        choices: ['OK'] });
-      return;                       // não remove: a cópia não saiu
+      await ask({ title: 'Could not save the copy', band: 'Saved Life', icon: 'info', tone: 'red',
+        text: 'This browser would not let the file through. The old life is still here — tap Start playing to clear it.',
+        choices: ['Start playing'] });
     }
   }
   discardLegacyDiskSave();

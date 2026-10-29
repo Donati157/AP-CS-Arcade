@@ -1,4 +1,5 @@
 // Adult life from 18 to 64: home, money, hobbies, health and everyday surprises. Original writing.
+import { t } from '../i18n/index.js';
 import { ev } from './define.js';
 
 const A = ['youngAdult', 'adult', 'middleAge'];
@@ -16,15 +17,15 @@ export const ADULT_EVENTS = [
   ev({ id: 'gapYearTravel', category: 'hobby', stages: YA, needs: ['notStudent', 'money'], once: true, weight: 0.7,
     text: 'You spent a few weeks traveling on a shoestring budget and came home with a hundred stories.', effects: { happiness: 5, money: -700, smarts: 2 } }),
   ev({ id: 'oldFriendVisits', category: 'friendship', stages: A, person: 'friend', cooldown: 7, family: 'friendVisit',
-    text: (c) => `${c.whoName} came to visit for a weekend, and you stayed up talking like no time had passed.`, effects: { closeness: 6, happiness: 3 } }),
+    text: (c) => t('{whoName} came to visit for a weekend, and you stayed up talking like no time had passed.', { whoName: c.whoName, _g: c.who && c.who.gender }), effects: { closeness: 6, happiness: 3 } }),
   ev({ id: 'friendWedding', category: 'friendship', stages: A, minAge: 23, person: 'friend', cooldown: 8, weight: 0.8, family: 'friendMilestone',
-    text: (c) => `You went to ${c.whoName}'s wedding and gave a speech that made people laugh in the right places.`, effects: { closeness: 4, happiness: 3, money: -120 } }),
+    text: (c) => t('You went to {whoName}\'s wedding and gave a speech that made people laugh in the right places.', { whoName: c.whoName, _g: c.who && c.who.gender }), effects: { closeness: 4, happiness: 3, money: -120 } }),
   ev({ id: 'friendBaby', category: 'friendship', stages: A, minAge: 25, person: 'friend', cooldown: 8, weight: 0.7, family: 'friendMilestone',
-    text: (c) => `${c.whoName} had a baby, and you were one of the first visitors.`, effects: { closeness: 3, happiness: 2 } }),
+    text: (c) => t('{whoName} had a baby, and you were one of the first visitors.', { whoName: c.whoName, _g: c.who && c.who.gender }), effects: { closeness: 3, happiness: 2 } }),
   ev({ id: 'friendGroupTrip', category: 'friendship', stages: A, needs: ['friends', 'money'], cooldown: 5, family: 'friendVisit',
     text: 'You and your friends rented a cabin for a long weekend and played board games until dawn.', effects: { friends: 4, happiness: 4, money: -200 } }),
   ev({ id: 'friendNeedsHelp', category: 'friendship', stages: A, person: 'friend', cooldown: 6, family: 'friendTrouble',
-    text: (c) => `${c.whoName} went through a rough patch, and you were there every week.`, effects: { closeness: 7, happiness: -1 } }),
+    text: (c) => t('{whoName} went through a rough patch, and you were there every week.', { whoName: c.whoName, _g: c.who && c.who.gender }), effects: { closeness: 7, happiness: -1 } }),
 
   // Money and belongings
   ev({ id: 'taxRefund', category: 'finance', stages: A, needs: ['employed'], cooldown: 4, kind: 'positive', family: 'moneyLuck',
@@ -98,19 +99,19 @@ export const ADULT_EVENTS = [
   ev({ id: 'highSchoolReunion', category: 'friendship', stages: MA, needs: ['graduate'], cooldown: 10, max: 2,
     text: 'Your high school reunion was full of people who had not changed at all.', effects: { happiness: 3, newFriend: true } }),
   ev({ id: 'parentsVisitAdult', category: 'family', stages: A, person: 'parent', cooldown: 4, family: 'parentContact',
-    text: (c) => `${c.whoName} visited for a week and reorganized your kitchen.`, effects: { closeness: 5, happiness: 2 } }),
+    text: (c) => t('{whoName} visited for a week and reorganized your kitchen.', { whoName: c.whoName, _g: c.who && c.who.gender }), effects: { closeness: 5, happiness: 2 } }),
   ev({ id: 'parentCall', category: 'family', stages: A, person: 'parent', cooldown: 3, family: 'parentContact',
-    text: (c) => `You started calling ${c.whoName} every Sunday.`, effects: { closeness: 4, happiness: 2 } }),
+    text: (c) => t('You started calling {whoName} every Sunday.', { whoName: c.whoName, _g: c.who && c.who.gender }), effects: { closeness: 4, happiness: 2 } }),
   ev({ id: 'parentHealthScare', category: 'family', stages: MA, person: 'parent', cooldown: 6, weight: 0.7, family: 'parentHealth',
-    text: (c) => `${c.whoName} spent a few days in the hospital and came home tired but recovering.`, effects: { happiness: -4, closeness: 4 } }),
+    text: (c) => t('{whoName} spent a few days in the hospital and came home tired but recovering.', { whoName: c.whoName, _g: c.who && c.who.gender }), effects: { happiness: -4, closeness: 4 } }),
   ev({ id: 'siblingVisit', category: 'family', stages: A, person: 'sibling', cooldown: 5,
-    text: (c) => `${c.whoName} stayed with you for a week. You argued about the dishes like old times.`, effects: { closeness: 5, happiness: 2 } }),
+    text: (c) => t('{whoName} stayed with you for a week. You argued about the dishes like old times.', { whoName: c.whoName, _g: c.who && c.who.gender }), effects: { closeness: 5, happiness: 2 } }),
   ev({ id: 'familyReunion', category: 'family', stages: A, needs: ['parents'], cooldown: 7,
     text: 'The whole family gathered for a reunion with far too much food.', effects: { family: 3, happiness: 3 } }),
   ev({ id: 'petAdventure', category: 'family', stages: A, person: 'pet', cooldown: 4,
-    text: (c) => `${c.who.name} escaped for an afternoon and came home covered in mud, very pleased.`, effects: { closeness: 3, happiness: 1 } }),
+    text: (c) => t('{whoName} escaped for an afternoon and came home covered in mud, very pleased.', { whoName: c.who.name }), effects: { closeness: 3, happiness: 1 } }),
   ev({ id: 'jobOfferFriend', category: 'career', stages: A, needs: ['unemployedAdult'], person: 'friend', cooldown: 5,
-    text: (c) => `${c.whoName} mentioned an opening where they work. You promised to look at the job board.`, effects: { happiness: 2, closeness: 2 } }),
+    text: (c) => t('{whoName} mentioned an opening where they work. You promised to look at the job board.', { whoName: c.whoName, _g: c.who && c.who.gender }), effects: { happiness: 2, closeness: 2 } }),
   ev({ id: 'communityAward', category: 'personal', stages: MA, needs: ['happy'], once: true, weight: 0.5, kind: 'positive',
     text: 'The neighborhood association gave you an award for years of quietly helping out.', effects: { happiness: 4 } }),
 ];
