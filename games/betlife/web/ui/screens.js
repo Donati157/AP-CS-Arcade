@@ -15,8 +15,18 @@ import { stageLabel } from '../game/player.js';
 import { icon, pic, avatarFor, navGlyph, STAR_COUNTER, LOGO_MARK, SPLASH_MARK } from '../game/icons.js';
 import { esc, money, pct, strip, section, row, infoRow, meter, footerBar, note, empty, screen } from './render.js';
 import { t, language, LANGUAGES, tg, numero } from '../game/i18n/index.js';
+import * as PlayerPlus from '../game/player-plus.js';
 
 const isEmployed = (s) => Career.isEmployed(s.career);
+
+// A pílula do PLAYER+. Inativa, é exatamente o botão de sempre — mesma classe, mesma aparência, só
+// que agora abre a ativação em vez de um aviso. Ativa, deixa de ser um convite e vira um selo: vira
+// `span`, some do caminho do teclado e não tem mais o que clicar, porque já não há o que pedir.
+function plusPill() {
+  return PlayerPlus.isActive()
+    ? `<span class="bl-header-pill bl-premium-pill is-active"><span class="bl-plus-star" aria-hidden="true">${STAR_COUNTER}</span><b>${esc(t('PLAYER+ ACTIVE'))}</b></span>`
+    : `<button class="bl-header-pill bl-premium-pill" data-action="playerPlus" aria-label="${esc(t('Activate PLAYER+'))}"><span>${esc(t('Become a'))}</span><b>PLAYER+</b></button>`;
+}
 
 // ---- Start, menu and new life ----------------------------------------------------------------------------
 
@@ -36,7 +46,7 @@ export function start(ctx) {
   return `<header class="bl-header bl-header-main">
       <button class="bl-round-btn bl-menu-btn" data-action="go" data-target="menu" aria-label="Menu">${icon('menu')}</button>
       ${brand()}
-      <button class="bl-header-pill bl-premium-pill" data-action="premium" data-feature="Plus membership"><span>${esc(t('Become a'))}</span><b>PLAYER+</b></button></header>
+      ${plusPill()}</header>
     <div class="bl-strip"><div class="bl-identity"></div><div class="bl-money"><strong class="is-positive">${esc(money(0))}</strong><span>${esc(t('Bank Balance'))}</span></div></div>
     <div class="bl-journal"><p class="bl-footnote">BetLife ${esc(version)}</p></div>
     <nav class="bl-nav is-dead" aria-label="Game sections"><span class="bl-nav-empty"></span><span class="bl-nav-empty"></span><span class="bl-nav-gap" aria-hidden="true"></span><span class="bl-nav-empty"></span><span class="bl-nav-empty"></span>
@@ -105,7 +115,7 @@ export function main(ctx) {
       <button class="bl-round-btn bl-menu-btn" data-action="go" data-target="menu" aria-label="Menu">${icon('menu')}</button>
       ${brand()}
       <button class="bl-counter" data-action="go" data-target="badges" aria-label="Life badges"><span class="bl-counter-icon">${STAR_COUNTER}</span><span class="bl-counter-num">${(state.badges || []).length}</span></button>
-      <button class="bl-header-pill bl-premium-pill" data-action="premium" data-feature="Plus membership"><span>${esc(t('Become a'))}</span><b>PLAYER+</b></button></header>
+      ${plusPill()}</header>
     ${strip(state)}
     <div class="bl-journal" id="bl-journal">${journal}</div>
     <nav class="bl-nav${p.alive ? '' : ' is-dead'}" aria-label="Game sections">

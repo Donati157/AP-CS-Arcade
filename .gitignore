@@ -39,3 +39,7 @@ games/Poly Kart/reference videos/
 # Node tooling instalado só para os testes de navegador (Playwright + WebKit).
 # Não faz parte do jogo: `npm i --no-save playwright && npx playwright install webkit`.
 node_modules/
+
+# Código e segredo do PLAYER+ para rodar localmente. NUNCA versionado: em produção os mesmos
+# nomes vivem nas variáveis de ambiente da Vercel.
+.env.player-plus

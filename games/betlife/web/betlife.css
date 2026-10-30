@@ -413,3 +413,13 @@ button.bl-row:hover, button.bl-row:focus-visible, a.bl-row:hover { background: v
   .bl-coin-stage[data-stage="spin"] .bl-coin-toss, .bl-coin-stage[data-stage="spin"] .bl-coin-shadow,
   .bl-coin-stage[data-stage="reveal"] .bl-coin-piece, .bl-coin-stage[data-stage="done"] .bl-coin-piece { animation: none; }
 }
+
+/* PLAYER+ ativo: a pílula deixa de ser convite e vira selo. Mesma caixa, mesma posição no cabeçalho
+   — o que muda é que ela agora AFIRMA em vez de pedir, e por isso não é mais um botão. */
+.bl-header-pill.bl-premium-pill.is-active { flex-direction: row; gap: 6px; align-items: center;
+  border-color: var(--bl-yellow); background: rgba(255, 214, 64, 0.18); cursor: default; }
+.bl-premium-pill.is-active b { font-size: 11.5px; letter-spacing: 0.05em; }
+.bl-plus-star { display: inline-flex; width: 13px; height: 13px; }
+.bl-plus-star svg { width: 100%; height: 100%; }
+/* O campo do código: espaçado, porque se lê dígito a dígito e os pontinhos colados viram um borrão. */
+.bl-field-input.is-code { letter-spacing: 0.34em; font-variant-numeric: tabular-nums; }

@@ -307,4 +307,23 @@ export const PT_FRASES = {
   'Let them play with it': 'Deixar brincar',
   'Take it back': 'Pegar de volta',
   'Tell a grown-up': 'Contar para um adulto',
+
+  // PLAYER+ — a ativação e o selo. "Senha incorreta" e não "código incorreto" porque é a palavra
+  // que o jogador usa para a coisa que ele digita escondido.
+  'Activate PLAYER+': 'Ativar PLAYER+',
+  'PLAYER+ ACTIVE': 'PLAYER+ ATIVO',
+  'Type the activation code to turn on PLAYER+ in this browser.':
+    'Digite o código de ativação para ligar o PLAYER+ neste navegador.',
+  'Activation code': 'Código de ativação',
+  'Activate': 'Ativar',
+  'Type the activation code.': 'Digite o código de ativação.',
+  'PLAYER+ is a visual status. It does not change gameplay.':
+    'O PLAYER+ é um status visual. Ele não muda a jogabilidade.',
+  'PLAYER+ activated successfully!': 'PLAYER+ ativado com sucesso!',
+  'Wrong code. Try again.': 'Senha incorreta. Tente novamente.',
+  'Too many attempts. Wait a minute and try again.': 'Tentativas demais. Espere um minuto e tente de novo.',
+  'PLAYER+ activation is not set up on this server yet.':
+    'A ativação do PLAYER+ ainda não está configurada neste servidor.',
+  'Could not reach the server. Check your connection and try again.':
+    'Não foi possível falar com o servidor. Verifique a conexão e tente de novo.',
 };

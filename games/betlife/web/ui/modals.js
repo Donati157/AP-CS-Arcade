@@ -92,9 +92,12 @@ function field(f, g) {
   const nota = f.error
     ? `<p class="bl-field-note is-error" role="alert"${recados}>${esc(t(String(f.error), g))}</p>`
     : f.hint || f.whenEmpty ? `<p class="bl-field-note"${recados}>${esc(f.hint ? t(String(f.hint), g) : '')}</p>` : '';
+  // `type: 'password'` esconde o que é digitado. Num campo assim o teclado não deve sugerir nem
+  // capitalizar nada, então esses dois atributos mudam junto — senão o celular "ajuda" um código.
+  const senha = f.type === 'password';
   return `<label class="bl-field-label" for="bl-field">${esc(t(String(f.label), g))}</label>
-    <input class="bl-field-input" id="bl-field" type="text" value="${esc(f.value || '')}" maxlength="${Number(f.maxLength) || 24}"
-      placeholder="${esc(f.placeholder ? t(String(f.placeholder), g) : '')}" autocomplete="off" autocapitalize="words" spellcheck="false" enterkeyhint="done">${nota}`;
+    <input class="bl-field-input${senha ? ' is-code' : ''}" id="bl-field" type="${senha ? 'password' : 'text'}" value="${esc(f.value || '')}" maxlength="${Number(f.maxLength) || 24}"
+      placeholder="${esc(f.placeholder ? t(String(f.placeholder), g) : '')}" autocomplete="off" autocapitalize="${senha ? 'off' : 'words'}"${senha ? ' inputmode="numeric"' : ''} spellcheck="false" enterkeyhint="done">${nota}`;
 }
 
 // Tombstone: original vector artwork. Ragged stone with texture, corner ribbon, skull and crossbones,

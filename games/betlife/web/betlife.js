@@ -8,6 +8,7 @@ import * as Activities from './game/activities.js';
 import * as People from './game/people.js';
 import * as Education from './game/education.js';
 import * as Pets from './game/pets.js';
+import * as PlayerPlus from './game/player-plus.js';
 import { withArticle } from './game/life-generator.js';
 import { pushModal } from './game/journal.js';
 import { SCREENS } from './ui/screens.js';
@@ -160,6 +161,34 @@ function ask(opts) {
   });
 }
 
+// A ativação do PLAYER+.
+//
+// Nada aqui sabe qual é o código certo, e é esse o ponto: o que o jogador digita vai para o servidor
+// e volta aprovado ou recusado. O laço existe pela mesma razão do laço do nome do bicho — código
+// errado devolve o cartão com o aviso, em vez de fechar tudo e deixar a pessoa recomeçar do zero.
+//
+// Cancelar não muda nada. E o PLAYER+ não libera NADA de jogabilidade: só o próprio selo.
+async function playerPlusFlow() {
+  if (PlayerPlus.isActive()) return;
+  let erro = null;
+  for (let tentativa = 0; tentativa < 12; tentativa++) {
+    const r = await ask({ title: 'Activate PLAYER+', band: 'PLAYER+', icon: 'special',
+      text: 'Type the activation code to turn on PLAYER+ in this browser.',
+      field: { label: 'Activation code', value: '', type: 'password', error: erro,
+        hint: erro ? null : 'PLAYER+ is a visual status. It does not change gameplay.',
+        whenEmpty: 'Type the activation code.', maxLength: 64 },
+      choices: ['Activate', 'Cancel'] });
+    if (!r || r.index !== 0) return;
+    const resposta = await PlayerPlus.activate(String(r.value || '').trim());
+    if (resposta.ok) {
+      render();                           // a pílula vira selo na hora, sem esperar recarregar
+      toast('PLAYER+ activated successfully!', 'PLAYER+ is a visual status. It does not change gameplay.', 'blue');
+      return;
+    }
+    erro = resposta.motivo;
+  }
+}
+
 // Pergunta o nome de um bicho e devolve o nome limpo, ou `null` se o jogador desistir.
 //
 // O laço existe porque validar é conversar: nome vazio ou gigante volta o cartão com o aviso e com
@@ -288,6 +317,7 @@ async function handle(action, data) {
     case 'socialSignUp': report(G.socialSignUp(state, data.source)); break;
     case 'socialPost': report(G.socialPost(state, data.source)); break;
     case 'socialDelete': { const c = await ask({ title: 'Delete account?', band: 'Social Media', icon: 'phone', text: 'Your followers will be gone for good.', choices: ['Delete', 'Keep it'], danger: true }); if (c === 0) { sel.source = null; screen = 'socialMedia'; report(G.socialDelete(state, data.source)); } break; }
+    case 'playerPlus': await playerPlusFlow(); break;
     case 'premium': toast(t('{feature} is an admin tool', { feature: data.feature }), 'Changing stats or rewinding years is a premium candidate and is not part of normal play.', 'blue'); break;
     case 'freelance': report(G.freelanceGig(state)); break;
     case 'recruiterConfirm': {
@@ -666,9 +696,15 @@ async function ofereceVidaAntiga() {
 }
 ofereceVidaAntiga();
 
+// O status do PLAYER+ é CONFERIDO no servidor a cada carregamento, e só então a pílula vira selo.
+// Enquanto a resposta não chega, a tela mostra o botão de ativar — ou seja, o estado mais modesto
+// dos dois. Quem editar a chave do localStorage à mão vê exatamente isto: nada acontece.
+PlayerPlus.refresh().then((sim) => { if (sim) render(); });
+
 // Exposed for automated testing and debugging only.
 window.betlife = {
   getState: () => state, go, handle, startNewLife, answer,
   statLog: () => (state ? state.statLog.map((e) => `${e.age}: ${e.stat} ${e.from} → ${e.to} (${e.change > 0 ? '+' : ''}${e.change}) ${e.reason}`) : []),
   activities: Activities.CATEGORIES,
+  playerPlus: { isActive: PlayerPlus.isActive, refresh: PlayerPlus.refresh },
 };

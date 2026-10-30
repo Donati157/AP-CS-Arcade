@@ -248,7 +248,7 @@ const MOTIVOS_DE_LOG = new Set([
 
 test('no untranslated English prose anywhere in the source', () => {
   const LIT = /(?<![\w$])(?:'((?:[^'\\\n]|\\.)*)'|"((?:[^"\\\n]|\\.)*)")/g;
-  const TECNICO = /[/\\]|^\s|rgba?\(|url\(|#[0-9a-f]{3}|^bl-|\bbl-|^[Mm][-\d]|translate\(|scale\(|^top:|^betlife\.[a-z.]+$|^[a-z.]+\.(js|json|css)$|^\([a-z-]+:\s/;
+  const TECNICO = /[/\\]|^\s|rgba?\(|url\(|#[0-9a-f]{3}|^bl-|\bbl-|^[Mm][-\d]|translate\(|scale\(|^top:|^(?:betlife|arcade)\.[a-z.]+$|^[a-z.]+\.(js|json|css)$|^\([a-z-]+:\s/;
   // Já em português (texto que este projeto escreveu em pt desde o começo) ou mensagem que só o
   // desenvolvedor vê, num `throw`.
   const JA_PT = /[áàâãéêíóôõúüç]/i;
@@ -402,7 +402,8 @@ test('no t() call passes _g twice in the same object', () => {
 // finanças mostrou "Devendo: Nothing" num jogo inteiramente em português.
 test('no untranslated single-word label in interface files', () => {
   // Marcas, siglas e as letras do exame de vista: não são frases.
-  const NAO_E_ROTULO = new Set(['PLUS', 'EDITOR', 'PREMIUM', 'NOW', 'BET', 'LIFE', 'OK', 'EFHLTZ',
+  // 'POST' é método de HTTP, da mesma família das siglas: não é rótulo de tela.
+  const NAO_E_ROTULO = new Set(['PLUS', 'EDITOR', 'PREMIUM', 'NOW', 'BET', 'LIFE', 'OK', 'EFHLTZ', 'POST',
     'SourceGraphic', 'BetLife', 'Chirper', 'Snapshot', 'SoundWave', 'Streamly',
     // meses: o código guarda a forma capitalizada e `traduzData()` procura a minúscula
     'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September',

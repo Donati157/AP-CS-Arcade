@@ -9,6 +9,7 @@
 </head>
 <body>
   <main class="home">
+    <div class="home-topbar"><span id="player-plus-slot"></span></div>
     <header class="home-header">
       <h1 class="home-title">AP CS ARCADE</h1>
       <p class="home-subtitle">4 Games. One Arcade.</p>
@@ -19,6 +20,12 @@
     <footer class="home-footer">An AP Computer Science class project · <a href="https://github.com/Donati157/AP-CS-Arcade">Source on GitHub</a></footer>
   </main>
   <script type="module" src="scripts/arcade.js"></script>
+  <script type="module">
+    // A pílula do PLAYER+ monta sozinha e já nasce perguntando ao servidor se o bilhete guardado
+    // vale. Até a resposta chegar ela mostra "Conferindo…", e não um status que ainda não se sabe.
+    import { montaPilula } from './scripts/player-plus.js';
+    montaPilula(document.getElementById('player-plus-slot'));
+  </script>
   <script>
     // Arriving at the arcade ends every game's session. Each game shell sets a marker when it is
     // entered; clearing them here means the next entry starts that game from its first screen.
